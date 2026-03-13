@@ -141,8 +141,40 @@ export async function POST(request: NextRequest) {
 
     if (projectError) {
       console.error("Project insert failed:", { org_id: resolvedOrgId, slug, template_slug, error: projectError });
+
+      // Enhanced diagnostics for FK violations
+      let diagnostics: Record<string, unknown> = {
+        org_id: resolvedOrgId,
+        org_slug: resolvedOrgSlug,
+        code: projectError.code,
+      };
+
+      if (projectError.code === "23503") {
+        // Check if org actually exists right now
+        const { data: orgCheck, error: orgCheckErr } = await supabase
+          .from("pm_organizations")
+          .select("id, slug, name")
+          .eq("id", resolvedOrgId)
+          .single();
+
+        // List all orgs for comparison
+        const { data: allOrgs } = await supabase
+          .from("pm_organizations")
+          .select("id, slug, name");
+
+        diagnostics = {
+          ...diagnostics,
+          org_exists_now: !!orgCheck,
+          org_check_error: orgCheckErr?.message || null,
+          org_found: orgCheck,
+          all_orgs: allOrgs,
+          hint: projectError.hint || null,
+          pg_detail: projectError.details || null,
+        };
+      }
+
       return NextResponse.json(
-        { error: projectError.message, details: { org_id: resolvedOrgId, org_slug: resolvedOrgSlug, code: projectError.code } },
+        { error: projectError.message, details: diagnostics },
         { status: 500 }
       );
     }

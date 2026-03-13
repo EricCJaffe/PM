@@ -174,7 +174,18 @@ export default function NewProjectPage() {
         return;
       }
       if (data.error) {
-        const detail = data.details ? `\n\nDebug: org_id=${data.details.org_id}, code=${data.details.code}` : "";
+        const d = data.details;
+        let detail = "";
+        if (d) {
+          detail += `\n\nDebug: org_id=${d.org_id}, code=${d.code}`;
+          if (d.org_exists_now !== undefined) {
+            detail += `\nOrg exists now: ${d.org_exists_now}`;
+            detail += `\nOrg found: ${JSON.stringify(d.org_found)}`;
+            detail += `\nAll orgs in DB: ${JSON.stringify(d.all_orgs)}`;
+            if (d.hint) detail += `\nHint: ${d.hint}`;
+            if (d.pg_detail) detail += `\nPG detail: ${d.pg_detail}`;
+          }
+        }
         throw new Error(data.error + detail);
       }
       router.push(`/projects/${form.slug}`);
