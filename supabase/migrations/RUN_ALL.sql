@@ -139,6 +139,9 @@ CREATE OR REPLACE TRIGGER pm_tasks_updated_at
 -- 002: Add missing columns (safe if they already exist)
 -- ═══════════════════════════════════════════════════════════════════════
 
+ALTER TABLE pm_project_templates ADD COLUMN IF NOT EXISTS phases JSONB NOT NULL DEFAULT '[]';
+ALTER TABLE pm_project_templates ADD COLUMN IF NOT EXISTS description TEXT;
+
 ALTER TABLE pm_projects ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT '';
 ALTER TABLE pm_projects ADD COLUMN IF NOT EXISTS template_slug TEXT;
 ALTER TABLE pm_projects ADD COLUMN IF NOT EXISTS start_date DATE DEFAULT CURRENT_DATE;

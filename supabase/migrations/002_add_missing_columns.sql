@@ -2,6 +2,10 @@
 -- created before the full schema was finalized.
 -- Safe to run multiple times (IF NOT EXISTS / exception handling).
 
+-- ─── pm_project_templates ────────────────────────────────────────────
+ALTER TABLE pm_project_templates ADD COLUMN IF NOT EXISTS phases JSONB NOT NULL DEFAULT '[]';
+ALTER TABLE pm_project_templates ADD COLUMN IF NOT EXISTS description TEXT;
+
 -- ─── pm_projects ─────────────────────────────────────────────────────
 ALTER TABLE pm_projects ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT '';
 ALTER TABLE pm_projects ADD COLUMN IF NOT EXISTS template_slug TEXT REFERENCES pm_project_templates(slug);
