@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
       template_slug,
       org_id,            // preferred: pass org UUID directly
       org_slug,          // fallback: resolve org by slug
+      start_date,        // optional: defaults to today
       target_date,
       budget,
     } = body;
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Template '${template_slug}' not found` }, { status: 404 });
     }
 
-    const startDate = new Date().toISOString().split("T")[0];
+    const startDate = start_date || new Date().toISOString().split("T")[0];
 
     // 1. Create project row
     const { data: project, error: projectError } = await supabase

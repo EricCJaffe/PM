@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-8">
+    <div className="flex flex-col items-center justify-center p-8" style={{ minHeight: "calc(100vh - 3.5rem)" }}>
       <div className="text-center max-w-2xl">
         <h1 className="text-4xl font-bold text-pm-text mb-4">
           BusinessOS

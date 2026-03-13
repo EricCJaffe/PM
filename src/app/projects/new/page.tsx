@@ -56,6 +56,7 @@ export default function NewProjectPage() {
     owner: "",
     template_slug: "saas-rollout",
     org_id: "",
+    start_date: "",
     target_date: "",
     budget: "",
   });
@@ -146,6 +147,7 @@ export default function NewProjectPage() {
           template_slug: form.template_slug,
           org_id: form.org_id,
           budget: form.budget ? Number(form.budget) : null,
+          start_date: form.start_date || null,
           target_date: form.target_date || null,
         }),
       });
@@ -291,31 +293,42 @@ export default function NewProjectPage() {
           />
         </div>
 
-        {/* Owner + Target Date */}
+        {/* Owner */}
+        <div>
+          <label className="block text-sm font-medium text-pm-muted mb-1">Owner</label>
+          <select
+            value={form.owner}
+            onChange={(e) => setForm((f) => ({ ...f, owner: e.target.value }))}
+            className="w-full bg-pm-card border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
+            disabled={!form.org_id}
+          >
+            <option value="">{form.org_id ? "Select owner..." : "Select org first"}</option>
+            {members.map((m) => (
+              <option key={m.id} value={m.slug}>
+                {m.display_name} ({m.slug})
+              </option>
+            ))}
+          </select>
+          {form.org_id && members.length === 0 && (
+            <p className="text-xs text-pm-muted mt-1">
+              No members yet. Add members on the <a href="/members" className="text-blue-400 hover:underline">Members</a> page first.
+            </p>
+          )}
+        </div>
+
+        {/* Start Date + End Date */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-pm-muted mb-1">Owner</label>
-            <select
-              value={form.owner}
-              onChange={(e) => setForm((f) => ({ ...f, owner: e.target.value }))}
+            <label className="block text-sm font-medium text-pm-muted mb-1">Start Date</label>
+            <input
+              type="date"
+              value={form.start_date}
+              onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))}
               className="w-full bg-pm-card border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
-              disabled={!form.org_id}
-            >
-              <option value="">{form.org_id ? "Select owner..." : "Select org first"}</option>
-              {members.map((m) => (
-                <option key={m.id} value={m.slug}>
-                  {m.display_name} ({m.slug})
-                </option>
-              ))}
-            </select>
-            {form.org_id && members.length === 0 && (
-              <p className="text-xs text-pm-muted mt-1">
-                No members yet. Add members to this org first.
-              </p>
-            )}
+            />
           </div>
           <div>
-            <label className="block text-sm font-medium text-pm-muted mb-1">Target Date</label>
+            <label className="block text-sm font-medium text-pm-muted mb-1">End Date</label>
             <input
               type="date"
               value={form.target_date}
