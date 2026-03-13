@@ -1,5 +1,38 @@
 import { createServiceClient } from "./supabase/server";
-import type { Project, ProjectWithStats, Phase, PhaseWithTasks, Task, Risk, PMFile, ProjectTemplate } from "@/types/pm";
+import type { Project, ProjectWithStats, Phase, PhaseWithTasks, Task, Risk, PMFile, ProjectTemplate, Organization, Member } from "@/types/pm";
+
+// ─── Organizations ───────────────────────────────────────────────────
+
+export async function getOrganizations(): Promise<Organization[]> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_organizations")
+    .select("*")
+    .order("name");
+  return (data ?? []) as Organization[];
+}
+
+export async function getOrganizationBySlug(slug: string): Promise<Organization | null> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_organizations")
+    .select("*")
+    .eq("slug", slug)
+    .single();
+  return data as Organization | null;
+}
+
+// ─── Members ─────────────────────────────────────────────────────────
+
+export async function getMembers(orgId: string): Promise<Member[]> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_members")
+    .select("*")
+    .eq("org_id", orgId)
+    .order("display_name");
+  return (data ?? []) as Member[];
+}
 
 // ─── Templates ───────────────────────────────────────────────────────
 

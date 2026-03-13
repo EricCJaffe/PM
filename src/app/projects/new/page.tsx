@@ -1,7 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+
+interface Org {
+  id: string;
+  slug: string;
+  name: string;
+}
+
+interface Member {
+  id: string;
+  slug: string;
+  display_name: string;
+  role: string;
+}
 
 const templates = [
   {
@@ -29,16 +42,48 @@ const templates = [
 export default function NewProjectPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [orgs, setOrgs] = useState<Org[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [showNewOrg, setShowNewOrg] = useState(false);
+  const [newOrgName, setNewOrgName] = useState("");
+  const [newOrgSlug, setNewOrgSlug] = useState("");
+  const [creatingOrg, setCreatingOrg] = useState(false);
+
   const [form, setForm] = useState({
     name: "",
     slug: "",
     description: "",
     owner: "",
     template_slug: "saas-rollout",
-    org_slug: "",
+    org_id: "",
     target_date: "",
     budget: "",
   });
+
+  // Load orgs on mount
+  useEffect(() => {
+    fetch("/api/pm/organizations")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) setOrgs(data);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Load members when org changes
+  useEffect(() => {
+    if (!form.org_id) {
+      setMembers([]);
+      setForm((f) => ({ ...f, owner: "" }));
+      return;
+    }
+    fetch(`/api/pm/members?org_id=${form.org_id}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) setMembers(data);
+      })
+      .catch(() => setMembers([]));
+  }, [form.org_id]);
 
   const updateSlug = (name: string) => {
     const slug = name
@@ -48,15 +93,58 @@ export default function NewProjectPage() {
     setForm((f) => ({ ...f, name, slug }));
   };
 
+  const updateNewOrgSlug = (name: string) => {
+    const slug = name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+    setNewOrgName(name);
+    setNewOrgSlug(slug);
+  };
+
+  const createOrg = async () => {
+    if (!newOrgName || !newOrgSlug) return;
+    setCreatingOrg(true);
+    try {
+      const res = await fetch("/api/pm/organizations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newOrgName, slug: newOrgSlug }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      // Add to list and select it
+      setOrgs((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+      setForm((f) => ({ ...f, org_id: data.id }));
+      setShowNewOrg(false);
+      setNewOrgName("");
+      setNewOrgSlug("");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to create organization");
+    } finally {
+      setCreatingOrg(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.org_id) {
+      alert("Please select an organization");
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/pm/projects/seed", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...form,
+          name: form.name,
+          slug: form.slug,
+          description: form.description,
+          owner: form.owner || "",
+          template_slug: form.template_slug,
+          org_id: form.org_id,
           budget: form.budget ? Number(form.budget) : null,
           target_date: form.target_date || null,
         }),
@@ -71,11 +159,81 @@ export default function NewProjectPage() {
     }
   };
 
+  const selectedOrg = orgs.find((o) => o.id === form.org_id);
+
   return (
     <div className="max-w-2xl mx-auto p-6">
       <h1 className="text-3xl font-bold text-pm-text mb-8">New Project</h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Organization */}
+        <div>
+          <label className="block text-sm font-medium text-pm-muted mb-1">Organization</label>
+          {!showNewOrg ? (
+            <div className="flex gap-2">
+              <select
+                required
+                value={form.org_id}
+                onChange={(e) => setForm((f) => ({ ...f, org_id: e.target.value }))}
+                className="flex-1 bg-pm-card border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
+              >
+                <option value="">Select an organization...</option>
+                {orgs.map((org) => (
+                  <option key={org.id} value={org.id}>
+                    {org.name} ({org.slug})
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setShowNewOrg(true)}
+                className="px-3 py-2 bg-pm-card border border-pm-border hover:border-pm-muted text-pm-text rounded-lg text-sm transition-colors whitespace-nowrap"
+              >
+                + New Org
+              </button>
+            </div>
+          ) : (
+            <div className="card space-y-3">
+              <div className="text-sm font-medium text-pm-text">Create New Organization</div>
+              <input
+                type="text"
+                value={newOrgName}
+                onChange={(e) => updateNewOrgSlug(e.target.value)}
+                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
+                placeholder="Organization name"
+              />
+              <input
+                type="text"
+                value={newOrgSlug}
+                onChange={(e) => setNewOrgSlug(e.target.value)}
+                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500 font-mono text-sm"
+                placeholder="org-slug"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={createOrg}
+                  disabled={creatingOrg || !newOrgName || !newOrgSlug}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  {creatingOrg ? "Creating..." : "Create"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowNewOrg(false); setNewOrgName(""); setNewOrgSlug(""); }}
+                  className="px-4 py-2 bg-pm-card border border-pm-border hover:border-pm-muted text-pm-muted rounded-lg text-sm transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+          {selectedOrg && (
+            <div className="text-xs text-pm-muted mt-1 font-mono">{selectedOrg.slug}</div>
+          )}
+        </div>
+
+        {/* Template */}
         <div>
           <label className="block text-sm font-medium text-pm-muted mb-1">Template</label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -97,6 +255,7 @@ export default function NewProjectPage() {
           </div>
         </div>
 
+        {/* Project Name */}
         <div>
           <label className="block text-sm font-medium text-pm-muted mb-1">Project Name</label>
           <input
@@ -109,6 +268,7 @@ export default function NewProjectPage() {
           />
         </div>
 
+        {/* Slug */}
         <div>
           <label className="block text-sm font-medium text-pm-muted mb-1">Slug</label>
           <input
@@ -120,18 +280,7 @@ export default function NewProjectPage() {
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-pm-muted mb-1">Organization Slug</label>
-          <input
-            type="text"
-            required
-            value={form.org_slug}
-            onChange={(e) => setForm((f) => ({ ...f, org_slug: e.target.value }))}
-            className="w-full bg-pm-card border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500 font-mono text-sm"
-            placeholder="e.g. yarash-eretz"
-          />
-        </div>
-
+        {/* Description */}
         <div>
           <label className="block text-sm font-medium text-pm-muted mb-1">Description</label>
           <textarea
@@ -142,16 +291,28 @@ export default function NewProjectPage() {
           />
         </div>
 
+        {/* Owner + Target Date */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-pm-muted mb-1">Owner</label>
-            <input
-              type="text"
+            <select
               value={form.owner}
               onChange={(e) => setForm((f) => ({ ...f, owner: e.target.value }))}
               className="w-full bg-pm-card border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
-              placeholder="e.g. eric-jaffe"
-            />
+              disabled={!form.org_id}
+            >
+              <option value="">{form.org_id ? "Select owner..." : "Select org first"}</option>
+              {members.map((m) => (
+                <option key={m.id} value={m.slug}>
+                  {m.display_name} ({m.slug})
+                </option>
+              ))}
+            </select>
+            {form.org_id && members.length === 0 && (
+              <p className="text-xs text-pm-muted mt-1">
+                No members yet. Add members to this org first.
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-pm-muted mb-1">Target Date</label>
@@ -164,6 +325,7 @@ export default function NewProjectPage() {
           </div>
         </div>
 
+        {/* Budget */}
         <div>
           <label className="block text-sm font-medium text-pm-muted mb-1">Budget</label>
           <input
@@ -177,7 +339,7 @@ export default function NewProjectPage() {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || !form.org_id}
           className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg font-medium transition-colors"
         >
           {loading ? "Creating..." : "Create Project"}

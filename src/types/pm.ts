@@ -20,6 +20,27 @@ export type TemplateSlug =
 /** Phase group for SaaS template */
 export type PhaseGroup = "BUILD" | "GO-TO-MARKET" | "GROW" | "FOUNDATION";
 
+// ─── Organization & Member Types ─────────────────────────────────────
+
+export type OrgRole = "owner" | "admin" | "member" | "viewer";
+
+export interface Organization {
+  id: string;
+  slug: string;
+  name: string;
+  created_at: string;
+}
+
+export interface Member {
+  id: string;
+  org_id: string;
+  slug: string;
+  display_name: string;
+  email: string | null;
+  role: OrgRole;
+  created_at: string;
+}
+
 // ─── Database Row Types ──────────────────────────────────────────────
 
 export interface ProjectTemplate {

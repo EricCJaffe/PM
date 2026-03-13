@@ -14,25 +14,81 @@ export async function POST(request: NextRequest) {
       name,
       slug,
       description = "",
-      owner = "",
+      owner = "",        // member slug, looked up from pm_members
       template_slug,
-      org_slug,
+      org_id,            // preferred: pass org UUID directly
+      org_slug,          // fallback: resolve org by slug
       target_date,
       budget,
     } = body;
 
-    if (!name || !slug || !template_slug || !org_slug) {
+    if (!name || !slug || !template_slug) {
       return NextResponse.json(
-        { error: "name, slug, template_slug, and org_slug are required" },
+        { error: "name, slug, and template_slug are required" },
+        { status: 400 }
+      );
+    }
+
+    if (!org_id && !org_slug) {
+      return NextResponse.json(
+        { error: "org_id or org_slug is required" },
         { status: 400 }
       );
     }
 
     const supabase = createServiceClient();
 
-    // Look up or create org_id (using org_slug as a deterministic UUID for simplicity)
-    // In production this would look up the actual org
-    const orgId = crypto.randomUUID();
+    // Resolve org
+    let resolvedOrgId = org_id;
+    let resolvedOrgSlug = org_slug;
+
+    if (!resolvedOrgId && org_slug) {
+      const { data: org } = await supabase
+        .from("pm_organizations")
+        .select("id, slug")
+        .eq("slug", org_slug)
+        .single();
+
+      if (!org) {
+        return NextResponse.json(
+          { error: `Organization '${org_slug}' not found. Create the organization first.` },
+          { status: 404 }
+        );
+      }
+      resolvedOrgId = org.id;
+      resolvedOrgSlug = org.slug;
+    } else if (resolvedOrgId && !resolvedOrgSlug) {
+      const { data: org } = await supabase
+        .from("pm_organizations")
+        .select("slug")
+        .eq("id", resolvedOrgId)
+        .single();
+
+      if (!org) {
+        return NextResponse.json(
+          { error: `Organization with id '${resolvedOrgId}' not found.` },
+          { status: 404 }
+        );
+      }
+      resolvedOrgSlug = org.slug;
+    }
+
+    // Validate owner exists as a member of the org (if provided)
+    if (owner) {
+      const { data: member } = await supabase
+        .from("pm_members")
+        .select("slug")
+        .eq("org_id", resolvedOrgId)
+        .eq("slug", owner)
+        .single();
+
+      if (!member) {
+        return NextResponse.json(
+          { error: `Owner '${owner}' is not a member of this organization.` },
+          { status: 400 }
+        );
+      }
+    }
 
     const template = await getTemplate(template_slug);
     if (!template && template_slug !== "custom") {
@@ -45,7 +101,7 @@ export async function POST(request: NextRequest) {
     const { data: project, error: projectError } = await supabase
       .from("pm_projects")
       .insert({
-        org_id: orgId,
+        org_id: resolvedOrgId,
         slug,
         name,
         description,
@@ -84,7 +140,7 @@ export async function POST(request: NextRequest) {
 
     // 3. Generate vault files
     const vaultFiles = [
-      ...generateProjectVaultFiles(org_slug, slug, {
+      ...generateProjectVaultFiles(resolvedOrgSlug, slug, {
         name,
         description,
         owner,
@@ -96,7 +152,7 @@ export async function POST(request: NextRequest) {
         phases: phases.map((p: { slug: string }) => p.slug),
       }),
       ...phases.flatMap((p: { slug: string; name: string; order: number; group?: string }) =>
-        generatePhaseVaultFiles(org_slug, slug, p)
+        generatePhaseVaultFiles(resolvedOrgSlug, slug, p)
       ),
     ];
 
