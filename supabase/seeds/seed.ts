@@ -18,35 +18,142 @@ const templates = [
     description: "26-phase rollout for SaaS products, grouped into Build, Go-to-Market, Grow, and Foundation stages.",
     phases: [
       // BUILD
-      { order: 1, slug: "idea-validation", name: "Idea Validation & Problem Definition", group: "BUILD" },
-      { order: 2, slug: "market-research", name: "Market Research & Competitor Analysis", group: "BUILD" },
-      { order: 3, slug: "business-model", name: "Business Model & Monetization", group: "BUILD" },
-      { order: 4, slug: "product-design", name: "Product Design & UX", group: "BUILD" },
-      { order: 5, slug: "tech-architecture", name: "Technical Architecture & Stack", group: "BUILD" },
-      { order: 6, slug: "mvp-development", name: "MVP Development", group: "BUILD" },
-      { order: 7, slug: "testing-qa", name: "Testing & QA", group: "BUILD" },
+      { order: 1, slug: "idea-validation", name: "Idea Validation & Problem Definition", group: "BUILD", tasks: [
+        { slug: "define-problem-statement", name: "Define problem statement" },
+        { slug: "identify-target-audience", name: "Identify target audience" },
+        { slug: "conduct-user-interviews", name: "Conduct 5+ user interviews" },
+        { slug: "validate-pain-points", name: "Validate top pain points" },
+      ]},
+      { order: 2, slug: "market-research", name: "Market Research & Competitor Analysis", group: "BUILD", tasks: [
+        { slug: "identify-competitors", name: "Identify top 5 competitors" },
+        { slug: "analyze-competitor-features", name: "Analyze competitor features & pricing" },
+        { slug: "estimate-tam-sam-som", name: "Estimate TAM / SAM / SOM" },
+        { slug: "identify-market-gaps", name: "Identify market gaps & opportunities" },
+      ]},
+      { order: 3, slug: "business-model", name: "Business Model & Monetization", group: "BUILD", tasks: [
+        { slug: "define-pricing-tiers", name: "Define pricing tiers" },
+        { slug: "model-unit-economics", name: "Model unit economics (LTV, CAC)" },
+        { slug: "choose-billing-platform", name: "Choose billing platform" },
+        { slug: "draft-financial-projections", name: "Draft 12-month financial projections" },
+      ]},
+      { order: 4, slug: "product-design", name: "Product Design & UX", group: "BUILD", tasks: [
+        { slug: "create-user-personas", name: "Create user personas" },
+        { slug: "map-user-journeys", name: "Map core user journeys" },
+        { slug: "design-wireframes", name: "Design wireframes for key screens" },
+        { slug: "build-interactive-prototype", name: "Build interactive prototype" },
+      ]},
+      { order: 5, slug: "tech-architecture", name: "Technical Architecture & Stack", group: "BUILD", tasks: [
+        { slug: "choose-tech-stack", name: "Choose frontend & backend tech stack" },
+        { slug: "design-db-schema", name: "Design database schema" },
+        { slug: "plan-api-contracts", name: "Plan API contracts" },
+        { slug: "setup-ci-cd", name: "Set up CI/CD pipeline" },
+      ]},
+      { order: 6, slug: "mvp-development", name: "MVP Development", group: "BUILD", tasks: [
+        { slug: "implement-auth", name: "Implement authentication" },
+        { slug: "build-core-feature-1", name: "Build core feature #1" },
+        { slug: "build-core-feature-2", name: "Build core feature #2" },
+        { slug: "integrate-payments", name: "Integrate payment processing" },
+      ]},
+      { order: 7, slug: "testing-qa", name: "Testing & QA", group: "BUILD", tasks: [
+        { slug: "write-unit-tests", name: "Write unit tests for core logic" },
+        { slug: "run-e2e-tests", name: "Run end-to-end test suite" },
+        { slug: "perform-security-audit", name: "Perform security audit" },
+        { slug: "beta-user-testing", name: "Conduct beta user testing" },
+      ]},
       // GO-TO-MARKET
-      { order: 8, slug: "launch-planning", name: "Launch Planning", group: "GO-TO-MARKET" },
-      { order: 9, slug: "marketing-content", name: "Marketing & Content Strategy", group: "GO-TO-MARKET" },
-      { order: 10, slug: "sales-enablement", name: "Sales Enablement", group: "GO-TO-MARKET" },
-      { order: 11, slug: "conversion-optimization", name: "Conversion Optimization", group: "GO-TO-MARKET" },
+      { order: 8, slug: "launch-planning", name: "Launch Planning", group: "GO-TO-MARKET", tasks: [
+        { slug: "set-launch-date", name: "Set launch date & milestones" },
+        { slug: "prepare-launch-checklist", name: "Prepare launch checklist" },
+        { slug: "coordinate-launch-team", name: "Coordinate launch team roles" },
+        { slug: "plan-rollback-strategy", name: "Plan rollback strategy" },
+      ]},
+      { order: 9, slug: "marketing-content", name: "Marketing & Content Strategy", group: "GO-TO-MARKET", tasks: [
+        { slug: "write-landing-page-copy", name: "Write landing page copy" },
+        { slug: "create-demo-video", name: "Create product demo video" },
+        { slug: "draft-blog-launch-post", name: "Draft launch blog post" },
+        { slug: "setup-email-sequences", name: "Set up email drip sequences" },
+      ]},
+      { order: 10, slug: "sales-enablement", name: "Sales Enablement", group: "GO-TO-MARKET", tasks: [
+        { slug: "create-pitch-deck", name: "Create sales pitch deck" },
+        { slug: "build-demo-script", name: "Build demo script" },
+        { slug: "define-sales-process", name: "Define sales process & CRM setup" },
+        { slug: "prepare-objection-handling", name: "Prepare objection handling guide" },
+      ]},
+      { order: 11, slug: "conversion-optimization", name: "Conversion Optimization", group: "GO-TO-MARKET", tasks: [
+        { slug: "setup-analytics-tracking", name: "Set up analytics & conversion tracking" },
+        { slug: "design-onboarding-flow", name: "Design onboarding flow" },
+        { slug: "ab-test-pricing-page", name: "A/B test pricing page" },
+        { slug: "optimize-signup-funnel", name: "Optimize signup funnel" },
+      ]},
       // GROW
-      { order: 12, slug: "revenue-tracking", name: "Revenue & Metrics Tracking", group: "GROW" },
-      { order: 13, slug: "customer-success", name: "Customer Success & Support", group: "GROW" },
-      { order: 14, slug: "product-iteration", name: "Product Iteration & Roadmap", group: "GROW" },
-      { order: 15, slug: "partnerships", name: "Partnerships & Integrations", group: "GROW" },
-      { order: 16, slug: "scaling", name: "Scaling Infrastructure & Team", group: "GROW" },
+      { order: 12, slug: "revenue-tracking", name: "Revenue & Metrics Tracking", group: "GROW", tasks: [
+        { slug: "setup-mrr-dashboard", name: "Set up MRR dashboard" },
+        { slug: "track-churn-metrics", name: "Track churn & retention metrics" },
+        { slug: "define-north-star-metric", name: "Define north star metric" },
+      ]},
+      { order: 13, slug: "customer-success", name: "Customer Success & Support", group: "GROW", tasks: [
+        { slug: "setup-help-desk", name: "Set up help desk / ticketing" },
+        { slug: "create-knowledge-base", name: "Create knowledge base" },
+        { slug: "define-sla-targets", name: "Define SLA response targets" },
+      ]},
+      { order: 14, slug: "product-iteration", name: "Product Iteration & Roadmap", group: "GROW", tasks: [
+        { slug: "collect-user-feedback", name: "Collect & prioritize user feedback" },
+        { slug: "plan-v2-features", name: "Plan v2 feature roadmap" },
+        { slug: "schedule-sprint-cadence", name: "Establish sprint cadence" },
+      ]},
+      { order: 15, slug: "partnerships", name: "Partnerships & Integrations", group: "GROW", tasks: [
+        { slug: "identify-integration-partners", name: "Identify integration partners" },
+        { slug: "build-api-docs", name: "Build public API documentation" },
+        { slug: "launch-partner-program", name: "Launch partner program" },
+      ]},
+      { order: 16, slug: "scaling", name: "Scaling Infrastructure & Team", group: "GROW", tasks: [
+        { slug: "load-test-infrastructure", name: "Load test infrastructure" },
+        { slug: "plan-horizontal-scaling", name: "Plan horizontal scaling strategy" },
+        { slug: "hire-key-roles", name: "Hire key engineering roles" },
+      ]},
       // FOUNDATION
-      { order: 17, slug: "legal-compliance", name: "Legal & Compliance", group: "FOUNDATION" },
-      { order: 18, slug: "finance-accounting", name: "Finance & Accounting", group: "FOUNDATION" },
-      { order: 19, slug: "hr-culture", name: "HR & Culture", group: "FOUNDATION" },
-      { order: 20, slug: "security-privacy", name: "Security & Privacy", group: "FOUNDATION" },
-      { order: 21, slug: "devops-infra", name: "DevOps & Infrastructure", group: "FOUNDATION" },
-      { order: 22, slug: "analytics-bi", name: "Analytics & BI", group: "FOUNDATION" },
-      { order: 23, slug: "documentation", name: "Documentation & Knowledge Base", group: "FOUNDATION" },
-      { order: 24, slug: "community", name: "Community & Developer Relations", group: "FOUNDATION" },
-      { order: 25, slug: "vendor-management", name: "Vendor Management", group: "FOUNDATION" },
-      { order: 26, slug: "staffing", name: "Staffing & Contractors", group: "FOUNDATION" },
+      { order: 17, slug: "legal-compliance", name: "Legal & Compliance", group: "FOUNDATION", tasks: [
+        { slug: "draft-tos-privacy", name: "Draft Terms of Service & Privacy Policy" },
+        { slug: "check-regulatory-compliance", name: "Check regulatory compliance (GDPR, SOC2)" },
+      ]},
+      { order: 18, slug: "finance-accounting", name: "Finance & Accounting", group: "FOUNDATION", tasks: [
+        { slug: "setup-accounting-system", name: "Set up accounting system" },
+        { slug: "configure-tax-reporting", name: "Configure tax & revenue reporting" },
+      ]},
+      { order: 19, slug: "hr-culture", name: "HR & Culture", group: "FOUNDATION", tasks: [
+        { slug: "define-company-values", name: "Define company values" },
+        { slug: "create-hiring-playbook", name: "Create hiring playbook" },
+      ]},
+      { order: 20, slug: "security-privacy", name: "Security & Privacy", group: "FOUNDATION", tasks: [
+        { slug: "implement-rbac", name: "Implement role-based access control" },
+        { slug: "setup-vulnerability-scanning", name: "Set up vulnerability scanning" },
+        { slug: "create-incident-response-plan", name: "Create incident response plan" },
+      ]},
+      { order: 21, slug: "devops-infra", name: "DevOps & Infrastructure", group: "FOUNDATION", tasks: [
+        { slug: "setup-monitoring-alerts", name: "Set up monitoring & alerting" },
+        { slug: "configure-auto-scaling", name: "Configure auto-scaling" },
+        { slug: "document-runbooks", name: "Document operational runbooks" },
+      ]},
+      { order: 22, slug: "analytics-bi", name: "Analytics & BI", group: "FOUNDATION", tasks: [
+        { slug: "setup-data-warehouse", name: "Set up data warehouse" },
+        { slug: "build-exec-dashboard", name: "Build executive dashboard" },
+      ]},
+      { order: 23, slug: "documentation", name: "Documentation & Knowledge Base", group: "FOUNDATION", tasks: [
+        { slug: "write-api-docs", name: "Write API documentation" },
+        { slug: "create-dev-onboarding-guide", name: "Create developer onboarding guide" },
+      ]},
+      { order: 24, slug: "community", name: "Community & Developer Relations", group: "FOUNDATION", tasks: [
+        { slug: "launch-community-forum", name: "Launch community forum or Discord" },
+        { slug: "plan-content-calendar", name: "Plan developer content calendar" },
+      ]},
+      { order: 25, slug: "vendor-management", name: "Vendor Management", group: "FOUNDATION", tasks: [
+        { slug: "audit-vendor-contracts", name: "Audit vendor contracts" },
+        { slug: "evaluate-vendor-alternatives", name: "Evaluate vendor alternatives" },
+      ]},
+      { order: 26, slug: "staffing", name: "Staffing & Contractors", group: "FOUNDATION", tasks: [
+        { slug: "plan-org-chart", name: "Plan org chart" },
+        { slug: "identify-contractor-needs", name: "Identify contractor needs" },
+      ]},
     ],
   },
   {
@@ -54,15 +161,51 @@ const templates = [
     name: "Ministry / Org Discovery",
     description: "7-phase discovery process for ministry and organizational transformation.",
     phases: [
-      { order: 0, slug: "prayer-commitment", name: "Prayer & Commitment" },
-      { order: 1, slug: "vision-alignment", name: "Vision Alignment" },
-      { order: 2, slug: "leadership-assessment", name: "Leadership Assessment" },
+      { order: 0, slug: "prayer-commitment", name: "Prayer & Commitment", tasks: [
+        { slug: "establish-prayer-team", name: "Establish prayer team" },
+        { slug: "set-prayer-schedule", name: "Set prayer schedule & rhythm" },
+        { slug: "define-spiritual-goals", name: "Define spiritual goals for the process" },
+        { slug: "commit-leadership-buy-in", name: "Secure leadership buy-in & commitment" },
+      ]},
+      { order: 1, slug: "vision-alignment", name: "Vision Alignment", tasks: [
+        { slug: "review-mission-statement", name: "Review current mission statement" },
+        { slug: "conduct-vision-workshop", name: "Conduct vision alignment workshop" },
+        { slug: "draft-vision-document", name: "Draft updated vision document" },
+        { slug: "communicate-vision-to-org", name: "Communicate vision to the organization" },
+      ]},
+      { order: 2, slug: "leadership-assessment", name: "Leadership Assessment", tasks: [
+        { slug: "inventory-current-leaders", name: "Inventory current leaders & roles" },
+        { slug: "assess-leadership-gifts", name: "Assess leadership gifts & strengths" },
+        { slug: "identify-leadership-gaps", name: "Identify leadership gaps" },
+        { slug: "create-leadership-dev-plan", name: "Create leadership development plan" },
+      ]},
       { order: 3, slug: "department-discovery", name: "Department Discovery", sublayers: [
         "prayer", "vision", "people", "data", "process", "meetings", "issues"
+      ], tasks: [
+        { slug: "list-all-departments", name: "List all departments / ministries" },
+        { slug: "assign-dept-leads", name: "Assign department discovery leads" },
+        { slug: "run-dept-discovery-sessions", name: "Run discovery sessions per department" },
+        { slug: "document-dept-findings", name: "Document department findings" },
+        { slug: "identify-cross-dept-issues", name: "Identify cross-department issues" },
       ]},
-      { order: 4, slug: "gap-analysis", name: "Gap Analysis & Prioritization" },
-      { order: 5, slug: "roadmap-creation", name: "Roadmap Creation" },
-      { order: 6, slug: "equip-empower-release", name: "Equip, Empower, Release" },
+      { order: 4, slug: "gap-analysis", name: "Gap Analysis & Prioritization", tasks: [
+        { slug: "compile-discovery-data", name: "Compile all discovery data" },
+        { slug: "identify-critical-gaps", name: "Identify critical gaps" },
+        { slug: "prioritize-by-impact", name: "Prioritize gaps by impact & urgency" },
+        { slug: "present-findings-to-leaders", name: "Present findings to leadership" },
+      ]},
+      { order: 5, slug: "roadmap-creation", name: "Roadmap Creation", tasks: [
+        { slug: "define-quick-wins", name: "Define quick wins (30-day actions)" },
+        { slug: "plan-medium-term-goals", name: "Plan medium-term goals (90 days)" },
+        { slug: "set-long-term-vision-milestones", name: "Set long-term vision milestones" },
+        { slug: "assign-roadmap-owners", name: "Assign owners for each roadmap item" },
+      ]},
+      { order: 6, slug: "equip-empower-release", name: "Equip, Empower, Release", tasks: [
+        { slug: "develop-training-materials", name: "Develop training materials" },
+        { slug: "conduct-equipping-sessions", name: "Conduct equipping sessions" },
+        { slug: "delegate-authority", name: "Delegate authority & decision rights" },
+        { slug: "schedule-followup-reviews", name: "Schedule follow-up reviews" },
+      ]},
     ],
   },
   {
@@ -70,18 +213,70 @@ const templates = [
     name: "Tech Stack Modernization (PMBOK)",
     description: "PMBOK-aligned tech modernization with 12 management sections and parallel workstreams.",
     phases: [
-      { order: 1, slug: "integration-mgmt", name: "Integration Management" },
-      { order: 2, slug: "scope-mgmt", name: "Scope Management" },
-      { order: 3, slug: "schedule-mgmt", name: "Schedule Management" },
-      { order: 4, slug: "cost-mgmt", name: "Cost Management" },
-      { order: 5, slug: "quality-mgmt", name: "Quality Management" },
-      { order: 6, slug: "resource-mgmt", name: "Resource Management" },
-      { order: 7, slug: "communications-mgmt", name: "Communications Management" },
-      { order: 8, slug: "risk-mgmt", name: "Risk Management" },
-      { order: 9, slug: "procurement-mgmt", name: "Procurement Management" },
-      { order: 10, slug: "stakeholder-mgmt", name: "Stakeholder Management" },
-      { order: 11, slug: "change-mgmt", name: "Change Management" },
-      { order: 12, slug: "governance", name: "Governance & Reporting" },
+      { order: 1, slug: "integration-mgmt", name: "Integration Management", tasks: [
+        { slug: "develop-project-charter", name: "Develop project charter" },
+        { slug: "create-project-management-plan", name: "Create project management plan" },
+        { slug: "define-change-control-process", name: "Define change control process" },
+      ]},
+      { order: 2, slug: "scope-mgmt", name: "Scope Management", tasks: [
+        { slug: "collect-requirements", name: "Collect & document requirements" },
+        { slug: "define-scope-statement", name: "Define scope statement" },
+        { slug: "create-wbs", name: "Create work breakdown structure (WBS)" },
+        { slug: "validate-scope-with-stakeholders", name: "Validate scope with stakeholders" },
+      ]},
+      { order: 3, slug: "schedule-mgmt", name: "Schedule Management", tasks: [
+        { slug: "define-milestones", name: "Define milestones & deliverables" },
+        { slug: "estimate-activity-durations", name: "Estimate activity durations" },
+        { slug: "build-project-schedule", name: "Build project schedule" },
+        { slug: "identify-critical-path", name: "Identify critical path" },
+      ]},
+      { order: 4, slug: "cost-mgmt", name: "Cost Management", tasks: [
+        { slug: "estimate-costs", name: "Estimate costs for each work package" },
+        { slug: "set-budget-baseline", name: "Set budget baseline" },
+        { slug: "plan-cost-tracking", name: "Plan cost tracking & EVM" },
+      ]},
+      { order: 5, slug: "quality-mgmt", name: "Quality Management", tasks: [
+        { slug: "define-quality-standards", name: "Define quality standards & metrics" },
+        { slug: "plan-qa-activities", name: "Plan QA activities" },
+        { slug: "setup-testing-framework", name: "Set up testing framework" },
+      ]},
+      { order: 6, slug: "resource-mgmt", name: "Resource Management", tasks: [
+        { slug: "identify-team-needs", name: "Identify team resource needs" },
+        { slug: "assign-roles-responsibilities", name: "Assign roles & responsibilities (RACI)" },
+        { slug: "plan-training-needs", name: "Plan training & skill development" },
+      ]},
+      { order: 7, slug: "communications-mgmt", name: "Communications Management", tasks: [
+        { slug: "create-comms-plan", name: "Create communications plan" },
+        { slug: "setup-status-reporting", name: "Set up status reporting cadence" },
+        { slug: "define-escalation-paths", name: "Define escalation paths" },
+      ]},
+      { order: 8, slug: "risk-mgmt", name: "Risk Management", tasks: [
+        { slug: "identify-risks", name: "Identify project risks" },
+        { slug: "assess-risk-probability-impact", name: "Assess risk probability & impact" },
+        { slug: "plan-risk-responses", name: "Plan risk responses" },
+        { slug: "setup-risk-monitoring", name: "Set up risk monitoring" },
+      ]},
+      { order: 9, slug: "procurement-mgmt", name: "Procurement Management", tasks: [
+        { slug: "identify-vendor-needs", name: "Identify vendor / tool needs" },
+        { slug: "evaluate-vendor-options", name: "Evaluate vendor options" },
+        { slug: "negotiate-contracts", name: "Negotiate & finalize contracts" },
+      ]},
+      { order: 10, slug: "stakeholder-mgmt", name: "Stakeholder Management", tasks: [
+        { slug: "identify-stakeholders", name: "Identify all stakeholders" },
+        { slug: "assess-stakeholder-influence", name: "Assess stakeholder influence & interest" },
+        { slug: "plan-stakeholder-engagement", name: "Plan stakeholder engagement strategy" },
+      ]},
+      { order: 11, slug: "change-mgmt", name: "Change Management", tasks: [
+        { slug: "assess-change-readiness", name: "Assess organizational change readiness" },
+        { slug: "develop-change-strategy", name: "Develop change management strategy" },
+        { slug: "plan-training-rollout", name: "Plan training & rollout" },
+        { slug: "define-adoption-metrics", name: "Define adoption success metrics" },
+      ]},
+      { order: 12, slug: "governance", name: "Governance & Reporting", tasks: [
+        { slug: "setup-governance-structure", name: "Set up governance structure" },
+        { slug: "define-decision-authority", name: "Define decision-making authority" },
+        { slug: "schedule-steering-reviews", name: "Schedule steering committee reviews" },
+      ]},
     ],
   },
   {
@@ -113,7 +308,8 @@ async function seed() {
     if (error) {
       console.error(`Error seeding template ${template.slug}:`, error.message);
     } else {
-      console.log(`  ✓ ${template.name}`);
+      const taskCount = template.phases.reduce((sum, p) => sum + (p.tasks?.length ?? 0), 0);
+      console.log(`  ✓ ${template.name} (${template.phases.length} phases, ${taskCount} tasks)`);
     }
   }
 

@@ -19,6 +19,10 @@
 - [ ] Budget vs actuals tracking
 
 ## Completed
+- [x] Fix FK constraint `pm_projects_org_id_fkey` pointing to wrong table ("orgs" instead of "pm_organizations")
+- [x] Fix template seeding: phases now properly return errors instead of failing silently
+- [x] Add starter tasks to all 3 templates (SaaS: 82 tasks, Ministry: 29 tasks, PMBOK: 41 tasks)
+- [x] Add task creation logic to project seed route (phases → tasks inserted together)
 - [x] Scaffold Next.js 15 app with TypeScript + Tailwind dark theme
 - [x] Create Supabase schema (7 tables across 3 migrations)
 - [x] Build vault storage layer (markdown read/write with frontmatter)

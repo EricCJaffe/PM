@@ -191,14 +191,59 @@ export async function POST(request: NextRequest) {
       progress: 0,
     }));
 
+    let insertedPhases: { id: string; slug: string }[] = [];
     if (phaseRows.length > 0) {
-      const { error: phaseError } = await supabase.from("pm_phases").insert(phaseRows);
+      const { data: phaseData, error: phaseError } = await supabase
+        .from("pm_phases")
+        .insert(phaseRows)
+        .select("id, slug");
       if (phaseError) {
         console.error("Phase insert error:", phaseError.message);
+        return NextResponse.json(
+          { error: `Project created but phase insertion failed: ${phaseError.message}`, project },
+          { status: 500 }
+        );
+      }
+      insertedPhases = phaseData ?? [];
+    }
+
+    // 3. Create tasks from template phases
+    const phaseSlugToId = new Map(insertedPhases.map((p) => [p.slug, p.id]));
+    const taskRows: {
+      project_id: string;
+      phase_id: string | null;
+      slug: string;
+      name: string;
+      status: string;
+    }[] = [];
+
+    for (const p of phases) {
+      const phaseTasks = (p as { slug: string; tasks?: { slug: string; name: string }[] }).tasks;
+      if (!phaseTasks || phaseTasks.length === 0) continue;
+      const phaseId = phaseSlugToId.get(p.slug) ?? null;
+      for (const t of phaseTasks) {
+        taskRows.push({
+          project_id: project.id,
+          phase_id: phaseId,
+          slug: t.slug,
+          name: t.name,
+          status: "not-started",
+        });
       }
     }
 
-    // 3. Generate vault files
+    let tasksCreated = 0;
+    if (taskRows.length > 0) {
+      const { error: taskError } = await supabase.from("pm_tasks").insert(taskRows);
+      if (taskError) {
+        console.error("Task insert error:", taskError.message);
+        // Non-fatal: phases were created, tasks failed — log but continue
+      } else {
+        tasksCreated = taskRows.length;
+      }
+    }
+
+    // 4. Generate vault files
     const vaultFiles = [
       ...generateProjectVaultFiles(resolvedOrgSlug, slug, {
         name,
@@ -221,7 +266,7 @@ export async function POST(request: NextRequest) {
       console.error("Vault write errors:", errors);
     }
 
-    // 4. Index vault files in pm_files
+    // 5. Index vault files in pm_files
     const fileRows = vaultFiles.map((f) => ({
       project_id: project.id,
       storage_path: f.path,
@@ -251,6 +296,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       project,
       phases_created: phaseRows.length,
+      tasks_created: tasksCreated,
       vault_files: vaultFiles.length,
       vault_errors: errors,
     });
