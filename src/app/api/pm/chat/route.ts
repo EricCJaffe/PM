@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+import type OpenAI from "openai";
+import { getOpenAI } from "@/lib/openai";
 import { createServiceClient } from "@/lib/supabase/server";
-
-const anthropic = new Anthropic();
 
 const SYSTEM_PROMPT = `You are an AI project management assistant for BusinessOS. You help manage projects stored in a Supabase database with markdown vault files.
 
@@ -58,20 +57,22 @@ Risks (${risks?.length ?? 0}):
 ${risks?.map((r: { title: string; probability: string; impact: string; status: string }) => `  - ${r.title} [${r.probability}/${r.impact}] ${r.status}`).join("\n") ?? "None"}
 `;
 
-    const messages: { role: "user" | "assistant"; content: string }[] = [
-      ...history,
-      { role: "user" as const, content: `[Project Context]\n${context}\n\n[User Message]\n${message}` },
+    const messages: OpenAI.ChatCompletionMessageParam[] = [
+      { role: "system", content: SYSTEM_PROMPT },
+      ...history.map((m: { role: string; content: string }) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      })),
+      { role: "user", content: `[Project Context]\n${context}\n\n[User Message]\n${message}` },
     ];
 
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+    const response = await getOpenAI().chat.completions.create({
+      model: "gpt-4o",
       max_tokens: 2048,
-      system: SYSTEM_PROMPT,
       messages,
     });
 
-    const textContent = response.content.find((c) => c.type === "text");
-    const responseText = textContent ? textContent.text : "No response generated.";
+    const responseText = response.choices[0]?.message?.content ?? "No response generated.";
 
     return NextResponse.json({
       response: responseText,
@@ -84,7 +85,7 @@ ${risks?.map((r: { title: string; probability: string; impact: string; status: s
     console.error("Chat error:", err);
     return NextResponse.json(
       {
-        response: "I encountered an error processing your request. Please check that the ANTHROPIC_API_KEY is configured.",
+        response: "I encountered an error processing your request. Please check that the OPENAI_API_KEY is configured.",
         error: err instanceof Error ? err.message : "Unknown error",
       },
       { status: 200 } // Return 200 so the chat UI shows the error message

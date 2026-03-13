@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+import { getOpenAI } from "@/lib/openai";
 import { createServiceClient } from "@/lib/supabase/server";
 import { writeVaultFile } from "@/lib/vault";
-
-const anthropic = new Anthropic();
 
 export async function POST(request: NextRequest) {
   try {
@@ -47,15 +45,16 @@ Open Risks (${risks?.length ?? 0}):
 ${risks?.map((r: { title: string; probability: string; impact: string; mitigation: string }) => `- ${r.title} [P:${r.probability} I:${r.impact}] — Mitigation: ${r.mitigation ?? "none defined"}`).join("\n") ?? "None"}
 `;
 
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+    const response = await getOpenAI().chat.completions.create({
+      model: "gpt-4o",
       max_tokens: 4096,
-      system: "You are a project management AI. Generate a blocker scan report in markdown. Include: Summary, Blocked Items (with recommended actions), Pending Dependencies, Risk Escalations, Recommended Next Steps.",
-      messages: [{ role: "user", content: `Generate blocker scan:\n${context}` }],
+      messages: [
+        { role: "system", content: "You are a project management AI. Generate a blocker scan report in markdown. Include: Summary, Blocked Items (with recommended actions), Pending Dependencies, Risk Escalations, Recommended Next Steps." },
+        { role: "user", content: `Generate blocker scan:\n${context}` },
+      ],
     });
 
-    const textContent = response.content.find((c) => c.type === "text");
-    const reportContent = textContent?.text ?? "Report generation failed.";
+    const reportContent = response.choices[0]?.message?.content ?? "Report generation failed.";
 
     const date = new Date().toISOString().split("T")[0];
     const filename = `BLOCKER-SCAN-${date}.md`;

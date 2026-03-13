@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+import { getOpenAI } from "@/lib/openai";
 import { createServiceClient } from "@/lib/supabase/server";
 import { writeVaultFile } from "@/lib/vault";
-
-const anthropic = new Anthropic();
 
 export async function POST(request: NextRequest) {
   try {
@@ -42,11 +40,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+    const response = await getOpenAI().chat.completions.create({
+      model: "gpt-4o",
       max_tokens: 4096,
-      system: "You are a project management AI. Generate a cross-project hub report in markdown. Include: Portfolio Overview, Project-by-Project Summary, Cross-Project Risks, Resource Conflicts, Executive Recommendations.",
       messages: [
+        { role: "system", content: "You are a project management AI. Generate a cross-project hub report in markdown. Include: Portfolio Overview, Project-by-Project Summary, Cross-Project Risks, Resource Conflicts, Executive Recommendations." },
         {
           role: "user",
           content: `Generate hub report for ${projects.length} active projects:\n\n${projectSummaries.join("\n\n")}`,
@@ -54,8 +52,7 @@ export async function POST(request: NextRequest) {
       ],
     });
 
-    const textContent = response.content.find((c) => c.type === "text");
-    const reportContent = textContent?.text ?? "Report generation failed.";
+    const reportContent = response.choices[0]?.message?.content ?? "Report generation failed.";
 
     const date = new Date().toISOString().split("T")[0];
     const filename = `HUB-REPORT-${date}.md`;
