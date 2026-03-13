@@ -6,9 +6,17 @@ import {
   generatePhaseVaultFiles,
   writeAllVaultFiles,
 } from "@/lib/vault";
+import { checkTablesExist } from "@/lib/db-check";
+
+const REQUIRED_TABLES = ["pm_projects", "pm_phases", "pm_files", "pm_organizations", "pm_members"];
 
 export async function POST(request: NextRequest) {
   try {
+    const tableCheck = await checkTablesExist(REQUIRED_TABLES);
+    if (tableCheck) {
+      return NextResponse.json(tableCheck, { status: 503 });
+    }
+
     const body = await request.json();
     const {
       name,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { SetupBanner } from "@/components/SetupBanner";
 
 interface Org {
   id: string;
@@ -17,6 +18,12 @@ interface Member {
   created_at: string;
 }
 
+interface TableError {
+  error: string;
+  missing: string[];
+  migrations: string[];
+}
+
 const roles = ["owner", "admin", "member", "viewer"];
 
 export default function MembersPage() {
@@ -26,6 +33,7 @@ export default function MembersPage() {
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [tableError, setTableError] = useState<TableError | null>(null);
 
   const [form, setForm] = useState({
     display_name: "",
@@ -39,7 +47,11 @@ export default function MembersPage() {
     fetch("/api/pm/organizations")
       .then((r) => r.json())
       .then((data) => {
-        if (Array.isArray(data)) setOrgs(data);
+        if (data?.missing) {
+          setTableError(data);
+        } else if (Array.isArray(data)) {
+          setOrgs(data);
+        }
       })
       .catch(() => {});
   }, []);
@@ -54,7 +66,11 @@ export default function MembersPage() {
     fetch(`/api/pm/members?org_id=${selectedOrgId}`)
       .then((r) => r.json())
       .then((data) => {
-        if (Array.isArray(data)) setMembers(data);
+        if (data?.missing) {
+          setTableError(data);
+        } else if (Array.isArray(data)) {
+          setMembers(data);
+        }
       })
       .catch(() => setMembers([]))
       .finally(() => setLoading(false));
@@ -99,6 +115,10 @@ export default function MembersPage() {
   };
 
   const selectedOrg = orgs.find((o) => o.id === selectedOrgId);
+
+  if (tableError) {
+    return <SetupBanner missing={tableError.missing} migrations={tableError.migrations} />;
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-6">

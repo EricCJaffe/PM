@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { checkTablesExist } from "@/lib/db-check";
+
+const REQUIRED_TABLES = ["pm_members", "pm_organizations"];
 
 // GET /api/pm/members?org_id=xxx — list members for an org
 export async function GET(request: NextRequest) {
+  const tableCheck = await checkTablesExist(REQUIRED_TABLES);
+  if (tableCheck) {
+    return NextResponse.json(tableCheck, { status: 503 });
+  }
+
   const orgId = request.nextUrl.searchParams.get("org_id");
 
   if (!orgId) {
@@ -25,6 +33,11 @@ export async function GET(request: NextRequest) {
 // POST /api/pm/members — add a member to an org
 export async function POST(request: NextRequest) {
   try {
+    const tableCheck = await checkTablesExist(REQUIRED_TABLES);
+    if (tableCheck) {
+      return NextResponse.json(tableCheck, { status: 503 });
+    }
+
     const { org_id, slug, display_name, email, role } = await request.json();
 
     if (!org_id || !slug || !display_name) {

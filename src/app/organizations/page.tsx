@@ -1,12 +1,19 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { SetupBanner } from "@/components/SetupBanner";
 
 interface Org {
   id: string;
   slug: string;
   name: string;
   created_at: string;
+}
+
+interface TableError {
+  error: string;
+  missing: string[];
+  migrations: string[];
 }
 
 export default function OrganizationsPage() {
@@ -16,12 +23,17 @@ export default function OrganizationsPage() {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
+  const [tableError, setTableError] = useState<TableError | null>(null);
 
   const loadOrgs = () => {
     fetch("/api/pm/organizations")
       .then((r) => r.json())
       .then((data) => {
-        if (Array.isArray(data)) setOrgs(data);
+        if (data?.missing) {
+          setTableError(data);
+        } else if (Array.isArray(data)) {
+          setOrgs(data);
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -61,6 +73,10 @@ export default function OrganizationsPage() {
       setCreating(false);
     }
   };
+
+  if (tableError) {
+    return <SetupBanner missing={tableError.missing} migrations={tableError.migrations} />;
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-6">

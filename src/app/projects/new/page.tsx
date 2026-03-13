@@ -2,6 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { SetupBanner } from "@/components/SetupBanner";
+
+interface TableError {
+  error: string;
+  missing: string[];
+  migrations: string[];
+}
 
 interface Org {
   id: string;
@@ -44,6 +51,7 @@ export default function NewProjectPage() {
   const [loading, setLoading] = useState(false);
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [tableError, setTableError] = useState<TableError | null>(null);
   const [showNewOrg, setShowNewOrg] = useState(false);
   const [newOrgName, setNewOrgName] = useState("");
   const [newOrgSlug, setNewOrgSlug] = useState("");
@@ -66,7 +74,11 @@ export default function NewProjectPage() {
     fetch("/api/pm/organizations")
       .then((r) => r.json())
       .then((data) => {
-        if (Array.isArray(data)) setOrgs(data);
+        if (data?.missing) {
+          setTableError(data);
+        } else if (Array.isArray(data)) {
+          setOrgs(data);
+        }
       })
       .catch(() => {});
   }, []);
@@ -81,7 +93,11 @@ export default function NewProjectPage() {
     fetch(`/api/pm/members?org_id=${form.org_id}`)
       .then((r) => r.json())
       .then((data) => {
-        if (Array.isArray(data)) setMembers(data);
+        if (data?.missing) {
+          setTableError(data);
+        } else if (Array.isArray(data)) {
+          setMembers(data);
+        }
       })
       .catch(() => setMembers([]));
   }, [form.org_id]);
@@ -152,6 +168,10 @@ export default function NewProjectPage() {
         }),
       });
       const data = await res.json();
+      if (data.missing) {
+        setTableError(data);
+        return;
+      }
       if (data.error) throw new Error(data.error);
       router.push(`/projects/${form.slug}`);
     } catch (err) {
@@ -162,6 +182,10 @@ export default function NewProjectPage() {
   };
 
   const selectedOrg = orgs.find((o) => o.id === form.org_id);
+
+  if (tableError) {
+    return <SetupBanner missing={tableError.missing} migrations={tableError.migrations} />;
+  }
 
   return (
     <div className="max-w-2xl mx-auto p-6">
