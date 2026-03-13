@@ -162,6 +162,7 @@ export default function NewProjectPage() {
           owner: form.owner || "",
           template_slug: form.template_slug,
           org_id: form.org_id,
+          org_slug: selectedOrg?.slug || "",
           budget: form.budget ? Number(form.budget) : null,
           start_date: form.start_date || null,
           target_date: form.target_date || null,
@@ -172,7 +173,10 @@ export default function NewProjectPage() {
         setTableError(data);
         return;
       }
-      if (data.error) throw new Error(data.error);
+      if (data.error) {
+        const detail = data.details ? `\n\nDebug: org_id=${data.details.org_id}, code=${data.details.code}` : "";
+        throw new Error(data.error + detail);
+      }
       router.push(`/projects/${form.slug}`);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to create project");
