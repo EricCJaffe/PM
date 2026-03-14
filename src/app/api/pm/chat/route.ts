@@ -3,19 +3,263 @@ import type OpenAI from "openai";
 import { getOpenAI } from "@/lib/openai";
 import { createServiceClient } from "@/lib/supabase/server";
 
-const SYSTEM_PROMPT = `You are an AI project management assistant for BusinessOS. You help manage projects stored in a Supabase database with markdown vault files.
+const SYSTEM_PROMPT = `You are an AI project management assistant for BusinessOS with full read/write access to the project database.
 
-Your capabilities:
-- Answer questions about project status, tasks, phases, risks
-- Suggest updates to task statuses, due dates, owners
-- Help write status updates and decision logs
-- Identify blockers and risks
-- Generate reports and summaries
+You CAN and SHOULD directly make changes when asked. Do not tell the user to do things manually — use your tools to do it yourself.
 
-When the user asks you to make changes, describe what you would update and provide the structured data.
-Format actionable responses with clear sections. Use markdown formatting.
+Available actions (use these tools):
+- add_task: Create a new task in a phase
+- update_task: Change status, owner, due date, or name of an existing task
+- add_phase: Add a new phase to the project
+- update_phase: Change status, progress, or owner of a phase
+- add_risk: Add a risk to the risk register
+- update_project: Change project status, owner, or target date
 
-Current project context will be provided in each message.`;
+After using a tool, summarize what you did in plain language. If something fails, explain why.`;
+
+// ─── Tool definitions ─────────────────────────────────────────────────────────
+
+const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
+  {
+    type: "function",
+    function: {
+      name: "add_task",
+      description: "Add a new task to a phase in the project",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Task name" },
+          phase_slug: { type: "string", description: "Slug of the phase to add the task to (use phase list from context)" },
+          status: { type: "string", enum: ["not-started", "in-progress", "complete", "blocked", "pending", "on-hold"], description: "Task status" },
+          owner: { type: "string", description: "Owner name or slug (optional)" },
+          due_date: { type: "string", description: "Due date in YYYY-MM-DD format (optional)" },
+          description: { type: "string", description: "Task description (optional)" },
+        },
+        required: ["name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_task",
+      description: "Update an existing task's status, owner, due date, or name",
+      parameters: {
+        type: "object",
+        properties: {
+          task_name: { type: "string", description: "Current name of the task (used to find it)" },
+          status: { type: "string", enum: ["not-started", "in-progress", "complete", "blocked", "pending", "on-hold"] },
+          owner: { type: "string", description: "New owner" },
+          due_date: { type: "string", description: "New due date YYYY-MM-DD" },
+          new_name: { type: "string", description: "Rename the task to this" },
+        },
+        required: ["task_name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "add_phase",
+      description: "Add a new phase to the project",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Phase name" },
+          group: { type: "string", description: "Phase group label (optional, e.g. BUILD, GROW)" },
+          status: { type: "string", enum: ["not-started", "in-progress", "complete", "blocked", "pending", "on-hold"] },
+        },
+        required: ["name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_phase",
+      description: "Update a phase's status, progress, or owner",
+      parameters: {
+        type: "object",
+        properties: {
+          phase_name: { type: "string", description: "Current name of the phase" },
+          status: { type: "string", enum: ["not-started", "in-progress", "complete", "blocked", "pending", "on-hold"] },
+          progress: { type: "number", description: "Progress percentage 0-100" },
+          owner: { type: "string", description: "New owner" },
+        },
+        required: ["phase_name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "add_risk",
+      description: "Add a risk to the project risk register",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Risk title" },
+          description: { type: "string", description: "Risk description" },
+          probability: { type: "string", enum: ["low", "medium", "high"] },
+          impact: { type: "string", enum: ["low", "medium", "high"] },
+          mitigation: { type: "string", description: "Mitigation strategy" },
+          owner: { type: "string", description: "Risk owner" },
+        },
+        required: ["title", "probability", "impact"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_project",
+      description: "Update the project's status, owner, or target date",
+      parameters: {
+        type: "object",
+        properties: {
+          status: { type: "string", enum: ["active", "complete", "paused", "archived", "on-hold"] },
+          owner: { type: "string" },
+          target_date: { type: "string", description: "YYYY-MM-DD" },
+        },
+        required: [],
+      },
+    },
+  },
+];
+
+// ─── Tool execution ───────────────────────────────────────────────────────────
+
+function slugify(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+}
+
+async function executeTool(
+  name: string,
+  args: Record<string, unknown>,
+  projectId: string,
+  supabase: ReturnType<typeof createServiceClient>
+): Promise<string> {
+  try {
+    if (name === "add_task") {
+      let phaseId: string | null = null;
+      if (args.phase_slug) {
+        const { data: phase } = await supabase
+          .from("pm_phases")
+          .select("id")
+          .eq("project_id", projectId)
+          .eq("slug", args.phase_slug as string)
+          .single();
+        phaseId = phase?.id ?? null;
+      }
+      const slug = slugify(args.name as string);
+      const { error } = await supabase.from("pm_tasks").insert({
+        project_id: projectId,
+        phase_id: phaseId,
+        slug,
+        name: args.name,
+        status: (args.status as string) ?? "not-started",
+        owner: (args.owner as string) ?? null,
+        due_date: (args.due_date as string) ?? null,
+        description: (args.description as string) ?? null,
+      });
+      if (error) return `Failed to add task: ${error.message}`;
+      return `Task "${args.name}" added successfully${phaseId ? ` to phase ${args.phase_slug}` : ""}.`;
+    }
+
+    if (name === "update_task") {
+      const { data: task } = await supabase
+        .from("pm_tasks")
+        .select("id")
+        .eq("project_id", projectId)
+        .ilike("name", `%${args.task_name as string}%`)
+        .limit(1)
+        .single();
+      if (!task) return `Task matching "${args.task_name}" not found.`;
+      const updates: Record<string, unknown> = {};
+      if (args.status) updates.status = args.status;
+      if (args.owner) updates.owner = args.owner;
+      if (args.due_date) updates.due_date = args.due_date;
+      if (args.new_name) { updates.name = args.new_name; updates.slug = slugify(args.new_name as string); }
+      const { error } = await supabase.from("pm_tasks").update(updates).eq("id", task.id);
+      if (error) return `Failed to update task: ${error.message}`;
+      return `Task "${args.task_name}" updated successfully.`;
+    }
+
+    if (name === "add_phase") {
+      const { data: maxPhase } = await supabase
+        .from("pm_phases")
+        .select("phase_order")
+        .eq("project_id", projectId)
+        .order("phase_order", { ascending: false })
+        .limit(1)
+        .single();
+      const nextOrder = ((maxPhase?.phase_order as number) ?? 0) + 1;
+      const slug = slugify(args.name as string);
+      const { error } = await supabase.from("pm_phases").insert({
+        project_id: projectId,
+        slug,
+        name: args.name,
+        phase_order: nextOrder,
+        group: (args.group as string) ?? null,
+        status: (args.status as string) ?? "not-started",
+        progress: 0,
+      });
+      if (error) return `Failed to add phase: ${error.message}`;
+      return `Phase "${args.name}" added as P${String(nextOrder).padStart(2, "0")}.`;
+    }
+
+    if (name === "update_phase") {
+      const { data: phase } = await supabase
+        .from("pm_phases")
+        .select("id")
+        .eq("project_id", projectId)
+        .ilike("name", `%${args.phase_name as string}%`)
+        .limit(1)
+        .single();
+      if (!phase) return `Phase matching "${args.phase_name}" not found.`;
+      const updates: Record<string, unknown> = {};
+      if (args.status) updates.status = args.status;
+      if (args.progress !== undefined) updates.progress = args.progress;
+      if (args.owner) updates.owner = args.owner;
+      const { error } = await supabase.from("pm_phases").update(updates).eq("id", phase.id);
+      if (error) return `Failed to update phase: ${error.message}`;
+      return `Phase "${args.phase_name}" updated successfully.`;
+    }
+
+    if (name === "add_risk") {
+      const slug = slugify(args.title as string);
+      const { error } = await supabase.from("pm_risks").insert({
+        project_id: projectId,
+        slug,
+        title: args.title,
+        description: (args.description as string) ?? null,
+        probability: args.probability ?? "medium",
+        impact: args.impact ?? "medium",
+        mitigation: (args.mitigation as string) ?? null,
+        owner: (args.owner as string) ?? null,
+        status: "open",
+      });
+      if (error) return `Failed to add risk: ${error.message}`;
+      return `Risk "${args.title}" added to the risk register.`;
+    }
+
+    if (name === "update_project") {
+      const updates: Record<string, unknown> = {};
+      if (args.status) updates.status = args.status;
+      if (args.owner) updates.owner = args.owner;
+      if (args.target_date) updates.target_date = args.target_date;
+      const { error } = await supabase.from("pm_projects").update(updates).eq("id", projectId);
+      if (error) return `Failed to update project: ${error.message}`;
+      return `Project updated successfully.`;
+    }
+
+    return `Unknown tool: ${name}`;
+  } catch (err) {
+    return `Tool error: ${err instanceof Error ? err.message : String(err)}`;
+  }
+}
+
+// ─── Route handler ────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,7 +269,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "message is required" }, { status: 400 });
     }
 
-    // Fetch project context from DB
     const supabase = createServiceClient();
 
     const [
@@ -47,15 +290,14 @@ Template: ${project?.template_slug ?? "unknown"}
 Start: ${project?.start_date ?? "—"} | Target: ${project?.target_date ?? "—"}
 
 Phases (${phases?.length ?? 0}):
-${phases?.map((p: { phase_order: number; name: string; status: string; progress: number }) => `  P${String(p.phase_order).padStart(2, "0")} ${p.name} — ${p.status} (${p.progress}%)`).join("\n") ?? "None"}
+${phases?.map((p: { phase_order: number; slug: string; name: string; status: string; progress: number }) => `  P${String(p.phase_order).padStart(2, "0")} slug:${p.slug} "${p.name}" — ${p.status} (${p.progress}%)`).join("\n") ?? "None"}
 
 Tasks (${tasks?.length ?? 0}):
-${tasks?.slice(0, 30).map((t: { name: string; status: string; owner: string; due_date: string }) => `  - ${t.name} [${t.status}] owner:${t.owner ?? "—"} due:${t.due_date ?? "—"}`).join("\n") ?? "None"}
-${(tasks?.length ?? 0) > 30 ? `  ... and ${(tasks?.length ?? 0) - 30} more tasks` : ""}
+${tasks?.slice(0, 50).map((t: { name: string; status: string; owner: string; due_date: string }) => `  - "${t.name}" [${t.status}] owner:${t.owner ?? "—"} due:${t.due_date ?? "—"}`).join("\n") ?? "None"}
+${(tasks?.length ?? 0) > 50 ? `  ... and ${(tasks?.length ?? 0) - 50} more tasks` : ""}
 
 Risks (${risks?.length ?? 0}):
-${risks?.map((r: { title: string; probability: string; impact: string; status: string }) => `  - ${r.title} [${r.probability}/${r.impact}] ${r.status}`).join("\n") ?? "None"}
-`;
+${risks?.map((r: { title: string; probability: string; impact: string; status: string }) => `  - "${r.title}" [${r.probability}/${r.impact}] ${r.status}`).join("\n") ?? "None"}`;
 
     const messages: OpenAI.ChatCompletionMessageParam[] = [
       { role: "system", content: SYSTEM_PROMPT },
@@ -66,20 +308,52 @@ ${risks?.map((r: { title: string; probability: string; impact: string; status: s
       { role: "user", content: `[Project Context]\n${context}\n\n[User Message]\n${message}` },
     ];
 
-    const response = await getOpenAI().chat.completions.create({
+    const openai = getOpenAI();
+    let response = await openai.chat.completions.create({
       model: "gpt-4o",
       max_tokens: 2048,
       messages,
+      tools,
+      tool_choice: "auto",
     });
 
-    const responseText = response.choices[0]?.message?.content ?? "No response generated.";
+    const toolResults: string[] = [];
+
+    // Agentic loop — execute all tool calls, then get final response
+    while (response.choices[0]?.finish_reason === "tool_calls") {
+      const assistantMsg = response.choices[0].message;
+      messages.push(assistantMsg);
+
+      const toolCallResults: OpenAI.ChatCompletionToolMessageParam[] = [];
+
+      for (const call of assistantMsg.tool_calls ?? []) {
+        const args = JSON.parse(call.function.arguments) as Record<string, unknown>;
+        const result = await executeTool(call.function.name, args, project_id, supabase);
+        toolResults.push(result);
+        toolCallResults.push({
+          role: "tool",
+          tool_call_id: call.id,
+          content: result,
+        });
+      }
+
+      messages.push(...toolCallResults);
+
+      response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        max_tokens: 2048,
+        messages,
+        tools,
+        tool_choice: "auto",
+      });
+    }
+
+    const responseText = response.choices[0]?.message?.content ?? "Done.";
 
     return NextResponse.json({
       response: responseText,
-      metadata: {
-        model: response.model,
-        usage: response.usage,
-      },
+      actions_taken: toolResults,
+      metadata: { model: response.model, usage: response.usage },
     });
   } catch (err) {
     console.error("Chat error:", err);
@@ -88,7 +362,7 @@ ${risks?.map((r: { title: string; probability: string; impact: string; status: s
         response: "I encountered an error processing your request. Please check that the OPENAI_API_KEY is configured.",
         error: err instanceof Error ? err.message : "Unknown error",
       },
-      { status: 200 } // Return 200 so the chat UI shows the error message
+      { status: 200 }
     );
   }
 }
