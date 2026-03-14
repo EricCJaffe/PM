@@ -3,6 +3,7 @@
 ## In Progress
 - [ ] Apply migration 005_auth_user_roles.sql to Supabase
 - [ ] Apply migration 006_org_contact_fields.sql to Supabase
+- [ ] Run Reverb Church backfill: `npx tsx scripts/backfill-reverb-church.ts`
 - [ ] End-to-end test: full auth flow (signup → confirm → login → admin)
 - [ ] Test AI SOP scanner with real documents
 
