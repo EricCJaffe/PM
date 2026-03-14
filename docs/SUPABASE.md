@@ -11,6 +11,10 @@ This module shares a Supabase project with FSA. Auth and org/tenant schema are r
 | id | UUID | PK, auto-generated |
 | slug | TEXT | Unique, kebab-case |
 | name | TEXT | Display name |
+| address | TEXT | Optional, street address |
+| phone | TEXT | Optional, phone number |
+| website | TEXT | Optional, URL |
+| notes | TEXT | Optional, free-text notes |
 | created_at | TIMESTAMPTZ | Auto |
 
 ### pm_members
@@ -133,3 +137,6 @@ This module shares a Supabase project with FSA. Auth and org/tenant schema are r
 | `001_pm_schema.sql` | Core tables, indexes, updated_at triggers |
 | `002_add_missing_columns.sql` | Additive patches for pre-existing tables |
 | `003_orgs_and_members.sql` | Organizations, members, FK constraint |
+| `004_client_dashboard.sql` | Process maps, opportunities, KPIs, documents, share tokens |
+| `005_auth_user_roles.sql` | User profiles, org access roles |
+| `006_org_contact_fields.sql` | Add address, phone, website, notes to pm_organizations |

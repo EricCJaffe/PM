@@ -350,7 +350,7 @@ export default function NewProjectPage() {
           </select>
           {form.org_id && members.length === 0 && (
             <p className="text-xs text-pm-muted mt-1">
-              No members yet. Add members on the <a href="/members" className="text-blue-400 hover:underline">Members</a> page first.
+              No users yet. Add users from the client&apos;s <a href="/clients" className="text-blue-400 hover:underline">dashboard</a> first.
             </p>
           )}
         </div>

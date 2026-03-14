@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     if (error) {
       if (error.code === "23505") {
         return NextResponse.json(
-          { error: `Member '${slug}' already exists in this organization` },
+          { error: `User '${slug}' already exists in this client` },
           { status: 409 }
         );
       }
@@ -71,6 +71,86 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(data, { status: 201 });
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Internal error" },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT /api/pm/members — update a member
+export async function PUT(request: NextRequest) {
+  try {
+    const tableCheck = await checkTablesExist(REQUIRED_TABLES);
+    if (tableCheck) {
+      return NextResponse.json(tableCheck, { status: 503 });
+    }
+
+    const { id, display_name, slug, email, role } = await request.json();
+
+    if (!id) {
+      return NextResponse.json({ error: "id is required" }, { status: 400 });
+    }
+
+    const supabase = createServiceClient();
+    const updates: Record<string, unknown> = {};
+    if (display_name !== undefined) updates.display_name = display_name;
+    if (slug !== undefined) updates.slug = slug;
+    if (email !== undefined) updates.email = email || null;
+    if (role !== undefined) updates.role = role;
+
+    const { data, error } = await supabase
+      .from("pm_members")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === "23505") {
+        return NextResponse.json(
+          { error: `User slug '${slug}' already exists in this client` },
+          { status: 409 }
+        );
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json(data);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Internal error" },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE /api/pm/members — remove a member
+export async function DELETE(request: NextRequest) {
+  try {
+    const tableCheck = await checkTablesExist(REQUIRED_TABLES);
+    if (tableCheck) {
+      return NextResponse.json(tableCheck, { status: 503 });
+    }
+
+    const { id } = await request.json();
+
+    if (!id) {
+      return NextResponse.json({ error: "id is required" }, { status: 400 });
+    }
+
+    const supabase = createServiceClient();
+    const { error } = await supabase
+      .from("pm_members")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Internal error" },
