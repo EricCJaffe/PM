@@ -1,5 +1,9 @@
 import type { Config } from "tailwindcss";
 
+function pmColor(varName: string) {
+  return `rgb(var(--pm-${varName}) / <alpha-value>)`;
+}
+
 const config: Config = {
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
@@ -10,17 +14,20 @@ const config: Config = {
     extend: {
       colors: {
         pm: {
-          bg: "#0f172a",
-          card: "#1e293b",
-          text: "#e2e8f0",
-          muted: "#94a3b8",
-          border: "#334155",
-          complete: "#10b981",
-          "in-progress": "#f59e0b",
-          "not-started": "#475569",
-          blocked: "#ef4444",
-          "on-hold": "#6366f1",
-          pending: "#8b5cf6",
+          bg: pmColor("bg"),
+          card: pmColor("card"),
+          text: pmColor("text"),
+          muted: pmColor("muted"),
+          border: pmColor("border"),
+          complete: pmColor("complete"),
+          "in-progress": pmColor("in-progress"),
+          "not-started": pmColor("not-started"),
+          blocked: pmColor("blocked"),
+          "on-hold": pmColor("on-hold"),
+          pending: pmColor("pending"),
+          accent: pmColor("accent"),
+          "accent-hover": pmColor("accent-hover"),
+          surface: pmColor("surface"),
         },
       },
     },

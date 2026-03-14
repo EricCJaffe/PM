@@ -3,8 +3,46 @@
 @tailwind utilities;
 
 @layer base {
+  /* ─── Dark theme (default) ── values are space-separated RGB ─── */
+  :root {
+    --pm-bg: 15 23 42;
+    --pm-card: 30 41 59;
+    --pm-text: 226 232 240;
+    --pm-muted: 148 163 184;
+    --pm-border: 51 65 85;
+    --pm-complete: 16 185 129;
+    --pm-in-progress: 245 158 11;
+    --pm-not-started: 71 85 105;
+    --pm-blocked: 239 68 68;
+    --pm-on-hold: 99 102 241;
+    --pm-pending: 139 92 246;
+    --pm-accent: 59 130 246;
+    --pm-accent-hover: 37 99 235;
+    --pm-surface: 30 41 59;
+  }
+
+  /* ─── Light theme ──────────────────────────────────────────────── */
+  [data-theme="light"] {
+    --pm-bg: 248 250 252;
+    --pm-card: 255 255 255;
+    --pm-text: 30 41 59;
+    --pm-muted: 100 116 139;
+    --pm-border: 226 232 240;
+    --pm-complete: 5 150 105;
+    --pm-in-progress: 217 119 6;
+    --pm-not-started: 148 163 184;
+    --pm-blocked: 220 38 38;
+    --pm-on-hold: 79 70 229;
+    --pm-pending: 124 58 237;
+    --pm-accent: 59 130 246;
+    --pm-accent-hover: 37 99 235;
+    --pm-surface: 241 245 249;
+  }
+
   body {
-    @apply bg-pm-bg text-pm-text;
+    background-color: rgb(var(--pm-bg));
+    color: rgb(var(--pm-text));
+    transition: background-color 0.2s, color 0.2s;
   }
 }
 

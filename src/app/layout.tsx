@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { NavBar } from "@/components/NavBar";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -13,12 +14,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('pm-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}})()`,
+          }}
+        />
+      </head>
       <body className="font-sans">
-        <div className="min-h-screen bg-pm-bg">
-          <NavBar />
-          {children}
-        </div>
+        <ThemeProvider>
+          <div className="min-h-screen bg-pm-bg">
+            <NavBar />
+            {children}
+          </div>
+        </ThemeProvider>
       </body>
     </html>
   );

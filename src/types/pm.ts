@@ -153,6 +153,96 @@ export interface PMFile {
   last_synced_at: string;
 }
 
+// ─── Client Dashboard Types ─────────────────────────────────────────
+
+export interface ProcessMapStep {
+  id: string;
+  name: string;
+  status: "not-started" | "in-progress" | "complete";
+  substeps?: { name: string; done: boolean }[];
+}
+
+export interface ProcessMap {
+  id: string;
+  org_id: string;
+  project_id: string | null;
+  slug: string;
+  name: string;
+  department: string | null;
+  description: string | null;
+  steps: ProcessMapStep[];
+  created_at: string;
+  updated_at: string;
+}
+
+export type OpportunityStatus = "identified" | "proposed" | "approved" | "in-progress" | "complete" | "declined";
+
+export interface Opportunity {
+  id: string;
+  org_id: string;
+  project_id: string | null;
+  process_map_id: string | null;
+  slug: string;
+  title: string;
+  description: string | null;
+  estimated_savings: number;
+  savings_unit: "year" | "month" | "quarter" | "one-time";
+  complexity: "low" | "medium" | "high";
+  estimated_timeline: string | null;
+  priority_score: number;
+  status: OpportunityStatus;
+  source: string | null;
+  owner: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KPI {
+  id: string;
+  org_id: string;
+  project_id: string | null;
+  slug: string;
+  name: string;
+  current_value: number;
+  target_value: number | null;
+  unit: string;
+  trend: "up" | "down" | "flat";
+  period: "daily" | "weekly" | "monthly" | "quarterly" | "yearly";
+  category: string | null;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PMDocument {
+  id: string;
+  org_id: string;
+  project_id: string | null;
+  slug: string;
+  title: string;
+  category: "sop" | "document" | "report" | "template" | "policy" | "other";
+  department: string | null;
+  description: string | null;
+  storage_path: string;
+  file_name: string;
+  file_size: number;
+  mime_type: string | null;
+  uploaded_by: string | null;
+  created_at: string;
+}
+
+export interface ShareToken {
+  id: string;
+  org_id: string;
+  project_id: string | null;
+  token: string;
+  label: string | null;
+  permissions: "read" | "read-comment";
+  expires_at: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
 // ─── UI / Derived Types ──────────────────────────────────────────────
 
 export interface ProjectWithStats extends Project {
