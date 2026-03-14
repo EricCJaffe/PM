@@ -12,7 +12,7 @@ export function PhaseCard({ phase }: { phase: PhaseWithTasks }) {
       <div className="flex items-start justify-between mb-2">
         <div>
           <span className="text-xs text-pm-muted font-mono">
-            P{String(phase.order).padStart(2, "0")}
+            P{String(phase.phase_order).padStart(2, "0")}
           </span>
           {phase.group && (
             <span className="text-xs text-pm-muted ml-2 uppercase tracking-wider">

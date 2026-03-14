@@ -185,7 +185,7 @@ export async function POST(request: NextRequest) {
       project_id: project.id,
       slug: p.slug,
       name: p.name,
-      order: p.order,
+      phase_order: p.order,
       group: p.group ?? null,
       status: "not-started",
       progress: 0,

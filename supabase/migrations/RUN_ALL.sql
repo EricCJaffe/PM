@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS pm_phases (
   project_id UUID NOT NULL REFERENCES pm_projects(id) ON DELETE CASCADE,
   slug TEXT NOT NULL,
   name TEXT NOT NULL,
-  "order" INT NOT NULL DEFAULT 0,
+  phase_order INT NOT NULL DEFAULT 0,
   "group" TEXT,
   status TEXT NOT NULL DEFAULT 'not-started'
     CHECK (status IN ('not-started','in-progress','complete','blocked','pending','on-hold')),
@@ -156,7 +156,7 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
-ALTER TABLE pm_phases ADD COLUMN IF NOT EXISTS "order" INT NOT NULL DEFAULT 0;
+ALTER TABLE pm_phases ADD COLUMN IF NOT EXISTS phase_order INT NOT NULL DEFAULT 0;
 ALTER TABLE pm_phases ADD COLUMN IF NOT EXISTS "group" TEXT;
 ALTER TABLE pm_phases ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'not-started';
 ALTER TABLE pm_phases ADD COLUMN IF NOT EXISTS progress INT DEFAULT 0;

@@ -149,9 +149,10 @@ export function generateProjectVaultFiles(
 export function generatePhaseVaultFiles(
   orgSlug: string,
   projectSlug: string,
-  phase: { slug: string; name: string; order: number; group?: string }
+  phase: { slug: string; name: string; order?: number; phase_order?: number; group?: string }
 ): VaultFileSpec[] {
-  const base = phasePath(orgSlug, projectSlug, `p${String(phase.order).padStart(2, "0")}-${phase.slug}`);
+  const ord = phase.phase_order ?? phase.order ?? 0;
+  const base = phasePath(orgSlug, projectSlug, `p${String(ord).padStart(2, "0")}-${phase.slug}`);
   return [
     {
       path: `${base}/STATUS.md`,

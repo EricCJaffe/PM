@@ -88,7 +88,7 @@ export interface Phase {
   project_id: string;
   slug: string;
   name: string;
-  order: number;
+  phase_order: number;
   group: PhaseGroup | null;
   status: PMStatus;
   progress: number;

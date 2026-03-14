@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       { data: risks },
     ] = await Promise.all([
       supabase.from("pm_projects").select("*").eq("id", project_id).single(),
-      supabase.from("pm_phases").select("*").eq("project_id", project_id).order("order"),
+      supabase.from("pm_phases").select("*").eq("project_id", project_id).order("phase_order"),
       supabase.from("pm_tasks").select("*").eq("project_id", project_id),
       supabase.from("pm_risks").select("*").eq("project_id", project_id),
     ]);
@@ -47,7 +47,7 @@ Template: ${project?.template_slug ?? "unknown"}
 Start: ${project?.start_date ?? "—"} | Target: ${project?.target_date ?? "—"}
 
 Phases (${phases?.length ?? 0}):
-${phases?.map((p: { order: number; name: string; status: string; progress: number }) => `  P${String(p.order).padStart(2, "0")} ${p.name} — ${p.status} (${p.progress}%)`).join("\n") ?? "None"}
+${phases?.map((p: { phase_order: number; name: string; status: string; progress: number }) => `  P${String(p.phase_order).padStart(2, "0")} ${p.name} — ${p.status} (${p.progress}%)`).join("\n") ?? "None"}
 
 Tasks (${tasks?.length ?? 0}):
 ${tasks?.slice(0, 30).map((t: { name: string; status: string; owner: string; due_date: string }) => `  - ${t.name} [${t.status}] owner:${t.owner ?? "—"} due:${t.due_date ?? "—"}`).join("\n") ?? "None"}

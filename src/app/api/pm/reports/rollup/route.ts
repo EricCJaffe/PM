@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       { data: risks },
     ] = await Promise.all([
       supabase.from("pm_projects").select("*").eq("id", project_id).single(),
-      supabase.from("pm_phases").select("*").eq("project_id", project_id).order("order"),
+      supabase.from("pm_phases").select("*").eq("project_id", project_id).order("phase_order"),
       supabase.from("pm_tasks").select("*").eq("project_id", project_id),
       supabase.from("pm_risks").select("*").eq("project_id", project_id),
     ]);
@@ -41,7 +41,7 @@ Tasks: ${taskList.length} total, ${complete} complete, ${inProgress} in-progress
 Progress: ${taskList.length > 0 ? Math.round((complete / taskList.length) * 100) : 0}%
 
 Phase Summary:
-${phases?.map((p: { order: number; name: string; status: string; progress: number; group: string }) => `P${String(p.order).padStart(2, "0")} ${p.name} [${p.group ?? ""}] — ${p.status} (${p.progress}%)`).join("\n") ?? "None"}
+${phases?.map((p: { phase_order: number; name: string; status: string; progress: number; group: string }) => `P${String(p.phase_order).padStart(2, "0")} ${p.name} [${p.group ?? ""}] — ${p.status} (${p.progress}%)`).join("\n") ?? "None"}
 
 Blocked Tasks:
 ${taskList.filter((t: { status: string }) => t.status === "blocked").map((t: { name: string; owner: string; description: string }) => `- ${t.name} (owner: ${t.owner ?? "—"}): ${t.description ?? "no details"}`).join("\n") || "None"}

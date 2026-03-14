@@ -22,7 +22,7 @@ EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 -- ─── pm_phases ───────────────────────────────────────────────────────
-ALTER TABLE pm_phases ADD COLUMN IF NOT EXISTS "order" INT NOT NULL DEFAULT 0;
+ALTER TABLE pm_phases ADD COLUMN IF NOT EXISTS phase_order INT NOT NULL DEFAULT 0;
 ALTER TABLE pm_phases ADD COLUMN IF NOT EXISTS "group" TEXT;
 ALTER TABLE pm_phases ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'not-started';
 ALTER TABLE pm_phases ADD COLUMN IF NOT EXISTS progress INT DEFAULT 0;

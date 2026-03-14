@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS pm_phases (
   project_id UUID NOT NULL REFERENCES pm_projects(id) ON DELETE CASCADE,
   slug TEXT NOT NULL,
   name TEXT NOT NULL,
-  "order" INT NOT NULL DEFAULT 0,
+  phase_order INT NOT NULL DEFAULT 0,
   "group" TEXT,
   status TEXT NOT NULL DEFAULT 'not-started'
     CHECK (status IN ('not-started','in-progress','complete','blocked','pending','on-hold')),
