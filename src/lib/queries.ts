@@ -22,6 +22,16 @@ export async function getOrganizationBySlug(slug: string): Promise<Organization 
   return data as Organization | null;
 }
 
+export async function getOrganizationById(id: string): Promise<Organization | null> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_organizations")
+    .select("*")
+    .eq("id", id)
+    .single();
+  return data as Organization | null;
+}
+
 // ─── Members ─────────────────────────────────────────────────────────
 
 export async function getMembers(orgId: string): Promise<Member[]> {

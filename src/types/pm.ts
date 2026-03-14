@@ -28,6 +28,10 @@ export interface Organization {
   id: string;
   slug: string;
   name: string;
+  address: string | null;
+  phone: string | null;
+  website: string | null;
+  notes: string | null;
   created_at: string;
 }
 

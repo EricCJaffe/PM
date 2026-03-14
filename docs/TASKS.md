@@ -2,6 +2,7 @@
 
 ## In Progress
 - [ ] Apply migration 005_auth_user_roles.sql to Supabase
+- [ ] Apply migration 006_org_contact_fields.sql to Supabase
 - [ ] End-to-end test: full auth flow (signup → confirm → login → admin)
 - [ ] Test AI SOP scanner with real documents
 
@@ -16,6 +17,12 @@
 - [ ] Seed Honey Lake Digital and VakPak as sample projects
 
 ## Completed
+- [x] Merge Organizations/Clients/Members into unified Clients + Users model
+  - Clients page (/clients) with full CRUD (add/edit/delete) + contact fields (address, phone, website, notes)
+  - Users tab on client dashboard for managing client users (add/edit/delete)
+  - Old /organizations, /members, /dashboard routes redirect to /clients
+  - NavBar simplified to Projects + Clients
+  - Auth disabled via middleware until closer to go-live
 - [x] Authentication system: Supabase email auth with middleware route protection
 - [x] User profiles with system roles (admin/manager/user/viewer)
 - [x] First-user-becomes-admin bootstrap logic

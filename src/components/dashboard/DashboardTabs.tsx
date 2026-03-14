@@ -7,9 +7,11 @@ import { OpportunitiesTab } from "./OpportunitiesTab";
 import { ImplementationTab } from "./ImplementationTab";
 import { KPIsTab } from "./KPIsTab";
 import { DocsTab } from "./DocsTab";
+import { UsersTab } from "./UsersTab";
 
 const tabs = [
   { id: "overview", label: "Overview" },
+  { id: "users", label: "Users" },
   { id: "process-maps", label: "Process Maps" },
   { id: "opportunities", label: "Opportunities" },
   { id: "implementation", label: "Implementation Plan" },
@@ -98,6 +100,7 @@ export function DashboardTabs({
         )}
       </div>
 
+      {active === "users" && <UsersTab org={org} />}
       {active === "overview" && (
         <OverviewTab
           org={org}
