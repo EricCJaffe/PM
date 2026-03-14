@@ -33,7 +33,7 @@ function LoginForm() {
     const supabase = createClient();
 
     if (mode === "signup") {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -42,17 +42,28 @@ function LoginForm() {
         },
       });
       if (error) {
-        setError(error.message);
-      } else {
+        // If user already exists, suggest signing in
+        if (error.message.toLowerCase().includes("already") || error.message.toLowerCase().includes("exists")) {
+          setError("An account with this email already exists. Try signing in instead.");
+        } else {
+          setError(error.message);
+        }
+      } else if (data.user && !data.session) {
+        // User created but needs email confirmation
         setMessage("Check your email for a confirmation link.");
+      } else if (data.session) {
+        // Auto-confirmed (e.g. email confirmations disabled in Supabase)
+        try { await fetch("/api/pm/auth/profile", { method: "POST" }); } catch {}
+        router.push(redirect);
+        router.refresh();
       }
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         setError(error.message);
       } else {
-        // Ensure profile exists
-        await fetch("/api/pm/auth/profile", { method: "POST" });
+        // Ensure profile exists — don't block login if this fails
+        try { await fetch("/api/pm/auth/profile", { method: "POST" }); } catch {}
         router.push(redirect);
         router.refresh();
       }
@@ -136,6 +147,25 @@ function LoginForm() {
             >
               {loading ? "Please wait…" : mode === "login" ? "Sign In" : "Create Account"}
             </button>
+
+            {mode === "login" && (
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!email) { setError("Enter your email first."); return; }
+                  setError(null);
+                  const supabase = createClient();
+                  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                    redirectTo: `${window.location.origin}/auth/callback?redirect=${redirect}`,
+                  });
+                  if (error) setError(error.message);
+                  else setMessage("Password reset link sent to your email.");
+                }}
+                className="w-full text-center text-xs text-pm-muted hover:text-pm-accent transition-colors"
+              >
+                Forgot password?
+              </button>
+            )}
           </form>
         </div>
       </div>
