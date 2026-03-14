@@ -23,34 +23,18 @@ interface Member {
   role: string;
 }
 
-const templates = [
-  {
-    slug: "saas-rollout",
-    name: "SaaS App Rollout",
-    description: "26-phase rollout for SaaS products across Build, Go-to-Market, Grow, and Foundation stages.",
-  },
-  {
-    slug: "ministry-discovery",
-    name: "Ministry / Org Discovery",
-    description: "7-phase discovery process for ministry and organizational transformation.",
-  },
-  {
-    slug: "tech-stack-modernization",
-    name: "Tech Stack Modernization (PMBOK)",
-    description: "PMBOK-aligned tech modernization with 12 management sections.",
-  },
-  {
-    slug: "custom",
-    name: "Custom",
-    description: "Blank slate. Define your own phases, tasks, and structure.",
-  },
-];
+interface TemplateOption {
+  slug: string;
+  name: string;
+  description: string;
+}
 
 export default function NewProjectPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [templates, setTemplates] = useState<TemplateOption[]>([]);
   const [tableError, setTableError] = useState<TableError | null>(null);
   const [showNewOrg, setShowNewOrg] = useState(false);
   const [newOrgName, setNewOrgName] = useState("");
@@ -69,7 +53,7 @@ export default function NewProjectPage() {
     budget: "",
   });
 
-  // Load orgs on mount
+  // Load orgs and templates on mount
   useEffect(() => {
     fetch("/api/pm/organizations")
       .then((r) => r.json())
@@ -78,6 +62,23 @@ export default function NewProjectPage() {
           setTableError(data);
         } else if (Array.isArray(data)) {
           setOrgs(data);
+        }
+      })
+      .catch(() => {});
+
+    fetch("/api/pm/templates")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setTemplates(data.map((t: { slug: string; name: string; description: string }) => ({
+            slug: t.slug,
+            name: t.name,
+            description: t.description || "",
+          })));
+          // Default to first template if available
+          if (data.length > 0) {
+            setForm((f) => ({ ...f, template_slug: f.template_slug || data[0].slug }));
+          }
         }
       })
       .catch(() => {});
