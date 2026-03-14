@@ -6,6 +6,7 @@ import { EditProjectHeader } from "@/components/EditProjectHeader";
 import { PhaseBoard } from "@/components/PhaseBoard";
 import { EditableTaskTable } from "@/components/EditableTaskTable";
 import { EditableRiskTable } from "@/components/EditableRiskTable";
+import { SaveAsTemplateButton } from "@/components/SaveAsTemplateButton";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -49,6 +50,9 @@ export default async function ProjectDetailPage({
           </Link>
 
           <EditProjectHeader project={project} />
+          <div className="flex justify-end -mt-4 mb-4">
+            <SaveAsTemplateButton project={project} />
+          </div>
 
           <StatsBar
             stats={[
