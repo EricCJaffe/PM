@@ -10,9 +10,13 @@ You CAN and SHOULD directly make changes when asked. Do not tell the user to do 
 Available actions (use these tools):
 - add_task: Create a new task in a phase
 - update_task: Change status, owner, due date, or name of an existing task
+- delete_task: Delete a task by name
 - add_phase: Add a new phase to the project
 - update_phase: Change status, progress, or owner of a phase
+- delete_phase: Delete a phase (and all its tasks) by name
 - add_risk: Add a risk to the risk register
+- update_risk: Update an existing risk's fields
+- delete_risk: Delete a risk by title
 - update_project: Change project status, owner, or target date
 
 After using a tool, summarize what you did in plain language. If something fails, explain why.`;
@@ -106,6 +110,69 @@ const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           owner: { type: "string", description: "Risk owner" },
         },
         required: ["title", "probability", "impact"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_task",
+      description: "Delete a task from the project",
+      parameters: {
+        type: "object",
+        properties: {
+          task_name: { type: "string", description: "Name of the task to delete" },
+        },
+        required: ["task_name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_phase",
+      description: "Delete a phase and all its tasks",
+      parameters: {
+        type: "object",
+        properties: {
+          phase_name: { type: "string", description: "Name of the phase to delete" },
+        },
+        required: ["phase_name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_risk",
+      description: "Update an existing risk in the risk register",
+      parameters: {
+        type: "object",
+        properties: {
+          risk_title: { type: "string", description: "Current title of the risk (used to find it)" },
+          title: { type: "string", description: "New title (optional)" },
+          description: { type: "string" },
+          probability: { type: "string", enum: ["low", "medium", "high"] },
+          impact: { type: "string", enum: ["low", "medium", "high"] },
+          mitigation: { type: "string" },
+          owner: { type: "string" },
+          status: { type: "string", enum: ["open", "mitigated", "closed"] },
+        },
+        required: ["risk_title"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_risk",
+      description: "Delete a risk from the risk register",
+      parameters: {
+        type: "object",
+        properties: {
+          risk_title: { type: "string", description: "Title of the risk to delete" },
+        },
+        required: ["risk_title"],
       },
     },
   },
@@ -241,6 +308,50 @@ async function executeTool(
       });
       if (error) return `Failed to add risk: ${error.message}`;
       return `Risk "${args.title}" added to the risk register.`;
+    }
+
+    if (name === "delete_task") {
+      const { data: task } = await supabase
+        .from("pm_tasks").select("id").eq("project_id", projectId)
+        .ilike("name", `%${args.task_name as string}%`).limit(1).single();
+      if (!task) return `Task matching "${args.task_name}" not found.`;
+      const { error } = await supabase.from("pm_tasks").delete().eq("id", task.id);
+      if (error) return `Failed to delete task: ${error.message}`;
+      return `Task "${args.task_name}" deleted.`;
+    }
+
+    if (name === "delete_phase") {
+      const { data: phase } = await supabase
+        .from("pm_phases").select("id").eq("project_id", projectId)
+        .ilike("name", `%${args.phase_name as string}%`).limit(1).single();
+      if (!phase) return `Phase matching "${args.phase_name}" not found.`;
+      const { error } = await supabase.from("pm_phases").delete().eq("id", phase.id);
+      if (error) return `Failed to delete phase: ${error.message}`;
+      return `Phase "${args.phase_name}" and all its tasks deleted.`;
+    }
+
+    if (name === "update_risk") {
+      const { data: risk } = await supabase
+        .from("pm_risks").select("id").eq("project_id", projectId)
+        .ilike("title", `%${args.risk_title as string}%`).limit(1).single();
+      if (!risk) return `Risk matching "${args.risk_title}" not found.`;
+      const updates: Record<string, unknown> = {};
+      for (const key of ["title", "description", "probability", "impact", "mitigation", "owner", "status"]) {
+        if (args[key]) updates[key] = args[key];
+      }
+      const { error } = await supabase.from("pm_risks").update(updates).eq("id", risk.id);
+      if (error) return `Failed to update risk: ${error.message}`;
+      return `Risk "${args.risk_title}" updated.`;
+    }
+
+    if (name === "delete_risk") {
+      const { data: risk } = await supabase
+        .from("pm_risks").select("id").eq("project_id", projectId)
+        .ilike("title", `%${args.risk_title as string}%`).limit(1).single();
+      if (!risk) return `Risk matching "${args.risk_title}" not found.`;
+      const { error } = await supabase.from("pm_risks").delete().eq("id", risk.id);
+      if (error) return `Failed to delete risk: ${error.message}`;
+      return `Risk "${args.risk_title}" deleted.`;
     }
 
     if (name === "update_project") {

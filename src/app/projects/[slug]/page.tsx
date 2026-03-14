@@ -1,11 +1,11 @@
 import { getProject, getPhasesWithTasks, getRisks, getTasks } from "@/lib/queries";
 import { StatsBar } from "@/components/StatsBar";
-import { PhaseCard } from "@/components/PhaseCard";
-import { StatusBadge } from "@/components/StatusBadge";
 import { ChatPanel } from "@/components/ChatPanel";
-import { RiskTable } from "@/components/RiskTable";
-import { TaskTable } from "@/components/TaskTable";
 import { TabNav } from "@/components/TabNav";
+import { EditProjectHeader } from "@/components/EditProjectHeader";
+import { PhaseBoard } from "@/components/PhaseBoard";
+import { EditableTaskTable } from "@/components/EditableTaskTable";
+import { EditableRiskTable } from "@/components/EditableRiskTable";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -31,14 +31,6 @@ export default async function ProjectDetailPage({
   const inProgressTasks = tasks.filter((t) => t.status === "in-progress").length;
   const progress = tasks.length > 0 ? Math.round((completeTasks / tasks.length) * 100) : 0;
 
-  // Group phases by group (for SaaS template)
-  const phaseGroups = new Map<string | null, typeof phases>();
-  for (const phase of phases) {
-    const group = phase.group;
-    if (!phaseGroups.has(group)) phaseGroups.set(group, []);
-    phaseGroups.get(group)!.push(phase);
-  }
-
   return (
     <div className="flex h-screen">
       {/* Left Panel — AI Chat */}
@@ -52,19 +44,12 @@ export default async function ProjectDetailPage({
       {/* Right Panel — Project Board */}
       <div className="flex-1 overflow-auto">
         <div className="p-6">
-          {/* Header */}
-          <div className="flex items-start justify-between mb-6">
-            <div>
-              <Link href="/projects" className="text-sm text-pm-muted hover:text-pm-text mb-2 inline-block">
-                &larr; Projects
-              </Link>
-              <h1 className="text-3xl font-bold text-pm-text">{project.name}</h1>
-              <p className="text-pm-muted mt-1">{project.description}</p>
-            </div>
-            <StatusBadge status={project.status} />
-          </div>
+          <Link href="/projects" className="text-sm text-pm-muted hover:text-pm-text mb-4 inline-block">
+            &larr; Projects
+          </Link>
 
-          {/* Stats */}
+          <EditProjectHeader project={project} />
+
           <StatsBar
             stats={[
               { label: "Phases", value: phases.length },
@@ -76,43 +61,22 @@ export default async function ProjectDetailPage({
             ]}
           />
 
-          {/* Tabs */}
           <TabNav
             tabs={[
               {
                 id: "board",
                 label: "Board",
-                content: (
-                  <div className="mt-6 space-y-8">
-                    {Array.from(phaseGroups.entries()).map(([group, groupPhases]) => (
-                      <div key={group ?? "ungrouped"}>
-                        {group && (
-                          <h2 className="text-sm font-semibold text-pm-muted uppercase tracking-wider mb-3">
-                            {group}
-                          </h2>
-                        )}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {groupPhases.map((phase) => (
-                            <PhaseCard key={phase.id} phase={phase} />
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                    {phases.length === 0 && (
-                      <p className="text-pm-muted text-center py-8">No phases yet. Use the AI chat to generate project structure.</p>
-                    )}
-                  </div>
-                ),
+                content: <PhaseBoard phases={phases} projectId={project.id} />,
               },
               {
                 id: "tasks",
-                label: "Tasks",
-                content: <TaskTable tasks={tasks} />,
+                label: `Tasks (${tasks.length})`,
+                content: <EditableTaskTable tasks={tasks} phases={phases} projectId={project.id} />,
               },
               {
                 id: "risks",
-                label: "Risks",
-                content: <RiskTable risks={risks} />,
+                label: `Risks (${risks.length})`,
+                content: <EditableRiskTable risks={risks} projectId={project.id} />,
               },
             ]}
           />
