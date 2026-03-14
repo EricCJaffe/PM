@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Organization, KPI } from "@/types/pm";
+import type { Organization, KPI, ProjectWithStats } from "@/types/pm";
 import { Modal, Field, Input, Select, Textarea, ModalActions } from "../Modal";
 
 const TRENDS = ["up", "down", "flat"] as const;
@@ -13,7 +13,7 @@ const trendIcons: Record<string, { icon: string; color: string }> = {
   flat: { icon: "→", color: "text-pm-muted" },
 };
 
-function KPIModal({ orgId, kpi, onClose }: { orgId: string; kpi?: KPI; onClose: () => void }) {
+function KPIModal({ orgId, kpi, onClose, projectId }: { orgId: string; kpi?: KPI; onClose: () => void; projectId?: string | null }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
@@ -49,7 +49,7 @@ function KPIModal({ orgId, kpi, onClose }: { orgId: string; kpi?: KPI; onClose: 
     } else {
       await fetch("/api/pm/kpis", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ org_id: orgId, ...payload }),
+        body: JSON.stringify({ org_id: orgId, project_id: projectId || null, ...payload }),
       });
     }
     setSaving(false);
@@ -111,7 +111,7 @@ function KPIModal({ orgId, kpi, onClose }: { orgId: string; kpi?: KPI; onClose: 
   );
 }
 
-export function KPIsTab({ org, kpis }: { org: Organization; kpis: KPI[] }) {
+export function KPIsTab({ org, kpis, projects, selectedProjectId }: { org: Organization; kpis: KPI[]; projects?: ProjectWithStats[]; selectedProjectId?: string | null }) {
   const [modal, setModal] = useState<KPI | "new" | null>(null);
 
   const categories = [...new Set(kpis.map((k) => k.category).filter(Boolean))] as string[];
@@ -168,7 +168,7 @@ export function KPIsTab({ org, kpis }: { org: Organization; kpis: KPI[] }) {
         </div>
       )}
 
-      {modal === "new" && <KPIModal orgId={org.id} onClose={() => setModal(null)} />}
+      {modal === "new" && <KPIModal orgId={org.id} onClose={() => setModal(null)} projectId={selectedProjectId} />}
       {modal && modal !== "new" && <KPIModal orgId={org.id} kpi={modal} onClose={() => setModal(null)} />}
     </div>
   );

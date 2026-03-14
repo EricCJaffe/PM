@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Organization, ProcessMap, ProcessMapStep } from "@/types/pm";
+import type { Organization, ProcessMap, ProcessMapStep, ProjectWithStats } from "@/types/pm";
 import { Modal, Field, Input, Select, Textarea, ModalActions } from "../Modal";
 
 function newStep(name: string): ProcessMapStep {
@@ -12,10 +12,12 @@ function ProcessMapModal({
   orgId,
   processMap,
   onClose,
+  projectId,
 }: {
   orgId: string;
   processMap?: ProcessMap;
   onClose: () => void;
+  projectId?: string | null;
 }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -26,6 +28,7 @@ function ProcessMapModal({
   });
   const [steps, setSteps] = useState<ProcessMapStep[]>(processMap?.steps ?? []);
   const [newStepName, setNewStepName] = useState("");
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
 
   function set(field: string, value: string) { setForm((f) => ({ ...f, [field]: value })); }
 
@@ -39,6 +42,18 @@ function ProcessMapModal({
 
   function updateStepStatus(id: string, status: ProcessMapStep["status"]) {
     setSteps((s) => s.map((st) => st.id === id ? { ...st, status } : st));
+  }
+
+  function handleDragOver(e: React.DragEvent, targetIdx: number) {
+    e.preventDefault();
+    if (dragIdx === null || dragIdx === targetIdx) return;
+    setSteps((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(dragIdx, 1);
+      next.splice(targetIdx, 0, moved);
+      return next;
+    });
+    setDragIdx(targetIdx);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -57,7 +72,7 @@ function ProcessMapModal({
     } else {
       await fetch("/api/pm/process-maps", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ org_id: orgId, ...payload }),
+        body: JSON.stringify({ org_id: orgId, project_id: projectId || null, ...payload }),
       });
     }
     setSaving(false);
@@ -88,9 +103,17 @@ function ProcessMapModal({
           </Field>
         </div>
         <Field label="Steps">
-          <div className="space-y-2 mb-2">
+          <div className="space-y-1 mb-2">
             {steps.map((step, i) => (
-              <div key={step.id} className="flex items-center gap-2">
+              <div
+                key={step.id}
+                draggable
+                onDragStart={() => setDragIdx(i)}
+                onDragOver={(e) => handleDragOver(e, i)}
+                onDragEnd={() => setDragIdx(null)}
+                className={`flex items-center gap-2 rounded px-1 py-1 transition-colors ${dragIdx === i ? "bg-pm-accent/10 border border-pm-accent/30" : "hover:bg-pm-bg/50"}`}
+              >
+                <span className="cursor-grab text-pm-muted hover:text-pm-text select-none" title="Drag to reorder">&#x2630;</span>
                 <span className="text-xs text-pm-muted w-5">{i + 1}.</span>
                 <span className="text-sm text-pm-text flex-1">{step.name}</span>
                 <select
@@ -127,7 +150,7 @@ function ProcessMapModal({
   );
 }
 
-export function ProcessMapsTab({ org, processMaps }: { org: Organization; processMaps: ProcessMap[] }) {
+export function ProcessMapsTab({ org, processMaps, projects, selectedProjectId }: { org: Organization; processMaps: ProcessMap[]; projects?: ProjectWithStats[]; selectedProjectId?: string | null }) {
   const [modal, setModal] = useState<ProcessMap | "new" | null>(null);
 
   const statusDot: Record<string, string> = {
@@ -189,7 +212,7 @@ export function ProcessMapsTab({ org, processMaps }: { org: Organization; proces
         </div>
       )}
 
-      {modal === "new" && <ProcessMapModal orgId={org.id} onClose={() => setModal(null)} />}
+      {modal === "new" && <ProcessMapModal orgId={org.id} onClose={() => setModal(null)} projectId={selectedProjectId} />}
       {modal && modal !== "new" && <ProcessMapModal orgId={org.id} processMap={modal} onClose={() => setModal(null)} />}
     </div>
   );

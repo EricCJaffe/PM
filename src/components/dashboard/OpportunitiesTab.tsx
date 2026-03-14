@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Organization, Opportunity } from "@/types/pm";
+import type { Organization, Opportunity, ProjectWithStats } from "@/types/pm";
 import { Modal, Field, Input, Select, Textarea, ModalActions } from "../Modal";
 
 const STATUSES = ["identified", "proposed", "approved", "in-progress", "complete", "declined"] as const;
@@ -23,9 +23,9 @@ const statusColors: Record<string, string> = {
 };
 
 function OpportunityModal({
-  orgId, opportunity, onClose,
+  orgId, opportunity, onClose, projectId,
 }: {
-  orgId: string; opportunity?: Opportunity; onClose: () => void;
+  orgId: string; opportunity?: Opportunity; onClose: () => void; projectId?: string | null;
 }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -66,7 +66,7 @@ function OpportunityModal({
     } else {
       await fetch("/api/pm/opportunities", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ org_id: orgId, ...payload }),
+        body: JSON.stringify({ org_id: orgId, project_id: projectId || null, ...payload }),
       });
     }
     setSaving(false);
@@ -138,7 +138,7 @@ function OpportunityModal({
   );
 }
 
-export function OpportunitiesTab({ org, opportunities }: { org: Organization; opportunities: Opportunity[] }) {
+export function OpportunitiesTab({ org, opportunities, projects, selectedProjectId }: { org: Organization; opportunities: Opportunity[]; projects?: ProjectWithStats[]; selectedProjectId?: string | null }) {
   const [modal, setModal] = useState<Opportunity | "new" | null>(null);
 
   const totalSavings = opportunities
@@ -198,7 +198,7 @@ export function OpportunitiesTab({ org, opportunities }: { org: Organization; op
         </div>
       )}
 
-      {modal === "new" && <OpportunityModal orgId={org.id} onClose={() => setModal(null)} />}
+      {modal === "new" && <OpportunityModal orgId={org.id} onClose={() => setModal(null)} projectId={selectedProjectId} />}
       {modal && modal !== "new" && <OpportunityModal orgId={org.id} opportunity={modal} onClose={() => setModal(null)} />}
     </div>
   );

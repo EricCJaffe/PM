@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import type { Organization, PMDocument } from "@/types/pm";
+import type { Organization, PMDocument, ProjectWithStats } from "@/types/pm";
 import { Modal, Field, Input, Select, ModalActions } from "../Modal";
 
 const CATEGORIES = ["sop", "document", "report", "template", "policy", "other"] as const;
@@ -30,7 +30,7 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function UploadModal({ orgId, onClose }: { orgId: string; onClose: () => void }) {
+function UploadModal({ orgId, onClose, projectId }: { orgId: string; onClose: () => void; projectId?: string | null }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [title, setTitle] = useState("");
@@ -47,6 +47,7 @@ function UploadModal({ orgId, onClose }: { orgId: string; onClose: () => void })
     setSaving(true);
     const formData = new FormData();
     formData.append("org_id", orgId);
+    if (projectId) formData.append("project_id", projectId);
     formData.append("title", title);
     formData.append("category", category);
     formData.append("department", department);
@@ -92,10 +93,12 @@ function UploadModal({ orgId, onClose }: { orgId: string; onClose: () => void })
   );
 }
 
-export function DocsTab({ org, documents }: { org: Organization; documents: PMDocument[] }) {
+export function DocsTab({ org, documents, projects, selectedProjectId }: { org: Organization; documents: PMDocument[]; projects?: ProjectWithStats[]; selectedProjectId?: string | null }) {
   const router = useRouter();
   const [upload, setUpload] = useState(false);
   const [filter, setFilter] = useState<string | null>(null);
+  const [scanning, setScanning] = useState<string | null>(null);
+  const [scanResult, setScanResult] = useState<{ docTitle: string; count: number } | null>(null);
 
   const filtered = filter ? documents.filter((d) => d.category === filter) : documents;
   const categories = [...new Set(documents.map((d) => d.category))];
@@ -104,6 +107,28 @@ export function DocsTab({ org, documents }: { org: Organization; documents: PMDo
     if (!confirm(`Delete "${doc.title}"?`)) return;
     await fetch(`/api/pm/documents/${doc.id}`, { method: "DELETE" });
     router.refresh();
+  }
+
+  async function handleScan(doc: PMDocument) {
+    setScanning(doc.id);
+    setScanResult(null);
+    const res = await fetch("/api/pm/scan-sop", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        document_id: doc.id,
+        org_id: org.id,
+        project_id: selectedProjectId || doc.project_id || null,
+      }),
+    });
+    const data = await res.json();
+    setScanning(null);
+    if (res.ok) {
+      setScanResult({ docTitle: doc.title, count: data.opportunities_created });
+      router.refresh();
+    } else {
+      alert(data.error || "Scan failed");
+    }
   }
 
   return (
@@ -136,6 +161,16 @@ export function DocsTab({ org, documents }: { org: Organization; documents: PMDo
         </button>
       </div>
 
+      {scanResult && (
+        <div className="mb-4 px-4 py-3 bg-pm-complete/10 border border-pm-complete/30 rounded-lg flex items-center justify-between">
+          <span className="text-sm text-pm-text">
+            AI scan of &ldquo;{scanResult.docTitle}&rdquo; found <strong>{scanResult.count}</strong> automation {scanResult.count === 1 ? "opportunity" : "opportunities"}.
+            {scanResult.count > 0 && " Check the Opportunities tab to review."}
+          </span>
+          <button onClick={() => setScanResult(null)} className="text-pm-muted hover:text-pm-text text-xs ml-3">&times;</button>
+        </div>
+      )}
+
       {filtered.length === 0 ? (
         <div className="card text-center py-8">
           <p className="text-pm-muted">{documents.length === 0 ? "No documents uploaded yet." : "No documents in this category."}</p>
@@ -157,6 +192,14 @@ export function DocsTab({ org, documents }: { org: Organization; documents: PMDo
                 {doc.description && <p className="text-xs text-pm-muted mt-1">{doc.description}</p>}
               </div>
               <button
+                onClick={() => handleScan(doc)}
+                disabled={scanning === doc.id}
+                className="px-2 py-1 text-xs rounded border border-pm-accent text-pm-accent hover:bg-pm-accent hover:text-white transition-colors disabled:opacity-50 shrink-0"
+                title="AI Scan for automation opportunities"
+              >
+                {scanning === doc.id ? "Scanning..." : "AI Scan"}
+              </button>
+              <button
                 onClick={() => handleDelete(doc)}
                 className="p-1 text-pm-muted hover:text-pm-blocked shrink-0"
                 title="Delete"
@@ -170,7 +213,7 @@ export function DocsTab({ org, documents }: { org: Organization; documents: PMDo
         </div>
       )}
 
-      {upload && <UploadModal orgId={org.id} onClose={() => setUpload(false)} />}
+      {upload && <UploadModal orgId={org.id} onClose={() => setUpload(false)} projectId={selectedProjectId} />}
     </div>
   );
 }
