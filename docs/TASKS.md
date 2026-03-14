@@ -1,34 +1,45 @@
 # Tasks
 
 ## In Progress
-- [ ] Apply migrations to Supabase and seed templates
-- [ ] Create initial orgs and members via API
-- [ ] End-to-end test: create project from template, verify vault files
+- [ ] Apply migration 005_auth_user_roles.sql to Supabase
+- [ ] End-to-end test: full auth flow (signup → confirm → login → admin)
+- [ ] Test AI SOP scanner with real documents
 
 ## Backlog
 - [ ] Add RLS policies to all PM tables
-- [ ] Auth integration (shared Supabase auth with FSA)
-- [ ] Middleware route protection for `/projects/**`
 - [ ] AI daily standup generation (`/daily/YYYY-MM-DD.md`)
 - [ ] Risk radar — AI scan of escalating risks
 - [ ] Natural language updates ("Set X due date to April 15")
 - [ ] Supabase realtime subscriptions for live dashboard updates
-- [ ] Client portal (Phase 2) — `org_viewer` role, `/portal/[org-slug]/projects`
-- [ ] Seed Honey Lake Digital and VakPak as sample projects
 - [ ] Timeline view (Gantt-style) for phases
 - [ ] Budget vs actuals tracking
+- [ ] Seed Honey Lake Digital and VakPak as sample projects
 
 ## Completed
-- [x] Fix FK constraint `pm_projects_org_id_fkey` pointing to wrong table ("orgs" instead of "pm_organizations")
-- [x] Fix template seeding: phases now properly return errors instead of failing silently
-- [x] Add starter tasks to all 3 templates (SaaS: 82 tasks, Ministry: 29 tasks, PMBOK: 41 tasks)
-- [x] Add task creation logic to project seed route (phases → tasks inserted together)
+- [x] Authentication system: Supabase email auth with middleware route protection
+- [x] User profiles with system roles (admin/manager/user/viewer)
+- [x] First-user-becomes-admin bootstrap logic
+- [x] Admin user management page (/admin/users) with role editing and org access
+- [x] UserMenu component integrated into NavBar (avatar + sign out)
+- [x] Login/signup page with email confirmation flow
+- [x] Per-project scoping on all dashboard tabs (filter dropdown)
+- [x] Drag-and-drop reordering for process map steps
+- [x] AI SOP scanner — upload SOPs, AI finds automation opportunities
+- [x] Client dashboard with 6 tabs (Overview, Process Maps, Opportunities, Implementation, KPIs, Docs)
+- [x] Public share page with token-based read-only access
+- [x] Light/dark theme system with CSS variables and localStorage persistence
+- [x] Document upload to Supabase Storage
+- [x] Human CRUD UI for projects, phases, tasks, risks
+- [x] Owner fields use member lookup dropdowns
+- [x] Fix task creation 500 errors (slug collision + null handling)
+- [x] Fix FK constraint `pm_projects_org_id_fkey` pointing to wrong table
+- [x] Fix template seeding: phases now properly return errors
+- [x] Add starter tasks to all 3 templates (SaaS: 82, Ministry: 29, PMBOK: 41)
 - [x] Scaffold Next.js 15 app with TypeScript + Tailwind dark theme
 - [x] Create Supabase schema (7 tables across 3 migrations)
 - [x] Build vault storage layer (markdown read/write with frontmatter)
-- [x] Seed data for 4 project templates (SaaS, Ministry, PMBOK, Custom)
-- [x] Project list page with stats aggregation
-- [x] Project detail page with Board/Tasks/Risks tabs
+- [x] Seed data for 4 project templates
+- [x] Project list/detail pages with Board/Tasks/Risks tabs
 - [x] AI chat panel with OpenAI integration + project context
 - [x] Report generation (weekly rollup, blocker scan, hub, decisions)
 - [x] All API routes (seed, chat, reports, phase clone, GitHub export)

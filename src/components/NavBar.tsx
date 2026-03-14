@@ -1,16 +1,33 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ThemeToggle } from "./ThemeToggle";
+import { UserMenu } from "./UserMenu";
 
 const navItems = [
   { href: "/projects", label: "Projects" },
+  { href: "/dashboard", label: "Clients" },
   { href: "/organizations", label: "Organizations" },
   { href: "/members", label: "Members" },
 ];
 
 export function NavBar() {
   const pathname = usePathname();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/pm/auth/profile")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data?.system_role === "admin") setIsAdmin(true); })
+      .catch(() => {});
+  }, []);
+
+  // Hide NavBar on public share pages
+  if (pathname.startsWith("/share/")) return null;
+  // Hide NavBar on login page
+  if (pathname === "/login") return null;
 
   return (
     <nav className="border-b border-pm-border bg-pm-card/50">
@@ -27,7 +44,7 @@ export function NavBar() {
                 href={item.href}
                 className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                   isActive
-                    ? "bg-blue-600/20 text-blue-400"
+                    ? "bg-pm-accent/20 text-pm-accent"
                     : "text-pm-muted hover:text-pm-text hover:bg-pm-card"
                 }`}
               >
@@ -35,12 +52,26 @@ export function NavBar() {
               </Link>
             );
           })}
+          {isAdmin && (
+            <Link
+              href="/admin/users"
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                pathname.startsWith("/admin")
+                  ? "bg-pm-accent/20 text-pm-accent"
+                  : "text-pm-muted hover:text-pm-text hover:bg-pm-card"
+              }`}
+            >
+              Admin
+            </Link>
+          )}
           <Link
             href="/projects/new"
-            className="ml-3 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors"
+            className="ml-3 px-3 py-1.5 bg-pm-accent hover:bg-pm-accent-hover text-white rounded-md text-sm font-medium transition-colors"
           >
             + New Project
           </Link>
+          <ThemeToggle />
+          <UserMenu />
         </div>
       </div>
     </nav>

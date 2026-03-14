@@ -1,5 +1,5 @@
 import { createServiceClient } from "./supabase/server";
-import type { Project, ProjectWithStats, Phase, PhaseWithTasks, Task, Risk, PMFile, ProjectTemplate, Organization, Member } from "@/types/pm";
+import type { Project, ProjectWithStats, Phase, PhaseWithTasks, Task, Risk, PMFile, ProjectTemplate, Organization, Member, ProcessMap, Opportunity, KPI, PMDocument, ShareToken } from "@/types/pm";
 
 // ─── Organizations ───────────────────────────────────────────────────
 
@@ -177,4 +177,58 @@ export async function getRisks(projectId: string): Promise<Risk[]> {
     .eq("project_id", projectId)
     .order("created_at");
   return (data ?? []) as Risk[];
+}
+
+// ─── Process Maps ─────────────────────────────────────────────────────
+
+export async function getProcessMaps(orgId: string): Promise<ProcessMap[]> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_process_maps").select("*").eq("org_id", orgId).order("created_at");
+  return (data ?? []) as ProcessMap[];
+}
+
+// ─── Opportunities ──────────────────────────────────────────────────
+
+export async function getOpportunities(orgId: string): Promise<Opportunity[]> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_opportunities").select("*").eq("org_id", orgId).order("priority_score", { ascending: false });
+  return (data ?? []) as Opportunity[];
+}
+
+// ─── KPIs ───────────────────────────────────────────────────────────
+
+export async function getKPIs(orgId: string): Promise<KPI[]> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_kpis").select("*").eq("org_id", orgId).order("created_at");
+  return (data ?? []) as KPI[];
+}
+
+// ─── Documents ──────────────────────────────────────────────────────
+
+export async function getDocuments(orgId: string): Promise<PMDocument[]> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_documents").select("*").eq("org_id", orgId).order("created_at", { ascending: false });
+  return (data ?? []) as PMDocument[];
+}
+
+// ─── Share Tokens ───────────────────────────────────────────────────
+
+export async function getShareTokens(orgId: string): Promise<ShareToken[]> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_share_tokens").select("*").eq("org_id", orgId).order("created_at", { ascending: false });
+  return (data ?? []) as ShareToken[];
+}
+
+export async function getShareTokenData(token: string) {
+  const supabase = createServiceClient();
+  const { data: tokenData } = await supabase
+    .from("pm_share_tokens").select("*").eq("token", token).eq("is_active", true).single();
+  if (!tokenData) return null;
+  if (tokenData.expires_at && new Date(tokenData.expires_at) < new Date()) return null;
+  return tokenData as ShareToken;
 }
