@@ -169,7 +169,7 @@ export default function ClientsPage() {
             {editingId ? "Edit Client" : "New Client"}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
+            <div className="md:col-span-2">
               <label className="block text-sm font-medium text-pm-muted mb-1">Client Name *</label>
               <input
                 type="text"
@@ -178,18 +178,6 @@ export default function ClientsPage() {
                 onChange={(e) => editingId ? setForm((f) => ({ ...f, name: e.target.value })) : updateSlug(e.target.value)}
                 className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
                 placeholder="e.g. Acme Corp"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-pm-muted mb-1">Slug *</label>
-              <input
-                type="text"
-                required
-                value={form.slug}
-                onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))}
-                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500 font-mono text-sm"
-                placeholder="acme-corp"
-                disabled={!!editingId}
               />
             </div>
             <div>
@@ -268,7 +256,6 @@ export default function ClientsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3">
                     <div className="font-semibold text-pm-text text-lg">{client.name}</div>
-                    <span className="text-xs text-pm-muted font-mono">{client.slug}</span>
                   </div>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-pm-muted">
                     {client.phone && <span>{client.phone}</span>}

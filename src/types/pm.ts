@@ -28,11 +28,19 @@ export interface Organization {
   id: string;
   slug: string;
   name: string;
+  is_site_org: boolean;
   address: string | null;
   phone: string | null;
   website: string | null;
   notes: string | null;
   created_at: string;
+}
+
+/** A member available for assignment (includes source org context) */
+export interface AssignableMember extends Member {
+  /** Whether this member comes from the site-level org */
+  is_site_staff: boolean;
+  org_name: string;
 }
 
 export interface Member {

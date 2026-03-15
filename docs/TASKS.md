@@ -3,6 +3,8 @@
 ## In Progress
 - [ ] Apply migration 005_auth_user_roles.sql to Supabase
 - [ ] Apply migration 006_org_contact_fields.sql to Supabase
+- [ ] Apply migration 008_site_org_flag.sql to Supabase
+- [ ] Run FSA site-org backfill: `npx tsx scripts/backfill-fsa-site-org.ts`
 - [ ] Run Reverb Church backfill: `npx tsx scripts/backfill-reverb-church.ts`
 - [ ] End-to-end test: full auth flow (signup → confirm → login → admin)
 - [ ] Test AI SOP scanner with real documents
@@ -18,6 +20,12 @@
 - [ ] Seed Honey Lake Digital and VakPak as sample projects
 
 ## Completed
+- [x] Two-tier org model: site-level org (FSA) + client orgs
+  - Site-org members (FSA staff) appear as assignable owners across all client orgs
+  - OwnerPicker component replaces text inputs with grouped dropdowns
+  - Migration 008 adds is_site_org flag with unique constraint
+  - `/api/pm/members/assignable` endpoint returns combined member list
+  - Backfill script for FSA org + Eric Jaffe member
 - [x] Merge Organizations/Clients/Members into unified Clients + Users model
   - Clients page (/clients) with full CRUD (add/edit/delete) + contact fields (address, phone, website, notes)
   - Users tab on client dashboard for managing client users (add/edit/delete)

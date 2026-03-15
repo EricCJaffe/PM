@@ -136,7 +136,7 @@ export default function TemplatesPage() {
             {editingId ? "Edit Template" : "New Template"}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
+            <div className="md:col-span-2">
               <label className="block text-sm font-medium text-pm-muted mb-1">Template Name *</label>
               <input
                 type="text"
@@ -145,18 +145,6 @@ export default function TemplatesPage() {
                 onChange={(e) => editingId ? setForm((f) => ({ ...f, name: e.target.value })) : updateSlug(e.target.value)}
                 className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
                 placeholder="e.g. Church Plant Launch"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-pm-muted mb-1">Slug *</label>
-              <input
-                type="text"
-                required
-                value={form.slug}
-                onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))}
-                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500 font-mono text-sm"
-                placeholder="church-plant-launch"
-                disabled={!!editingId}
               />
             </div>
             <div className="md:col-span-2">
@@ -206,8 +194,6 @@ export default function TemplatesPage() {
                     <div>
                       <div className="font-semibold text-pm-text">{t.name}</div>
                       <div className="text-sm text-pm-muted">
-                        <span className="font-mono text-xs">{t.slug}</span>
-                        {" \u00B7 "}
                         {phaseCount(t)} phases, {taskCount(t)} tasks
                       </div>
                     </div>

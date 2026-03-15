@@ -164,18 +164,6 @@ export function UsersTab({ org }: { org: Organization }) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-pm-muted mb-1">Slug *</label>
-              <input
-                type="text"
-                required
-                value={form.slug}
-                onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))}
-                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500 font-mono text-sm"
-                placeholder="eric-jaffe"
-                disabled={!!editingId}
-              />
-            </div>
-            <div>
               <label className="block text-sm font-medium text-pm-muted mb-1">Email</label>
               <input
                 type="email"
@@ -243,7 +231,7 @@ export function UsersTab({ org }: { org: Organization }) {
                 <div>
                   <div className="font-medium text-pm-text">{user.display_name}</div>
                   <div className="text-xs text-pm-muted">
-                    {user.email || user.slug}
+                    {user.email || "No email"}
                   </div>
                 </div>
               </div>

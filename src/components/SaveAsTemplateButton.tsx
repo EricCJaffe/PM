@@ -81,14 +81,6 @@ export function SaveAsTemplateButton({ project }: { project: Project }) {
             <Field label="Template Name">
               <Input value={form.name} onChange={(e) => updateSlug(e.target.value)} required />
             </Field>
-            <Field label="Slug">
-              <Input
-                value={form.slug}
-                onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))}
-                className="font-mono text-sm"
-                required
-              />
-            </Field>
             <Field label="Description">
               <Textarea
                 value={form.description}

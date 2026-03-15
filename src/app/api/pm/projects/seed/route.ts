@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { getTemplate } from "@/lib/queries";
+import { getTemplate, isValidAssignee } from "@/lib/queries";
 import {
   generateProjectVaultFiles,
   generatePhaseVaultFiles,
@@ -91,18 +91,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate owner exists as a member of the org (if provided)
+    // Validate owner exists as a member of the org or the site org (if provided)
     if (owner) {
-      const { data: member } = await supabase
-        .from("pm_members")
-        .select("slug")
-        .eq("org_id", resolvedOrgId)
-        .eq("slug", owner)
-        .single();
-
-      if (!member) {
+      const valid = await isValidAssignee(resolvedOrgId, owner);
+      if (!valid) {
         return NextResponse.json(
-          { error: `Owner '${owner}' is not a member of this organization.` },
+          { error: `Owner '${owner}' is not a member of this organization or site staff.` },
           { status: 400 }
         );
       }

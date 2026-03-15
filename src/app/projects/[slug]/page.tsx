@@ -49,7 +49,7 @@ export default async function ProjectDetailPage({
             &larr; Projects
           </Link>
 
-          <EditProjectHeader project={project} />
+          <EditProjectHeader project={project} orgId={project.org_id} />
           <div className="flex justify-end -mt-4 mb-4">
             <SaveAsTemplateButton project={project} />
           </div>
@@ -70,17 +70,17 @@ export default async function ProjectDetailPage({
               {
                 id: "board",
                 label: "Board",
-                content: <PhaseBoard phases={phases} projectId={project.id} />,
+                content: <PhaseBoard phases={phases} projectId={project.id} orgId={project.org_id} />,
               },
               {
                 id: "tasks",
                 label: `Tasks (${tasks.length})`,
-                content: <EditableTaskTable tasks={tasks} phases={phases} projectId={project.id} />,
+                content: <EditableTaskTable tasks={tasks} phases={phases} projectId={project.id} orgId={project.org_id} />,
               },
               {
                 id: "risks",
                 label: `Risks (${risks.length})`,
-                content: <EditableRiskTable risks={risks} projectId={project.id} />,
+                content: <EditableRiskTable risks={risks} projectId={project.id} orgId={project.org_id} />,
               },
             ]}
           />
