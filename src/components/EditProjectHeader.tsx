@@ -4,10 +4,11 @@ import { useRouter } from "next/navigation";
 import type { Project } from "@/types/pm";
 import { StatusBadge } from "./StatusBadge";
 import { Modal, Field, Input, Select, Textarea, ModalActions } from "./Modal";
+import { OwnerPicker } from "./OwnerPicker";
 
 const STATUS_OPTIONS = ["active", "on-hold", "paused", "complete", "archived"];
 
-export function EditProjectHeader({ project }: { project: Project }) {
+export function EditProjectHeader({ project, orgId }: { project: Project; orgId: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -80,7 +81,7 @@ export function EditProjectHeader({ project }: { project: Project }) {
               </Select>
             </Field>
             <Field label="Owner">
-              <Input value={form.owner} onChange={(e) => set("owner", e.target.value)} placeholder="Owner name" />
+              <OwnerPicker orgId={orgId} value={form.owner} onChange={(v) => set("owner", v)} />
             </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Start Date">

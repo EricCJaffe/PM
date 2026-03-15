@@ -5,6 +5,7 @@ import type { PhaseWithTasks, Task } from "@/types/pm";
 import { StatusBadge } from "./StatusBadge";
 import { ProgressBar } from "./ProgressBar";
 import { Modal, Field, Input, Select, Textarea, ModalActions } from "./Modal";
+import { OwnerPicker } from "./OwnerPicker";
 
 const TASK_STATUSES = ["not-started", "in-progress", "complete", "blocked", "pending", "on-hold"] as const;
 const PHASE_STATUSES = ["not-started", "in-progress", "complete", "blocked", "pending", "on-hold"] as const;
@@ -13,11 +14,13 @@ const PHASE_STATUSES = ["not-started", "in-progress", "complete", "blocked", "pe
 
 function TaskModal({
   projectId,
+  orgId,
   phaseId,
   task,
   onClose,
 }: {
   projectId: string;
+  orgId: string;
   phaseId: string;
   task?: Task;
   onClose: () => void;
@@ -79,7 +82,7 @@ function TaskModal({
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Owner">
-            <Input value={form.owner} onChange={(e) => set("owner", e.target.value)} placeholder="Name" />
+            <OwnerPicker orgId={orgId} value={form.owner} onChange={(v) => set("owner", v)} />
           </Field>
           <Field label="Due Date">
             <Input type="date" value={form.due_date} onChange={(e) => set("due_date", e.target.value)} />
@@ -102,10 +105,12 @@ function TaskModal({
 
 function PhaseModal({
   projectId,
+  orgId,
   phase,
   onClose,
 }: {
   projectId: string;
+  orgId: string;
   phase?: PhaseWithTasks;
   onClose: () => void;
 }) {
@@ -174,7 +179,7 @@ function PhaseModal({
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Owner">
-            <Input value={form.owner} onChange={(e) => set("owner", e.target.value)} placeholder="Name" />
+            <OwnerPicker orgId={orgId} value={form.owner} onChange={(v) => set("owner", v)} />
           </Field>
           <Field label="Progress %" hint="0–100">
             <Input type="number" min={0} max={100} value={form.progress} onChange={(e) => set("progress", e.target.value)} />
@@ -206,9 +211,11 @@ function PhaseModal({
 function PhaseBoardCard({
   phase,
   projectId,
+  orgId,
 }: {
   phase: PhaseWithTasks;
   projectId: string;
+  orgId: string;
 }) {
   const [editPhase, setEditPhase] = useState(false);
   const [editTask, setEditTask] = useState<Task | null | "new">(null);
@@ -287,10 +294,10 @@ function PhaseBoardCard({
         </button>
       </div>
 
-      {editPhase && <PhaseModal projectId={projectId} phase={phase} onClose={() => setEditPhase(false)} />}
-      {editTask === "new" && <TaskModal projectId={projectId} phaseId={phase.id} onClose={() => setEditTask(null)} />}
+      {editPhase && <PhaseModal projectId={projectId} orgId={orgId} phase={phase} onClose={() => setEditPhase(false)} />}
+      {editTask === "new" && <TaskModal projectId={projectId} orgId={orgId} phaseId={phase.id} onClose={() => setEditTask(null)} />}
       {editTask && editTask !== "new" && (
-        <TaskModal projectId={projectId} phaseId={phase.id} task={editTask} onClose={() => setEditTask(null)} />
+        <TaskModal projectId={projectId} orgId={orgId} phaseId={phase.id} task={editTask} onClose={() => setEditTask(null)} />
       )}
     </>
   );
@@ -301,9 +308,11 @@ function PhaseBoardCard({
 export function PhaseBoard({
   phases,
   projectId,
+  orgId,
 }: {
   phases: PhaseWithTasks[];
   projectId: string;
+  orgId: string;
 }) {
   const [addPhase, setAddPhase] = useState(false);
 
@@ -323,7 +332,7 @@ export function PhaseBoard({
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {groupPhases.map((phase) => (
-              <PhaseBoardCard key={phase.id} phase={phase} projectId={projectId} />
+              <PhaseBoardCard key={phase.id} phase={phase} projectId={projectId} orgId={orgId} />
             ))}
           </div>
         </div>
@@ -340,7 +349,7 @@ export function PhaseBoard({
         <p className="text-pm-muted text-center py-8">No phases yet. Add one below or use the AI Assistant.</p>
       )}
 
-      {addPhase && <PhaseModal projectId={projectId} onClose={() => setAddPhase(false)} />}
+      {addPhase && <PhaseModal projectId={projectId} orgId={orgId} onClose={() => setAddPhase(false)} />}
     </div>
   );
 }

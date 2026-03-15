@@ -1,5 +1,5 @@
 import { createServiceClient } from "./supabase/server";
-import type { Project, ProjectWithStats, Phase, PhaseWithTasks, Task, Risk, PMFile, ProjectTemplate, Organization, Member, ProcessMap, Opportunity, KPI, PMDocument, ShareToken } from "@/types/pm";
+import type { Project, ProjectWithStats, Phase, PhaseWithTasks, Task, Risk, PMFile, ProjectTemplate, Organization, Member, AssignableMember, ProcessMap, Opportunity, KPI, PMDocument, ShareToken } from "@/types/pm";
 
 // ─── Organizations ───────────────────────────────────────────────────
 
@@ -42,6 +42,99 @@ export async function getMembers(orgId: string): Promise<Member[]> {
     .eq("org_id", orgId)
     .order("display_name");
   return (data ?? []) as Member[];
+}
+
+/** Get the site-level org (Foundation Stone Advisors) */
+export async function getSiteOrg(): Promise<Organization | null> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_organizations")
+    .select("*")
+    .eq("is_site_org", true)
+    .single();
+  return data as Organization | null;
+}
+
+/**
+ * Get members assignable to a given org's projects.
+ * Returns: site-org staff (available everywhere) + target org members.
+ * De-duplicates if the target org IS the site org.
+ */
+export async function getAssignableMembers(orgId: string): Promise<AssignableMember[]> {
+  const supabase = createServiceClient();
+
+  // Get the target org name
+  const { data: targetOrg } = await supabase
+    .from("pm_organizations")
+    .select("id, name, is_site_org")
+    .eq("id", orgId)
+    .single();
+
+  if (!targetOrg) return [];
+
+  // Get org members
+  const { data: orgMembers } = await supabase
+    .from("pm_members")
+    .select("*")
+    .eq("org_id", orgId)
+    .order("display_name");
+
+  const result: AssignableMember[] = ((orgMembers ?? []) as Member[]).map((m) => ({
+    ...m,
+    is_site_staff: targetOrg.is_site_org === true,
+    org_name: targetOrg.name,
+  }));
+
+  // If this IS the site org, we're done (no need to add site members twice)
+  if (targetOrg.is_site_org) return result;
+
+  // Otherwise, also fetch site-org members
+  const siteOrg = await getSiteOrg();
+  if (siteOrg) {
+    const { data: siteMembers } = await supabase
+      .from("pm_members")
+      .select("*")
+      .eq("org_id", siteOrg.id)
+      .order("display_name");
+
+    for (const m of (siteMembers ?? []) as Member[]) {
+      result.push({
+        ...m,
+        is_site_staff: true,
+        org_name: siteOrg.name,
+      });
+    }
+  }
+
+  return result;
+}
+
+/** Check if a member slug is valid for assignment to a given org */
+export async function isValidAssignee(orgId: string, memberSlug: string): Promise<boolean> {
+  const supabase = createServiceClient();
+
+  // Check target org
+  const { data: orgMember } = await supabase
+    .from("pm_members")
+    .select("slug")
+    .eq("org_id", orgId)
+    .eq("slug", memberSlug)
+    .single();
+  if (orgMember) return true;
+
+  // Check site org
+  const siteOrg = await getSiteOrg();
+  if (siteOrg) {
+    const { data: siteMember } = await supabase
+      .from("pm_members")
+      .select("slug")
+      .eq("org_id", siteOrg.id)
+      .eq("slug", memberSlug)
+      .single();
+    if (siteMember) return true;
+  }
+
+  return false;
 }
 
 // ─── Templates ───────────────────────────────────────────────────────

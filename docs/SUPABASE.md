@@ -11,6 +11,7 @@ This module shares a Supabase project with FSA. Auth and org/tenant schema are r
 | id | UUID | PK, auto-generated |
 | slug | TEXT | Unique, kebab-case |
 | name | TEXT | Display name |
+| is_site_org | BOOLEAN | When true, members are assignable across all orgs (unique constraint: only one site org) |
 | address | TEXT | Optional, street address |
 | phone | TEXT | Optional, phone number |
 | website | TEXT | Optional, URL |
@@ -140,3 +141,5 @@ This module shares a Supabase project with FSA. Auth and org/tenant schema are r
 | `004_client_dashboard.sql` | Process maps, opportunities, KPIs, documents, share tokens |
 | `005_auth_user_roles.sql` | User profiles, org access roles |
 | `006_org_contact_fields.sql` | Add address, phone, website, notes to pm_organizations |
+| `007_fix_tasks_org_fk.sql` | Fix pm_tasks org_id FK constraint |
+| `008_site_org_flag.sql` | Add is_site_org flag to pm_organizations (unique constraint) |

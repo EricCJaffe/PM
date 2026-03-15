@@ -3,12 +3,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Risk } from "@/types/pm";
 import { Modal, Field, Input, Select, Textarea, ModalActions } from "./Modal";
+import { OwnerPicker } from "./OwnerPicker";
 
 const LEVELS = ["low", "medium", "high"] as const;
 const RISK_STATUSES = ["open", "mitigated", "closed"] as const;
 const levelColors = { low: "text-green-400", medium: "text-yellow-400", high: "text-red-400" };
 
-function RiskModal({ projectId, risk, onClose }: { projectId: string; risk?: Risk; onClose: () => void }) {
+function RiskModal({ projectId, orgId, risk, onClose }: { projectId: string; orgId: string; risk?: Risk; onClose: () => void }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
@@ -79,7 +80,7 @@ function RiskModal({ projectId, risk, onClose }: { projectId: string; risk?: Ris
           <Textarea value={form.mitigation} onChange={(e) => set("mitigation", e.target.value)} placeholder="How will you address this risk?" />
         </Field>
         <Field label="Owner">
-          <Input value={form.owner} onChange={(e) => set("owner", e.target.value)} placeholder="Name" />
+          <OwnerPicker orgId={orgId} value={form.owner} onChange={(v) => set("owner", v)} />
         </Field>
         <div className="flex items-center justify-between pt-2">
           {risk ? (
@@ -92,7 +93,7 @@ function RiskModal({ projectId, risk, onClose }: { projectId: string; risk?: Ris
   );
 }
 
-export function EditableRiskTable({ risks, projectId }: { risks: Risk[]; projectId: string }) {
+export function EditableRiskTable({ risks, projectId, orgId }: { risks: Risk[]; projectId: string; orgId: string }) {
   const [modal, setModal] = useState<Risk | "new" | null>(null);
 
   return (
@@ -145,8 +146,8 @@ export function EditableRiskTable({ risks, projectId }: { risks: Risk[]; project
         </div>
       )}
 
-      {modal === "new" && <RiskModal projectId={projectId} onClose={() => setModal(null)} />}
-      {modal && modal !== "new" && <RiskModal projectId={projectId} risk={modal} onClose={() => setModal(null)} />}
+      {modal === "new" && <RiskModal projectId={projectId} orgId={orgId} onClose={() => setModal(null)} />}
+      {modal && modal !== "new" && <RiskModal projectId={projectId} orgId={orgId} risk={modal} onClose={() => setModal(null)} />}
     </div>
   );
 }

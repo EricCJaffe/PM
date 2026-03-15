@@ -4,16 +4,19 @@ import { useRouter } from "next/navigation";
 import type { Task, PhaseWithTasks } from "@/types/pm";
 import { StatusBadge } from "./StatusBadge";
 import { Modal, Field, Input, Select, Textarea, ModalActions } from "./Modal";
+import { OwnerPicker } from "./OwnerPicker";
 
 const STATUSES = ["not-started", "in-progress", "complete", "blocked", "pending", "on-hold"] as const;
 
 function TaskModal({
   projectId,
+  orgId,
   phases,
   task,
   onClose,
 }: {
   projectId: string;
+  orgId: string;
   phases: PhaseWithTasks[];
   task?: Task;
   onClose: () => void;
@@ -85,7 +88,7 @@ function TaskModal({
           </Field>
         </div>
         <Field label="Owner">
-          <Input value={form.owner} onChange={(e) => set("owner", e.target.value)} placeholder="Name" />
+          <OwnerPicker orgId={orgId} value={form.owner} onChange={(v) => set("owner", v)} />
         </Field>
         <div className="flex items-center justify-between pt-2">
           {task ? (
@@ -102,10 +105,12 @@ export function EditableTaskTable({
   tasks,
   phases,
   projectId,
+  orgId,
 }: {
   tasks: Task[];
   phases: PhaseWithTasks[];
   projectId: string;
+  orgId: string;
 }) {
   const [modal, setModal] = useState<Task | "new" | null>(null);
   const phaseMap = new Map(phases.map((p) => [p.id, p.name]));
@@ -163,10 +168,10 @@ export function EditableTaskTable({
       )}
 
       {modal === "new" && (
-        <TaskModal projectId={projectId} phases={phases} onClose={() => setModal(null)} />
+        <TaskModal projectId={projectId} orgId={orgId} phases={phases} onClose={() => setModal(null)} />
       )}
       {modal && modal !== "new" && (
-        <TaskModal projectId={projectId} phases={phases} task={modal} onClose={() => setModal(null)} />
+        <TaskModal projectId={projectId} orgId={orgId} phases={phases} task={modal} onClose={() => setModal(null)} />
       )}
     </div>
   );

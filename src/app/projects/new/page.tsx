@@ -16,11 +16,13 @@ interface Org {
   name: string;
 }
 
-interface Member {
+interface AssignableMember {
   id: string;
   slug: string;
   display_name: string;
   role: string;
+  is_site_staff: boolean;
+  org_name: string;
 }
 
 interface TemplateOption {
@@ -33,7 +35,7 @@ export default function NewProjectPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [orgs, setOrgs] = useState<Org[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
+  const [members, setMembers] = useState<AssignableMember[]>([]);
   const [templates, setTemplates] = useState<TemplateOption[]>([]);
   const [tableError, setTableError] = useState<TableError | null>(null);
   const [showNewOrg, setShowNewOrg] = useState(false);
@@ -91,7 +93,7 @@ export default function NewProjectPage() {
       setForm((f) => ({ ...f, owner: "" }));
       return;
     }
-    fetch(`/api/pm/members?org_id=${form.org_id}`)
+    fetch(`/api/pm/members/assignable?org_id=${form.org_id}`)
       .then((r) => r.json())
       .then((data) => {
         if (data?.missing) {
@@ -343,11 +345,28 @@ export default function NewProjectPage() {
             disabled={!form.org_id}
           >
             <option value="">{form.org_id ? "Select owner..." : "Select org first"}</option>
-            {members.map((m) => (
-              <option key={m.id} value={m.slug}>
-                {m.display_name} ({m.slug})
-              </option>
-            ))}
+            {(() => {
+              const siteStaff = members.filter((m) => m.is_site_staff);
+              const orgMembers = members.filter((m) => !m.is_site_staff);
+              return (
+                <>
+                  {siteStaff.length > 0 && (
+                    <optgroup label={siteStaff[0].org_name}>
+                      {siteStaff.map((m) => (
+                        <option key={m.id} value={m.slug}>{m.display_name}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {orgMembers.length > 0 && (
+                    <optgroup label={orgMembers[0].org_name}>
+                      {orgMembers.map((m) => (
+                        <option key={m.id} value={m.slug}>{m.display_name}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                </>
+              );
+            })()}
           </select>
           {form.org_id && members.length === 0 && (
             <p className="text-xs text-pm-muted mt-1">

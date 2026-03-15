@@ -128,6 +128,7 @@ vault/[org-slug]/[project-slug]/
 |---|---|---|
 | `/api/pm/organizations` | GET, POST | List / create orgs |
 | `/api/pm/members` | GET, POST | List / add org members |
+| `/api/pm/members/assignable` | GET | List assignable members (site staff + org members) |
 | `/api/pm/projects/seed` | POST | Create project from template |
 | `/api/pm/chat` | POST | AI chat with project context |
 | `/api/pm/reports/rollup` | POST | Generate weekly rollup |
