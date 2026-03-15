@@ -4,6 +4,7 @@
 - [ ] Apply migration 005_auth_user_roles.sql to Supabase
 - [ ] Apply migration 006_org_contact_fields.sql to Supabase
 - [ ] Apply migration 008_site_org_flag.sql to Supabase
+- [ ] Apply migration 009_task_sort_order.sql to Supabase
 - [ ] Run FSA site-org backfill: `npx tsx scripts/backfill-fsa-site-org.ts`
 - [ ] Run Reverb Church backfill: `npx tsx scripts/backfill-reverb-church.ts`
 - [ ] End-to-end test: full auth flow (signup → confirm → login → admin)
@@ -20,6 +21,13 @@
 - [ ] Seed Honey Lake Digital and VakPak as sample projects
 
 ## Completed
+- [x] Clickable cards in client dashboard (overview + implementation tabs link to projects)
+- [x] Phase-grouped task list view with drag-and-drop reordering
+  - Tasks grouped by phase with progress indicators
+  - Drag to reorder within phase or move between phases
+  - Quick-add buttons per phase
+  - Migration 009 adds sort_order column
+- [x] Hide slugs from all user-facing UI surfaces
 - [x] Two-tier org model: site-level org (FSA) + client orgs
   - Site-org members (FSA staff) appear as assignable owners across all client orgs
   - OwnerPicker component replaces text inputs with grouped dropdowns

@@ -253,6 +253,7 @@ export async function getPhasesWithTasks(projectId: string): Promise<PhaseWithTa
       .from("pm_tasks")
       .select("*")
       .eq("phase_id", phase.id)
+      .order("sort_order")
       .order("created_at");
     result.push({ ...(phase as Phase), tasks: (tasks ?? []) as Task[] });
   }
@@ -267,6 +268,7 @@ export async function getTasks(projectId: string): Promise<Task[]> {
     .from("pm_tasks")
     .select("*")
     .eq("project_id", projectId)
+    .order("sort_order")
     .order("created_at");
   return (data ?? []) as Task[];
 }

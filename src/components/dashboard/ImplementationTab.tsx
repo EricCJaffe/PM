@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import type { ProjectWithStats, PhaseWithTasks } from "@/types/pm";
 import { ProgressBar } from "../ProgressBar";
 import { StatusBadge } from "../StatusBadge";
@@ -52,7 +53,9 @@ export function ImplementationTab({
           {filtered.map(({ project, phases }) => (
             <div key={project.id}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-pm-text">{project.name}</h3>
+                <Link href={`/projects/${project.slug}`} className="font-semibold text-pm-text hover:text-pm-accent transition-colors">
+                  {project.name} &rarr;
+                </Link>
                 <span className="text-sm text-pm-muted">{project.overall_progress}% complete</span>
               </div>
               <div className="space-y-3">
@@ -62,7 +65,11 @@ export function ImplementationTab({
                   const progress = total > 0 ? Math.round((complete / total) * 100) : phase.progress;
 
                   return (
-                    <div key={phase.id} className="card">
+                    <Link
+                      key={phase.id}
+                      href={`/projects/${project.slug}`}
+                      className="card block hover:border-pm-muted/50 transition-colors cursor-pointer"
+                    >
                       <div className="flex items-center gap-4">
                         <div className="w-64 shrink-0">
                           <div className="flex items-center gap-2">
@@ -95,7 +102,7 @@ export function ImplementationTab({
                           })}
                         </div>
                       )}
-                    </div>
+                    </Link>
                   );
                 })}
               </div>

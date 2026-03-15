@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import type { Organization, ProjectWithStats, ProcessMap, Opportunity, PhaseWithTasks } from "@/types/pm";
 import { ProgressBar } from "../ProgressBar";
 
@@ -121,7 +122,12 @@ export function OverviewTab({
           <div className="space-y-6">
             {allPhases.map(({ project, phases }) => (
               <div key={project.id}>
-                <div className="text-sm font-medium text-pm-text mb-3">{project.name}</div>
+                <Link
+                  href={`/projects/${project.slug}`}
+                  className="text-sm font-medium text-pm-text hover:text-pm-accent transition-colors mb-3 inline-block"
+                >
+                  {project.name} &rarr;
+                </Link>
                 <div className="space-y-2">
                   {phases.map((phase) => {
                     const complete = phase.tasks.filter((t) => t.status === "complete").length;
@@ -135,7 +141,11 @@ export function OverviewTab({
                           ? "Upcoming"
                           : phase.status;
                     return (
-                      <div key={phase.id} className="flex items-center gap-4">
+                      <Link
+                        key={phase.id}
+                        href={`/projects/${project.slug}`}
+                        className="flex items-center gap-4 rounded-lg px-2 py-1 -mx-2 hover:bg-pm-surface transition-colors cursor-pointer"
+                      >
                         <span className="text-sm text-pm-muted w-48 truncate shrink-0">{phase.name}</span>
                         <div className="flex-1">
                           <ProgressBar value={progress} />
@@ -148,7 +158,7 @@ export function OverviewTab({
                         }`}>
                           {statusLabel}
                         </span>
-                      </div>
+                      </Link>
                     );
                   })}
                 </div>
