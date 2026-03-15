@@ -10,13 +10,24 @@ export async function POST(request: NextRequest) {
   if (!project_id || !name) return NextResponse.json({ error: "project_id and name required" }, { status: 400 });
 
   const supabase = createServiceClient();
+
+  // Look up org_id from the project (required by pm_tasks)
+  const { data: project, error: projErr } = await supabase
+    .from("pm_projects")
+    .select("org_id")
+    .eq("id", project_id)
+    .single();
+  if (projErr || !project) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
+
   const baseSlug = slugify(name);
   // Ensure unique slug within project
   const { data: existing } = await supabase.from("pm_tasks").select("slug").eq("project_id", project_id).like("slug", `${baseSlug}%`);
   const slug = existing && existing.length > 0 ? `${baseSlug}-${existing.length + 1}` : baseSlug;
 
   const { data, error } = await supabase.from("pm_tasks").insert({
-    project_id, phase_id: phase_id ?? null, slug, name,
+    project_id, org_id: project.org_id, phase_id: phase_id ?? null, slug, name,
     status: status ?? "not-started",
     owner: owner ?? null, due_date: due_date ?? null, description: description ?? null,
   }).select().single();

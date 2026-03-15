@@ -37,18 +37,20 @@ function TaskModal({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    if (task) {
-      await fetch(`/api/pm/tasks/${task.id}`, {
-        method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, due_date: form.due_date || null }),
-      });
-    } else {
-      await fetch("/api/pm/tasks", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ project_id: projectId, phase_id: phaseId, ...form, due_date: form.due_date || null }),
-      });
-    }
+    const url = task ? `/api/pm/tasks/${task.id}` : "/api/pm/tasks";
+    const method = task ? "PATCH" : "POST";
+    const payload = task
+      ? { ...form, due_date: form.due_date || null }
+      : { project_id: projectId, phase_id: phaseId, ...form, due_date: form.due_date || null };
+    const res = await fetch(url, {
+      method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+    });
     setSaving(false);
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({ error: "Unknown error" }));
+      alert(`Failed to save task: ${error}`);
+      return;
+    }
     onClose();
     router.refresh();
   }
