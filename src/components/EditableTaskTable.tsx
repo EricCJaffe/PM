@@ -129,9 +129,11 @@ function TaskModal({
 function SortableTaskRow({
   task,
   onEdit,
+  memberMap,
 }: {
   task: Task;
   onEdit: (task: Task) => void;
+  memberMap: Record<string, string>;
 }) {
   const {
     attributes,
@@ -175,7 +177,7 @@ function SortableTaskRow({
       >
         <StatusBadge status={task.status} />
         <span className="text-sm text-pm-text truncate flex-1">{task.name}</span>
-        {task.owner && <span className="text-xs text-pm-muted shrink-0">{task.owner}</span>}
+        {task.owner && <span className="text-xs text-pm-muted shrink-0">{memberMap[task.owner] || task.owner}</span>}
         {task.due_date && <span className="text-xs text-pm-muted shrink-0">{task.due_date}</span>}
       </button>
     </div>
@@ -207,11 +209,13 @@ function PhaseSection({
   tasks,
   onEditTask,
   onAddTask,
+  memberMap,
 }: {
   phase: { id: string; name: string; group: string | null; phase_order: number };
   tasks: Task[];
   onEditTask: (task: Task) => void;
   onAddTask: (phaseId: string) => void;
+  memberMap: Record<string, string>;
 }) {
   const complete = tasks.filter((t) => t.status === "complete").length;
   const total = tasks.length;
@@ -254,7 +258,7 @@ function PhaseSection({
             <div className="px-3 py-2 text-xs text-pm-muted italic">No tasks</div>
           ) : (
             tasks.map((task) => (
-              <SortableTaskRow key={task.id} task={task} onEdit={onEditTask} />
+              <SortableTaskRow key={task.id} task={task} onEdit={onEditTask} memberMap={memberMap} />
             ))
           )}
         </div>
@@ -270,11 +274,13 @@ export function EditableTaskTable({
   phases,
   projectId,
   orgId,
+  memberMap,
 }: {
   tasks: Task[];
   phases: PhaseWithTasks[];
   projectId: string;
   orgId: string;
+  memberMap: Record<string, string>;
 }) {
   const router = useRouter();
   const [modal, setModal] = useState<{ task?: Task; phaseId?: string } | null>(null);
@@ -427,6 +433,7 @@ export function EditableTaskTable({
               tasks={tasksByPhase.get(phase.id) ?? []}
               onEditTask={(task) => setModal({ task })}
               onAddTask={(phaseId) => setModal({ phaseId })}
+              memberMap={memberMap}
             />
           ))}
 
@@ -437,6 +444,7 @@ export function EditableTaskTable({
               tasks={unassigned}
               onEditTask={(task) => setModal({ task })}
               onAddTask={() => setModal({ phaseId: "" })}
+              memberMap={memberMap}
             />
           )}
 

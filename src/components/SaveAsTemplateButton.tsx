@@ -54,7 +54,7 @@ export function SaveAsTemplateButton({ project }: { project: Project }) {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setOpen(false);
-      router.push("/templates");
+      router.push("/projects?tab=templates");
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to save template");
     } finally {

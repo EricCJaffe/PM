@@ -21,6 +21,14 @@
 - [ ] Seed Honey Lake Digital and VakPak as sample projects
 
 ## Completed
+- [x] Fix risk creation (silent failures) + owner display names + project delete UX + template builder
+  - Risk modal now shows errors instead of silently closing on failure
+  - Owner fields across board, tasks, and risks show display_name instead of slug
+  - Delete button moved from project cards to project editor with dependency warnings
+  - Templates tab now supports manual phase/task building and AI generation
+  - Save as Template redirects to projects?tab=templates
+  - Added GET /api/pm/projects/[id] for dependency counts
+  - Added POST /api/pm/templates/generate for AI template generation
 - [x] Consolidated projects page with tabbed layout (Projects + Templates tabs)
   - Removed "Templates" and "+ New Project" from top nav bar
   - Templates management embedded as a tab within the projects page

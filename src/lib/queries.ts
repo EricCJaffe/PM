@@ -109,6 +109,16 @@ export async function getAssignableMembers(orgId: string): Promise<AssignableMem
   return result;
 }
 
+/** Build a slug → display_name lookup map for all assignable members of an org */
+export async function getMemberNameMap(orgId: string): Promise<Record<string, string>> {
+  const members = await getAssignableMembers(orgId);
+  const map: Record<string, string> = {};
+  for (const m of members) {
+    map[m.slug] = m.display_name;
+  }
+  return map;
+}
+
 /** Check if a member slug is valid for assignment to a given org */
 export async function isValidAssignee(orgId: string, memberSlug: string): Promise<boolean> {
   const supabase = createServiceClient();

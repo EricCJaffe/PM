@@ -212,10 +212,12 @@ function PhaseBoardCard({
   phase,
   projectId,
   orgId,
+  memberMap,
 }: {
   phase: PhaseWithTasks;
   projectId: string;
   orgId: string;
+  memberMap: Record<string, string>;
 }) {
   const [editPhase, setEditPhase] = useState(false);
   const [editTask, setEditTask] = useState<Task | null | "new">(null);
@@ -248,7 +250,7 @@ function PhaseBoardCard({
               )}
             </div>
             <h3 className="font-semibold text-pm-text leading-tight">{phase.name}</h3>
-            {phase.owner && <p className="text-xs text-pm-muted mt-0.5">Owner: {phase.owner}</p>}
+            {phase.owner && <p className="text-xs text-pm-muted mt-0.5">Owner: {memberMap[phase.owner] || phase.owner}</p>}
           </div>
           <div className="flex items-center gap-1 ml-2 shrink-0">
             <StatusBadge status={phase.status} />
@@ -277,7 +279,7 @@ function PhaseBoardCard({
             >
               <span className={`w-2 h-2 rounded-full shrink-0 ${statusDot[task.status] ?? "bg-slate-500"}`} />
               <span className="text-sm text-pm-text/90 truncate flex-1">{task.name}</span>
-              {task.owner && <span className="text-xs text-pm-muted shrink-0">{task.owner}</span>}
+              {task.owner && <span className="text-xs text-pm-muted shrink-0">{memberMap[task.owner] || task.owner}</span>}
               {task.due_date && (
                 <span className="text-xs text-pm-muted shrink-0">{task.due_date}</span>
               )}
@@ -309,10 +311,12 @@ export function PhaseBoard({
   phases,
   projectId,
   orgId,
+  memberMap,
 }: {
   phases: PhaseWithTasks[];
   projectId: string;
   orgId: string;
+  memberMap: Record<string, string>;
 }) {
   const [addPhase, setAddPhase] = useState(false);
 
@@ -332,7 +336,7 @@ export function PhaseBoard({
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {groupPhases.map((phase) => (
-              <PhaseBoardCard key={phase.id} phase={phase} projectId={projectId} orgId={orgId} />
+              <PhaseBoardCard key={phase.id} phase={phase} projectId={projectId} orgId={orgId} memberMap={memberMap} />
             ))}
           </div>
         </div>

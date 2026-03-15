@@ -21,6 +21,26 @@ export async function PATCH(
   return NextResponse.json(data);
 }
 
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const supabase = createServiceClient();
+
+  const [phases, tasks, risks] = await Promise.all([
+    supabase.from("pm_phases").select("*", { count: "exact", head: true }).eq("project_id", id),
+    supabase.from("pm_tasks").select("*", { count: "exact", head: true }).eq("project_id", id),
+    supabase.from("pm_risks").select("*", { count: "exact", head: true }).eq("project_id", id),
+  ]);
+
+  return NextResponse.json({
+    phases: phases.count ?? 0,
+    tasks: tasks.count ?? 0,
+    risks: risks.count ?? 0,
+  });
+}
+
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

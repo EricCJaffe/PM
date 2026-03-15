@@ -28,24 +28,39 @@ function RiskModal({ projectId, orgId, risk, onClose }: { projectId: string; org
     e.preventDefault();
     setSaving(true);
     const payload = { ...form, description: form.description || null, mitigation: form.mitigation || null, owner: form.owner || null };
-    if (risk) {
-      await fetch(`/api/pm/risks/${risk.id}`, {
-        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
-      });
-    } else {
-      await fetch("/api/pm/risks", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ project_id: projectId, ...payload }),
-      });
+    try {
+      let res: Response;
+      if (risk) {
+        res = await fetch(`/api/pm/risks/${risk.id}`, {
+          method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+        });
+      } else {
+        res = await fetch("/api/pm/risks", {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ project_id: projectId, ...payload }),
+        });
+      }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(data.error || `Request failed (${res.status})`);
+      }
+      onClose();
+      router.refresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to save risk");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-    onClose();
-    router.refresh();
   }
 
   async function handleDelete() {
     if (!risk) return;
     if (!confirm(`Delete risk "${risk.title}"?`)) return;
-    await fetch(`/api/pm/risks/${risk.id}`, { method: "DELETE" });
+    const res = await fetch(`/api/pm/risks/${risk.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({ error: "Unknown error" }));
+      alert(`Failed to delete risk: ${data.error}`);
+      return;
+    }
     onClose();
     router.refresh();
   }
@@ -93,7 +108,7 @@ function RiskModal({ projectId, orgId, risk, onClose }: { projectId: string; org
   );
 }
 
-export function EditableRiskTable({ risks, projectId, orgId }: { risks: Risk[]; projectId: string; orgId: string }) {
+export function EditableRiskTable({ risks, projectId, orgId, memberMap }: { risks: Risk[]; projectId: string; orgId: string; memberMap: Record<string, string> }) {
   const [modal, setModal] = useState<Risk | "new" | null>(null);
 
   return (
@@ -138,7 +153,7 @@ export function EditableRiskTable({ risks, projectId, orgId }: { risks: Risk[]; 
                   <td className={`py-2 pr-4 capitalize font-medium ${levelColors[risk.probability]}`}>{risk.probability}</td>
                   <td className={`py-2 pr-4 capitalize font-medium ${levelColors[risk.impact]}`}>{risk.impact}</td>
                   <td className="py-2 pr-4 text-pm-muted capitalize">{risk.status}</td>
-                  <td className="py-2 pr-4 text-pm-muted">{risk.owner || "—"}</td>
+                  <td className="py-2 pr-4 text-pm-muted">{risk.owner ? (memberMap[risk.owner] || risk.owner) : "—"}</td>
                 </tr>
               ))}
             </tbody>
