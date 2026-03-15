@@ -4,6 +4,7 @@
 - [ ] Apply migration 005_auth_user_roles.sql to Supabase
 - [ ] Apply migration 006_org_contact_fields.sql to Supabase
 - [ ] Apply migration 008_site_org_flag.sql to Supabase
+- [ ] Apply migration 009_task_sort_order.sql to Supabase
 - [ ] Run FSA site-org backfill: `npx tsx scripts/backfill-fsa-site-org.ts`
 - [ ] Run Reverb Church backfill: `npx tsx scripts/backfill-reverb-church.ts`
 - [ ] End-to-end test: full auth flow (signup → confirm → login → admin)
@@ -20,6 +21,21 @@
 - [ ] Seed Honey Lake Digital and VakPak as sample projects
 
 ## Completed
+- [x] Consolidated projects page with tabbed layout (Projects + Templates tabs)
+  - Removed "Templates" and "+ New Project" from top nav bar
+  - Templates management embedded as a tab within the projects page
+  - "+ New Project" button moved inside the Projects tab
+  - /templates route redirects to /projects?tab=templates
+  - Added GET /api/pm/projects endpoint for client-side data fetching
+- [x] Individual project cards on client overview (separate card per project with stats, clickable to project editor)
+- [x] Compact AI chat panel on project editor (collapsible card at top instead of full sidebar)
+- [x] Clickable cards in client dashboard (overview + implementation tabs link to projects)
+- [x] Phase-grouped task list view with drag-and-drop reordering
+  - Tasks grouped by phase with progress indicators
+  - Drag to reorder within phase or move between phases
+  - Quick-add buttons per phase
+  - Migration 009 adds sort_order column
+- [x] Hide slugs from all user-facing UI surfaces
 - [x] Two-tier org model: site-level org (FSA) + client orgs
   - Site-org members (FSA staff) appear as assignable owners across all client orgs
   - OwnerPicker component replaces text inputs with grouped dropdowns

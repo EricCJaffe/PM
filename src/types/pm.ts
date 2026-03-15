@@ -119,6 +119,7 @@ export interface Task {
   description: string | null;
   owner: string | null;
   status: PMStatus;
+  sort_order: number;
   due_date: string | null;
   depends_on: string[];
   risk_id: string | null;

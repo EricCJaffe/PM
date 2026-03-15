@@ -83,6 +83,7 @@ This module shares a Supabase project with FSA. Auth and org/tenant schema are r
 | description | TEXT | Optional |
 | owner | TEXT | Member slug |
 | status | TEXT | Standard PM status |
+| sort_order | INT | Display order within phase (for drag-and-drop) |
 | due_date | DATE | Optional |
 | depends_on | TEXT[] | Array of task slugs |
 | risk_id | UUID | Optional FK |
@@ -143,3 +144,4 @@ This module shares a Supabase project with FSA. Auth and org/tenant schema are r
 | `006_org_contact_fields.sql` | Add address, phone, website, notes to pm_organizations |
 | `007_fix_tasks_org_fk.sql` | Fix pm_tasks org_id FK constraint |
 | `008_site_org_flag.sql` | Add is_site_org flag to pm_organizations (unique constraint) |
+| `009_task_sort_order.sql` | Add sort_order to pm_tasks for drag-and-drop reordering |
