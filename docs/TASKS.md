@@ -21,6 +21,8 @@
 - [ ] Seed Honey Lake Digital and VakPak as sample projects
 
 ## Completed
+- [x] Individual project cards on client overview (separate card per project with stats, clickable to project editor)
+- [x] Compact AI chat panel on project editor (collapsible card at top instead of full sidebar)
 - [x] Clickable cards in client dashboard (overview + implementation tabs link to projects)
 - [x] Phase-grouped task list view with drag-and-drop reordering
   - Tasks grouped by phase with progress indicators

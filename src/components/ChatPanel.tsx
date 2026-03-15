@@ -3,7 +3,15 @@
 import { useState, useRef, useEffect } from "react";
 import type { ChatMessage } from "@/types/pm";
 
-export function ChatPanel({ projectId, projectSlug }: { projectId: string; projectSlug: string }) {
+export function ChatPanel({
+  projectId,
+  projectSlug,
+  compact = false,
+}: {
+  projectId: string;
+  projectSlug: string;
+  compact?: boolean;
+}) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "welcome",
@@ -14,6 +22,7 @@ export function ChatPanel({ projectId, projectSlug }: { projectId: string; proje
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -33,6 +42,9 @@ export function ChatPanel({ projectId, projectSlug }: { projectId: string; proje
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setLoading(true);
+
+    // Auto-expand when sending a message in compact mode
+    if (compact && !expanded) setExpanded(true);
 
     try {
       const res = await fetch("/api/pm/chat", {
@@ -75,6 +87,78 @@ export function ChatPanel({ projectId, projectSlug }: { projectId: string; proje
     }
   };
 
+  // Compact mode: small inline card with collapsible message area
+  if (compact) {
+    return (
+      <div>
+        {/* Header row — always visible */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-pm-complete" />
+            <h3 className="text-sm font-medium text-pm-text">AI Assistant</h3>
+          </div>
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="text-xs text-pm-muted hover:text-pm-text transition-colors"
+          >
+            {expanded ? "Collapse" : "Expand"}
+          </button>
+        </div>
+
+        {/* Inline input — always visible */}
+        <div className="flex gap-2 mt-2">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
+            placeholder="Ask about your project..."
+            className="flex-1 bg-pm-bg border border-pm-border rounded-lg px-3 py-1.5 text-sm text-pm-text focus:outline-none focus:border-blue-500"
+            disabled={loading}
+          />
+          <button
+            onClick={send}
+            disabled={loading || !input.trim()}
+            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            Send
+          </button>
+        </div>
+
+        {/* Expandable message area */}
+        {expanded && (
+          <div className="mt-3 border-t border-pm-border pt-3 max-h-64 overflow-auto space-y-3">
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className={`max-w-[85%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${
+                    msg.role === "user"
+                      ? "bg-blue-600 text-white"
+                      : "bg-pm-bg border border-pm-border text-pm-text"
+                  }`}
+                >
+                  {msg.content}
+                </div>
+              </div>
+            ))}
+            {loading && (
+              <div className="flex justify-start">
+                <div className="bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-muted">
+                  Thinking...
+                </div>
+              </div>
+            )}
+            <div ref={bottomRef} />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Full mode (original layout)
   return (
     <div className="flex flex-col flex-1 min-h-0">
       <div className="flex-1 overflow-auto p-4 space-y-4">

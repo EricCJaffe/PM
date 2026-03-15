@@ -33,58 +33,52 @@ export default async function ProjectDetailPage({
   const progress = tasks.length > 0 ? Math.round((completeTasks / tasks.length) * 100) : 0;
 
   return (
-    <div className="flex h-screen">
-      {/* Left Panel — AI Chat */}
-      <div className="w-[400px] min-w-[360px] border-r border-pm-border flex flex-col bg-pm-bg">
-        <div className="p-4 border-b border-pm-border">
-          <h2 className="text-sm font-medium text-pm-muted">AI Assistant</h2>
+    <div className="min-h-screen overflow-auto">
+      <div className="p-6 max-w-7xl mx-auto">
+        <Link href="/projects" className="text-sm text-pm-muted hover:text-pm-text mb-4 inline-block">
+          &larr; Projects
+        </Link>
+
+        {/* Compact AI Chat Card */}
+        <div className="card mb-4">
+          <ChatPanel projectId={project.id} projectSlug={project.slug} compact />
         </div>
-        <ChatPanel projectId={project.id} projectSlug={project.slug} />
-      </div>
 
-      {/* Right Panel — Project Board */}
-      <div className="flex-1 overflow-auto">
-        <div className="p-6">
-          <Link href="/projects" className="text-sm text-pm-muted hover:text-pm-text mb-4 inline-block">
-            &larr; Projects
-          </Link>
-
-          <EditProjectHeader project={project} orgId={project.org_id} />
-          <div className="flex justify-end -mt-4 mb-4">
-            <SaveAsTemplateButton project={project} />
-          </div>
-
-          <StatsBar
-            stats={[
-              { label: "Phases", value: phases.length },
-              { label: "Total Tasks", value: tasks.length },
-              { label: "In Progress", value: inProgressTasks, color: "text-pm-in-progress" },
-              { label: "Completed", value: completeTasks, color: "text-pm-complete" },
-              { label: "Blocked", value: blockedTasks, color: "text-pm-blocked" },
-              { label: "Progress", value: `${progress}%` },
-            ]}
-          />
-
-          <TabNav
-            tabs={[
-              {
-                id: "board",
-                label: "Board",
-                content: <PhaseBoard phases={phases} projectId={project.id} orgId={project.org_id} />,
-              },
-              {
-                id: "tasks",
-                label: `Tasks (${tasks.length})`,
-                content: <EditableTaskTable tasks={tasks} phases={phases} projectId={project.id} orgId={project.org_id} />,
-              },
-              {
-                id: "risks",
-                label: `Risks (${risks.length})`,
-                content: <EditableRiskTable risks={risks} projectId={project.id} orgId={project.org_id} />,
-              },
-            ]}
-          />
+        <EditProjectHeader project={project} orgId={project.org_id} />
+        <div className="flex justify-end -mt-4 mb-4">
+          <SaveAsTemplateButton project={project} />
         </div>
+
+        <StatsBar
+          stats={[
+            { label: "Phases", value: phases.length },
+            { label: "Total Tasks", value: tasks.length },
+            { label: "In Progress", value: inProgressTasks, color: "text-pm-in-progress" },
+            { label: "Completed", value: completeTasks, color: "text-pm-complete" },
+            { label: "Blocked", value: blockedTasks, color: "text-pm-blocked" },
+            { label: "Progress", value: `${progress}%` },
+          ]}
+        />
+
+        <TabNav
+          tabs={[
+            {
+              id: "board",
+              label: "Board",
+              content: <PhaseBoard phases={phases} projectId={project.id} orgId={project.org_id} />,
+            },
+            {
+              id: "tasks",
+              label: `Tasks (${tasks.length})`,
+              content: <EditableTaskTable tasks={tasks} phases={phases} projectId={project.id} orgId={project.org_id} />,
+            },
+            {
+              id: "risks",
+              label: `Risks (${risks.length})`,
+              content: <EditableRiskTable risks={risks} projectId={project.id} orgId={project.org_id} />,
+            },
+          ]}
+        />
       </div>
     </div>
   );
