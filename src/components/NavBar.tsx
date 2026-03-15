@@ -7,7 +7,6 @@ import { ThemeToggle } from "./ThemeToggle";
 const navItems = [
   { href: "/projects", label: "Projects" },
   { href: "/clients", label: "Clients" },
-  { href: "/templates", label: "Templates" },
 ];
 
 export function NavBar() {
@@ -41,12 +40,6 @@ export function NavBar() {
               </Link>
             );
           })}
-          <Link
-            href="/projects/new"
-            className="ml-3 px-3 py-1.5 bg-pm-accent hover:bg-pm-accent-hover text-white rounded-md text-sm font-medium transition-colors"
-          >
-            + New Project
-          </Link>
           <ThemeToggle />
         </div>
       </div>

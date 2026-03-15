@@ -21,6 +21,12 @@
 - [ ] Seed Honey Lake Digital and VakPak as sample projects
 
 ## Completed
+- [x] Consolidated projects page with tabbed layout (Projects + Templates tabs)
+  - Removed "Templates" and "+ New Project" from top nav bar
+  - Templates management embedded as a tab within the projects page
+  - "+ New Project" button moved inside the Projects tab
+  - /templates route redirects to /projects?tab=templates
+  - Added GET /api/pm/projects endpoint for client-side data fetching
 - [x] Individual project cards on client overview (separate card per project with stats, clickable to project editor)
 - [x] Compact AI chat panel on project editor (collapsible card at top instead of full sidebar)
 - [x] Clickable cards in client dashboard (overview + implementation tabs link to projects)
