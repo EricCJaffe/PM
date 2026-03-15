@@ -211,6 +211,7 @@ export async function POST(request: NextRequest) {
     const phaseSlugToId = new Map(insertedPhases.map((p) => [p.slug, p.id]));
     const taskRows: {
       project_id: string;
+      org_id: string;
       phase_id: string | null;
       slug: string;
       name: string;
@@ -224,6 +225,7 @@ export async function POST(request: NextRequest) {
       for (const t of phaseTasks) {
         taskRows.push({
           project_id: project.id,
+          org_id: resolvedOrgId,
           phase_id: phaseId,
           slug: t.slug,
           name: t.name,

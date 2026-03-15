@@ -255,6 +255,7 @@ export interface ProjectWithStats extends Project {
   complete_tasks: number;
   blocked_tasks: number;
   overall_progress: number;
+  org_name?: string;
 }
 
 export interface PhaseWithTasks extends Phase {

@@ -27,6 +27,11 @@ export function ProjectCard({ project }: { project: ProjectWithStats }) {
     <div className="relative group">
       <Link href={`/projects/${project.slug}`}>
         <div className="card hover:border-pm-muted/50 transition-colors cursor-pointer">
+          {project.org_name && (
+            <div className="text-xs font-medium text-blue-400 mb-2 uppercase tracking-wide">
+              {project.org_name}
+            </div>
+          )}
           <div className="flex items-start justify-between mb-3">
             <div>
               <h3 className="font-semibold text-lg text-pm-text">{project.name}</h3>

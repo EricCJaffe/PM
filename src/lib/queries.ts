@@ -75,6 +75,14 @@ export async function getProjects(orgId?: string): Promise<ProjectWithStats[]> {
   const { data: projects } = await query;
   if (!projects?.length) return [];
 
+  // Build org name lookup
+  const orgIds = [...new Set(projects.map((p: { org_id: string }) => p.org_id))];
+  const { data: orgs } = await supabase
+    .from("pm_organizations")
+    .select("id, name")
+    .in("id", orgIds);
+  const orgNameMap = new Map((orgs ?? []).map((o: { id: string; name: string }) => [o.id, o.name]));
+
   const stats: ProjectWithStats[] = [];
   for (const p of projects) {
     const { count: phaseCount } = await supabase
@@ -98,6 +106,7 @@ export async function getProjects(orgId?: string): Promise<ProjectWithStats[]> {
       complete_tasks: complete,
       blocked_tasks: blocked,
       overall_progress: progress,
+      org_name: (orgNameMap.get(p.org_id) as string | undefined) ?? undefined,
     });
   }
   return stats;
