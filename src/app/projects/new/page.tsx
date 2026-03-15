@@ -224,7 +224,7 @@ export default function NewProjectPage() {
                 <option value="">Select an organization...</option>
                 {orgs.map((org) => (
                   <option key={org.id} value={org.id}>
-                    {org.name} ({org.slug})
+                    {org.name}
                   </option>
                 ))}
               </select>
@@ -246,13 +246,6 @@ export default function NewProjectPage() {
                 className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
                 placeholder="Organization name"
               />
-              <input
-                type="text"
-                value={newOrgSlug}
-                onChange={(e) => setNewOrgSlug(e.target.value)}
-                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500 font-mono text-sm"
-                placeholder="org-slug"
-              />
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -272,9 +265,7 @@ export default function NewProjectPage() {
               </div>
             </div>
           )}
-          {selectedOrg && (
-            <div className="text-xs text-pm-muted mt-1 font-mono">{selectedOrg.slug}</div>
-          )}
+          {/* slug auto-generated from name */}
         </div>
 
         {/* Template */}
@@ -309,18 +300,6 @@ export default function NewProjectPage() {
             onChange={(e) => updateSlug(e.target.value)}
             className="w-full bg-pm-card border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
             placeholder="e.g. Honey Lake Digital"
-          />
-        </div>
-
-        {/* Slug */}
-        <div>
-          <label className="block text-sm font-medium text-pm-muted mb-1">Slug</label>
-          <input
-            type="text"
-            required
-            value={form.slug}
-            onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))}
-            className="w-full bg-pm-card border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500 font-mono text-sm"
           />
         </div>
 
