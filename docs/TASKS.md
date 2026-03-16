@@ -21,6 +21,16 @@
 - [ ] Seed Honey Lake Digital and VakPak as sample projects
 
 ## Completed
+- [x] My Tasks page + task comments, attachments, and subtasks
+  - Added My Tasks to main nav — cross-project task view with member filter
+  - Standalone tasks (no project) can be created from My Tasks page
+  - TaskDetailModal with 4 tabs: Details, Subtasks, Comments, Files
+  - Task comments with threaded discussion (post/delete)
+  - File attachments uploaded to Supabase Storage (upload/delete)
+  - Subtasks stored as JSONB with inline toggle/add/remove
+  - Migration 010: pm_task_comments, pm_task_attachments tables, nullable project_id, assigned_to column
+  - API routes: /tasks/my, /tasks/[id]/comments, /tasks/[id]/attachments
+  - "Subtasks / Comments / Files" link in project task editor opens detail modal
 - [x] Fix risk creation (silent failures) + owner display names + project delete UX + template builder
   - Risk modal now shows errors instead of silently closing on failure
   - Owner fields across board, tasks, and risks show display_name instead of slug

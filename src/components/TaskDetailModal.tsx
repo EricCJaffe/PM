@@ -1,0 +1,429 @@
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { Modal, Field, Input, Select, Textarea } from "./Modal";
+import { StatusBadge } from "./StatusBadge";
+import type { PMStatus, Subtask, TaskComment, TaskAttachment } from "@/types/pm";
+
+const STATUSES: PMStatus[] = ["not-started", "in-progress", "complete", "blocked", "pending", "on-hold"];
+
+interface TaskLike {
+  id: string;
+  name: string;
+  description: string | null;
+  status: PMStatus;
+  owner: string | null;
+  assigned_to?: string | null;
+  due_date: string | null;
+  subtasks: Subtask[];
+  project_id?: string | null;
+}
+
+export function TaskDetailModal({
+  task,
+  memberMap,
+  onClose,
+}: {
+  task: TaskLike;
+  memberMap: Record<string, string>;
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<"details" | "subtasks" | "comments" | "files">("details");
+  const [saving, setSaving] = useState(false);
+
+  // Detail form
+  const [form, setForm] = useState({
+    name: task.name,
+    description: task.description ?? "",
+    status: task.status,
+    due_date: task.due_date ?? "",
+  });
+
+  // Subtasks
+  const [subtasks, setSubtasks] = useState<Subtask[]>(task.subtasks || []);
+  const [newSubtask, setNewSubtask] = useState("");
+
+  // Comments
+  const [comments, setComments] = useState<TaskComment[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [newComment, setNewComment] = useState("");
+  const [postingComment, setPostingComment] = useState(false);
+
+  // Attachments
+  const [attachments, setAttachments] = useState<TaskAttachment[]>([]);
+  const [loadingFiles, setLoadingFiles] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load comments when tab opens
+  useEffect(() => {
+    if (activeTab === "comments" && comments.length === 0) {
+      setLoadingComments(true);
+      fetch(`/api/pm/tasks/${task.id}/comments`)
+        .then((r) => r.json())
+        .then((data) => { if (Array.isArray(data)) setComments(data); })
+        .catch(() => {})
+        .finally(() => setLoadingComments(false));
+    }
+  }, [activeTab, task.id, comments.length]);
+
+  // Load attachments when tab opens
+  useEffect(() => {
+    if (activeTab === "files" && attachments.length === 0) {
+      setLoadingFiles(true);
+      fetch(`/api/pm/tasks/${task.id}/attachments`)
+        .then((r) => r.json())
+        .then((data) => { if (Array.isArray(data)) setAttachments(data); })
+        .catch(() => {})
+        .finally(() => setLoadingFiles(false));
+    }
+  }, [activeTab, task.id, attachments.length]);
+
+  // Save details
+  async function saveDetails() {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/pm/tasks/${task.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, due_date: form.due_date || null }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(data.error);
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Subtask management
+  function addSubtask() {
+    if (!newSubtask.trim()) return;
+    const updated = [...subtasks, { text: newSubtask.trim(), done: false }];
+    setSubtasks(updated);
+    setNewSubtask("");
+    saveSubtasks(updated);
+  }
+
+  function toggleSubtask(idx: number) {
+    const updated = subtasks.map((s, i) => i === idx ? { ...s, done: !s.done } : s);
+    setSubtasks(updated);
+    saveSubtasks(updated);
+  }
+
+  function removeSubtask(idx: number) {
+    const updated = subtasks.filter((_, i) => i !== idx);
+    setSubtasks(updated);
+    saveSubtasks(updated);
+  }
+
+  async function saveSubtasks(subs: Subtask[]) {
+    await fetch(`/api/pm/tasks/${task.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subtasks: subs }),
+    });
+  }
+
+  // Comment management
+  async function postComment() {
+    if (!newComment.trim()) return;
+    setPostingComment(true);
+    try {
+      const res = await fetch(`/api/pm/tasks/${task.id}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ author: "user", body: newComment.trim() }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setComments((prev) => [...prev, data]);
+      setNewComment("");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to post comment");
+    } finally {
+      setPostingComment(false);
+    }
+  }
+
+  async function deleteComment(commentId: string) {
+    try {
+      await fetch(`/api/pm/tasks/${task.id}/comments`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ comment_id: commentId }),
+      });
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+    } catch {
+      alert("Failed to delete comment");
+    }
+  }
+
+  // File management
+  async function uploadFile(file: File) {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("uploaded_by", "user");
+      const res = await fetch(`/api/pm/tasks/${task.id}/attachments`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setAttachments((prev) => [data, ...prev]);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to upload file");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function deleteAttachment(attachmentId: string) {
+    try {
+      await fetch(`/api/pm/tasks/${task.id}/attachments`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ attachment_id: attachmentId }),
+      });
+      setAttachments((prev) => prev.filter((a) => a.id !== attachmentId));
+    } catch {
+      alert("Failed to delete attachment");
+    }
+  }
+
+  function formatFileSize(bytes: number) {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  function formatTimestamp(ts: string) {
+    const d = new Date(ts);
+    return d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+
+  const completedSubs = subtasks.filter((s) => s.done).length;
+  const tabs = [
+    { id: "details" as const, label: "Details" },
+    { id: "subtasks" as const, label: `Subtasks${subtasks.length > 0 ? ` (${completedSubs}/${subtasks.length})` : ""}` },
+    { id: "comments" as const, label: `Comments${comments.length > 0 ? ` (${comments.length})` : ""}` },
+    { id: "files" as const, label: `Files${attachments.length > 0 ? ` (${attachments.length})` : ""}` },
+  ];
+
+  return (
+    <Modal title={task.name} onClose={onClose}>
+      {/* Tab bar */}
+      <div className="flex items-center gap-1 border-b border-pm-border mb-4 -mt-1">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors border-b-2 -mb-px ${
+              activeTab === tab.id
+                ? "border-pm-accent text-pm-accent"
+                : "border-transparent text-pm-muted hover:text-pm-text"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Details tab */}
+      {activeTab === "details" && (
+        <div className="space-y-4">
+          <Field label="Task Name">
+            <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+          </Field>
+          <Field label="Description">
+            <Textarea
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              placeholder="Add details..."
+            />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Status">
+              <Select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as PMStatus }))}>
+                {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </Select>
+            </Field>
+            <Field label="Due Date">
+              <Input type="date" value={form.due_date} onChange={(e) => setForm((f) => ({ ...f, due_date: e.target.value }))} />
+            </Field>
+          </div>
+          <div className="flex justify-end pt-2">
+            <button
+              onClick={saveDetails}
+              disabled={saving}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Subtasks tab */}
+      {activeTab === "subtasks" && (
+        <div className="space-y-3">
+          {subtasks.length > 0 && (
+            <div className="space-y-1">
+              {subtasks.map((sub, idx) => (
+                <div key={idx} className="flex items-center gap-2 group">
+                  <button
+                    onClick={() => toggleSubtask(idx)}
+                    className={`w-4 h-4 rounded border shrink-0 flex items-center justify-center transition-colors ${
+                      sub.done
+                        ? "bg-pm-complete border-pm-complete text-white"
+                        : "border-pm-border hover:border-pm-accent"
+                    }`}
+                  >
+                    {sub.done && (
+                      <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </button>
+                  <span className={`text-sm flex-1 ${sub.done ? "text-pm-muted line-through" : "text-pm-text"}`}>
+                    {sub.text}
+                  </span>
+                  <button
+                    onClick={() => removeSubtask(idx)}
+                    className="text-red-400/0 group-hover:text-red-400/60 hover:!text-red-400 text-xs transition-colors"
+                  >
+                    x
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              type="text"
+              value={newSubtask}
+              onChange={(e) => setNewSubtask(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") addSubtask(); }}
+              className="flex-1 bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text focus:outline-none focus:border-blue-500"
+              placeholder="Add a subtask..."
+            />
+            <button
+              onClick={addSubtask}
+              disabled={!newSubtask.trim()}
+              className="px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              Add
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Comments tab */}
+      {activeTab === "comments" && (
+        <div className="space-y-4">
+          {loadingComments ? (
+            <p className="text-pm-muted text-sm">Loading comments...</p>
+          ) : comments.length === 0 ? (
+            <p className="text-pm-muted text-sm text-center py-4">No comments yet. Start the conversation.</p>
+          ) : (
+            <div className="space-y-3 max-h-64 overflow-y-auto">
+              {comments.map((c) => (
+                <div key={c.id} className="bg-pm-bg rounded-lg p-3 group">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium text-pm-text">
+                      {memberMap[c.author] || c.author}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-pm-muted">{formatTimestamp(c.created_at)}</span>
+                      <button
+                        onClick={() => deleteComment(c.id)}
+                        className="text-red-400/0 group-hover:text-red-400/60 hover:!text-red-400 text-xs transition-colors"
+                      >
+                        x
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-sm text-pm-text whitespace-pre-wrap">{c.body}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-start gap-2 pt-1">
+            <textarea
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); postComment(); } }}
+              className="flex-1 bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text focus:outline-none focus:border-blue-500 resize-none"
+              rows={2}
+              placeholder="Write a comment... (Enter to send)"
+            />
+            <button
+              onClick={postComment}
+              disabled={postingComment || !newComment.trim()}
+              className="px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              {postingComment ? "..." : "Send"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Files tab */}
+      {activeTab === "files" && (
+        <div className="space-y-4">
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            onChange={(e) => { if (e.target.files?.[0]) uploadFile(e.target.files[0]); e.target.value = ""; }}
+          />
+
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="w-full border-2 border-dashed border-pm-border hover:border-pm-accent rounded-lg py-4 text-sm text-pm-muted hover:text-pm-accent transition-colors"
+          >
+            {uploading ? "Uploading..." : "Click to upload a file"}
+          </button>
+
+          {loadingFiles ? (
+            <p className="text-pm-muted text-sm">Loading files...</p>
+          ) : attachments.length === 0 ? (
+            <p className="text-pm-muted text-sm text-center py-4">No files attached yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {attachments.map((a) => (
+                <div key={a.id} className="flex items-center gap-3 bg-pm-bg rounded-lg px-3 py-2 group">
+                  <div className="w-8 h-8 bg-pm-card rounded flex items-center justify-center shrink-0">
+                    <svg className="w-4 h-4 text-pm-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-pm-text truncate">{a.file_name}</div>
+                    <div className="text-xs text-pm-muted">{formatFileSize(a.file_size)}</div>
+                  </div>
+                  <button
+                    onClick={() => deleteAttachment(a.id)}
+                    className="text-red-400/0 group-hover:text-red-400/60 hover:!text-red-400 text-xs transition-colors shrink-0"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </Modal>
+  );
+}

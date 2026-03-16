@@ -103,6 +103,8 @@ docs/                       # Project documentation
 | `pm_risks` | Risk register (probability, impact, mitigation) |
 | `pm_daily_logs` | AI-generated or manual daily standups |
 | `pm_files` | Index of all vault markdown files |
+| `pm_task_comments` | Comment threads on tasks |
+| `pm_task_attachments` | File attachments on tasks |
 
 ## Project Templates
 | Slug | Name | Phases |
@@ -137,6 +139,10 @@ vault/[org-slug]/[project-slug]/
 | `/api/pm/reports/decisions` | POST | Compile decision register |
 | `/api/pm/phases/clone` | POST | Clone phase with sublayers |
 | `/api/pm/export/github` | POST | Push vault to GitHub repo |
+| `/api/pm/tasks/my` | GET | Cross-project tasks for a user |
+| `/api/pm/tasks/[id]/comments` | GET, POST, DELETE | Task comment threads |
+| `/api/pm/tasks/[id]/attachments` | GET, POST, DELETE | Task file attachments |
+| `/api/pm/templates/generate` | POST | AI-generate template phases/tasks |
 
 ## Security Rules
 - **Never** put OpenAI API keys, service role keys, or GitHub tokens in `NEXT_PUBLIC_*` vars

@@ -5,6 +5,7 @@ import type { Task, PhaseWithTasks } from "@/types/pm";
 import { StatusBadge } from "./StatusBadge";
 import { Modal, Field, Input, Select, Textarea, ModalActions } from "./Modal";
 import { OwnerPicker } from "./OwnerPicker";
+import { TaskDetailModal } from "./TaskDetailModal";
 import {
   DndContext,
   closestCenter,
@@ -36,6 +37,7 @@ function TaskModal({
   task,
   defaultPhaseId,
   onClose,
+  onOpenDetail,
 }: {
   projectId: string;
   orgId: string;
@@ -43,6 +45,7 @@ function TaskModal({
   task?: Task;
   defaultPhaseId?: string;
   onClose: () => void;
+  onOpenDetail?: (task: Task) => void;
 }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -114,9 +117,20 @@ function TaskModal({
           <OwnerPicker orgId={orgId} value={form.owner} onChange={(v) => set("owner", v)} />
         </Field>
         <div className="flex items-center justify-between pt-2">
-          {task ? (
-            <button type="button" onClick={handleDelete} className="text-sm text-red-400 hover:text-red-300">Delete task</button>
-          ) : <span />}
+          <div className="flex items-center gap-3">
+            {task && (
+              <button type="button" onClick={handleDelete} className="text-sm text-red-400 hover:text-red-300">Delete</button>
+            )}
+            {task && onOpenDetail && (
+              <button
+                type="button"
+                onClick={() => { onClose(); onOpenDetail(task); }}
+                className="text-sm text-pm-accent hover:text-pm-accent-hover"
+              >
+                Subtasks / Comments / Files
+              </button>
+            )}
+          </div>
           <ModalActions onClose={onClose} saving={saving} label={task ? "Save Changes" : "Add Task"} />
         </div>
       </form>
@@ -284,6 +298,7 @@ export function EditableTaskTable({
 }) {
   const router = useRouter();
   const [modal, setModal] = useState<{ task?: Task; phaseId?: string } | null>(null);
+  const [detailTask, setDetailTask] = useState<Task | null>(null);
   const [tasks, setTasks] = useState(initialTasks);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
 
@@ -471,6 +486,16 @@ export function EditableTaskTable({
           phases={phases}
           task={modal.task}
           onClose={() => setModal(null)}
+          onOpenDetail={(t) => setDetailTask(t)}
+        />
+      )}
+
+      {/* Task detail modal (subtasks, comments, files) */}
+      {detailTask && (
+        <TaskDetailModal
+          task={detailTask}
+          memberMap={memberMap}
+          onClose={() => { setDetailTask(null); router.refresh(); }}
         />
       )}
     </div>

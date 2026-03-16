@@ -112,12 +112,13 @@ export interface Phase {
 
 export interface Task {
   id: string;
-  project_id: string;
+  project_id: string | null;
   phase_id: string | null;
   slug: string;
   name: string;
   description: string | null;
   owner: string | null;
+  assigned_to: string | null;
   status: PMStatus;
   sort_order: number;
   due_date: string | null;
@@ -131,6 +132,26 @@ export interface Task {
 export interface Subtask {
   text: string;
   done: boolean;
+}
+
+export interface TaskComment {
+  id: string;
+  task_id: string;
+  author: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TaskAttachment {
+  id: string;
+  task_id: string;
+  file_name: string;
+  file_size: number;
+  content_type: string | null;
+  storage_path: string;
+  uploaded_by: string | null;
+  created_at: string;
 }
 
 export interface Risk {
