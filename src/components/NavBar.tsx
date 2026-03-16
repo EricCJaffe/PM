@@ -8,6 +8,7 @@ const navItems = [
   { href: "/my-tasks", label: "My Tasks" },
   { href: "/projects", label: "Projects" },
   { href: "/clients", label: "Clients" },
+  { href: "/admin/users", label: "Admin" },
 ];
 
 export function NavBar() {

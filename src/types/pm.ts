@@ -91,6 +91,8 @@ export interface Project {
   target_date: string | null;
   budget: number | null;
   status: ProjectStatus;
+  is_personal: boolean;
+  personal_member_slug: string | null;
   created_at: string;
   updated_at: string;
 }

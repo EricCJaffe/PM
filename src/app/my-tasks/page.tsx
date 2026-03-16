@@ -37,11 +37,17 @@ export default function MyTasksPage() {
   const [filter, setFilter] = useState<"all" | "active" | "completed">("active");
   const [selectedTask, setSelectedTask] = useState<MyTask | null>(null);
 
+  // Personal project
+  const [personalProjectId, setPersonalProjectId] = useState<string | null>(null);
+
   // New task form
   const [showNewTask, setShowNewTask] = useState(false);
   const [newTaskName, setNewTaskName] = useState("");
   const [newTaskDue, setNewTaskDue] = useState("");
+  const [newTaskPersonal, setNewTaskPersonal] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const [siteOrgId, setSiteOrgId] = useState<string | null>(null);
 
   // Load all members for the picker
   useEffect(() => {
@@ -49,6 +55,7 @@ export default function MyTasksPage() {
       .then((r) => r.json())
       .then((orgs) => {
         if (!Array.isArray(orgs) || orgs.length === 0) return;
+        setSiteOrgId(orgs[0].id);
         // Load members from first org (site org) for picker
         return fetch(`/api/pm/members/assignable?org_id=${orgs[0].id}`)
           .then((r) => r.json())
@@ -67,6 +74,15 @@ export default function MyTasksPage() {
       })
       .catch(() => {});
   }, []);
+
+  // Fetch or create personal project when member changes
+  useEffect(() => {
+    if (!selectedMember || !siteOrgId) { setPersonalProjectId(null); return; }
+    fetch(`/api/pm/projects/personal?member_slug=${selectedMember}&org_id=${siteOrgId}`)
+      .then((r) => r.json())
+      .then((data) => { if (data.id) setPersonalProjectId(data.id); })
+      .catch(() => {});
+  }, [selectedMember, siteOrgId]);
 
   const loadTasks = useCallback(() => {
     if (!selectedMember) {
@@ -96,11 +112,13 @@ export default function MyTasksPage() {
     return true;
   });
 
-  // Group by project
+  // Group by project — separate personal project tasks from regular project tasks
   const standalone = filteredTasks.filter((t) => !t.project_id);
+  const personalProjectTasks = filteredTasks.filter((t) => t.project_id === personalProjectId && personalProjectId);
   const byProject = new Map<string, { name: string; tasks: MyTask[] }>();
   for (const t of filteredTasks) {
     if (!t.project_id) continue;
+    if (t.project_id === personalProjectId) continue; // handled separately
     if (!byProject.has(t.project_id)) {
       byProject.set(t.project_id, { name: t.project_name || "Unknown Project", tasks: [] });
     }
@@ -120,21 +138,28 @@ export default function MyTasksPage() {
     if (!newTaskName.trim()) return;
     setSaving(true);
     try {
+      const body: Record<string, unknown> = {
+        name: newTaskName,
+        assigned_to: selectedMember || null,
+        owner: selectedMember || null,
+        due_date: newTaskDue || null,
+      };
+      // If "personal" toggled, attach to personal project
+      if (newTaskPersonal && personalProjectId) {
+        body.project_id = personalProjectId;
+      }
       const res = await fetch("/api/pm/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: newTaskName,
-          assigned_to: selectedMember || null,
-          owner: selectedMember || null,
-          due_date: newTaskDue || null,
-        }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-      setTasks((prev) => [{ ...data, project_name: null }, ...prev]);
+      const projectName = newTaskPersonal ? `${memberName(selectedMember)} — Personal` : null;
+      setTasks((prev) => [{ ...data, project_name: projectName }, ...prev]);
       setNewTaskName("");
       setNewTaskDue("");
+      setNewTaskPersonal(false);
       setShowNewTask(false);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to create task");
@@ -249,29 +274,40 @@ export default function MyTasksPage() {
 
       {/* New task form */}
       {showNewTask && (
-        <div className="card mb-6 flex items-center gap-3">
-          <input
-            type="text"
-            value={newTaskName}
-            onChange={(e) => setNewTaskName(e.target.value)}
-            className="flex-1 bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text focus:outline-none focus:border-blue-500"
-            placeholder="Task name..."
-            autoFocus
-            onKeyDown={(e) => { if (e.key === "Enter") createStandaloneTask(); }}
-          />
-          <input
-            type="date"
-            value={newTaskDue}
-            onChange={(e) => setNewTaskDue(e.target.value)}
-            className="bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text focus:outline-none focus:border-blue-500"
-          />
-          <button
-            onClick={createStandaloneTask}
-            disabled={saving || !newTaskName.trim()}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            {saving ? "Adding..." : "Add"}
-          </button>
+        <div className="card mb-6 space-y-3">
+          <div className="flex items-center gap-3">
+            <input
+              type="text"
+              value={newTaskName}
+              onChange={(e) => setNewTaskName(e.target.value)}
+              className="flex-1 bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text focus:outline-none focus:border-blue-500"
+              placeholder="Task name..."
+              autoFocus
+              onKeyDown={(e) => { if (e.key === "Enter") createStandaloneTask(); }}
+            />
+            <input
+              type="date"
+              value={newTaskDue}
+              onChange={(e) => setNewTaskDue(e.target.value)}
+              className="bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text focus:outline-none focus:border-blue-500"
+            />
+            <button
+              onClick={createStandaloneTask}
+              disabled={saving || !newTaskName.trim()}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              {saving ? "Adding..." : "Add"}
+            </button>
+          </div>
+          <label className="flex items-center gap-2 text-xs text-pm-muted cursor-pointer">
+            <input
+              type="checkbox"
+              checked={newTaskPersonal}
+              onChange={(e) => setNewTaskPersonal(e.target.checked)}
+              className="rounded border-pm-border"
+            />
+            Add to Personal project (private, only visible to you)
+          </label>
         </div>
       )}
 
@@ -289,9 +325,22 @@ export default function MyTasksPage() {
           {/* Standalone tasks */}
           {standalone.length > 0 && (
             <div>
-              <h2 className="text-sm font-medium text-pm-muted mb-2 px-3">Personal Tasks</h2>
+              <h2 className="text-sm font-medium text-pm-muted mb-2 px-3">Standalone Tasks</h2>
               <div className="space-y-0.5">
                 {standalone.map((task) => <TaskRow key={task.id} task={task} />)}
+              </div>
+            </div>
+          )}
+
+          {/* Personal project tasks */}
+          {personalProjectTasks.length > 0 && (
+            <div>
+              <h2 className="text-sm font-medium text-pm-muted mb-2 px-3 flex items-center gap-2">
+                Personal Project
+                <span className="text-[10px] bg-pm-accent/10 text-pm-accent px-1.5 py-0.5 rounded">Private</span>
+              </h2>
+              <div className="space-y-0.5">
+                {personalProjectTasks.map((task) => <TaskRow key={task.id} task={task} />)}
               </div>
             </div>
           )}

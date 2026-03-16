@@ -6,7 +6,7 @@ function slugify(s: string) {
 }
 
 export async function POST(request: NextRequest) {
-  const { project_id, phase_id, name, status, owner, assigned_to, due_date, description } = await request.json();
+  const { project_id, phase_id, name, status, owner, assigned_to, due_date, description, notify_assignee } = await request.json();
   if (!name) return NextResponse.json({ error: "name is required" }, { status: 400 });
 
   const supabase = createServiceClient();
@@ -48,7 +48,16 @@ export async function POST(request: NextRequest) {
   };
   if (orgId) insert.org_id = orgId;
 
+  if (notify_assignee) insert.notify_assignee = true;
+
   const { data, error } = await supabase.from("pm_tasks").insert(insert).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // TODO: Send email notification to owner/assignee when notify_assignee is true
+  // This will be wired up when the email service (e.g. Resend, SendGrid) is configured
+  if (notify_assignee && (owner || assigned_to)) {
+    console.log(`[Notification] Task "${name}" — email notification requested for ${owner || assigned_to}`);
+  }
+
   return NextResponse.json(data);
 }

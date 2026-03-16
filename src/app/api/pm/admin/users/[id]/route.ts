@@ -61,3 +61,29 @@ export async function PATCH(
 
   return NextResponse.json({ success: true });
 }
+
+// DELETE: Remove a user profile and their org access
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const admin = await requireAdmin();
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const { id } = await params;
+  const service = createServiceClient();
+
+  // Prevent self-deletion
+  if (admin.id === id) {
+    return NextResponse.json({ error: "Cannot delete your own account" }, { status: 400 });
+  }
+
+  // Remove org access first
+  await service.from("pm_user_org_access").delete().eq("user_id", id);
+
+  // Remove user profile
+  const { error } = await service.from("pm_user_profiles").delete().eq("id", id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ success: true });
+}

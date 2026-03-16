@@ -170,10 +170,11 @@ export async function getTemplate(slug: string): Promise<ProjectTemplate | null>
 
 // ─── Projects ────────────────────────────────────────────────────────
 
-export async function getProjects(orgId?: string): Promise<ProjectWithStats[]> {
+export async function getProjects(orgId?: string, includePersonal = false): Promise<ProjectWithStats[]> {
   const supabase = createServiceClient();
   let query = supabase.from("pm_projects").select("*").order("created_at", { ascending: false });
   if (orgId) query = query.eq("org_id", orgId);
+  if (!includePersonal) query = query.or("is_personal.is.null,is_personal.eq.false");
 
   const { data: projects } = await query;
   if (!projects?.length) return [];

@@ -49,6 +49,7 @@ function TaskModal({
 }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
+  const [notifyAssignee, setNotifyAssignee] = useState(false);
   const [form, setForm] = useState({
     name: task?.name ?? "",
     description: task?.description ?? "",
@@ -63,7 +64,7 @@ function TaskModal({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    const payload = { ...form, due_date: form.due_date || null, phase_id: form.phase_id || null };
+    const payload = { ...form, due_date: form.due_date || null, phase_id: form.phase_id || null, notify_assignee: notifyAssignee };
     const url = task ? `/api/pm/tasks/${task.id}` : "/api/pm/tasks";
     const method = task ? "PATCH" : "POST";
     const body = task ? payload : { project_id: projectId, ...payload };
@@ -116,6 +117,18 @@ function TaskModal({
         <Field label="Owner">
           <OwnerPicker orgId={orgId} value={form.owner} onChange={(v) => set("owner", v)} />
         </Field>
+        {/* Email notification toggle */}
+        {form.owner && (
+          <label className="flex items-center gap-2 pt-2 text-xs text-pm-muted cursor-pointer">
+            <input
+              type="checkbox"
+              checked={notifyAssignee}
+              onChange={(e) => setNotifyAssignee(e.target.checked)}
+              className="rounded border-pm-border"
+            />
+            Email notify owner when {task ? "saving" : "creating"} this task
+          </label>
+        )}
         <div className="flex items-center justify-between pt-2">
           <div className="flex items-center gap-3">
             {task && (

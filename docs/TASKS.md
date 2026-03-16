@@ -5,10 +5,12 @@
 - [ ] Apply migration 006_org_contact_fields.sql to Supabase
 - [ ] Apply migration 008_site_org_flag.sql to Supabase
 - [ ] Apply migration 009_task_sort_order.sql to Supabase
+- [ ] Apply migration 011_personal_projects_and_notifications.sql to Supabase
 - [ ] Run FSA site-org backfill: `npx tsx scripts/backfill-fsa-site-org.ts`
 - [ ] Run Reverb Church backfill: `npx tsx scripts/backfill-reverb-church.ts`
 - [ ] End-to-end test: full auth flow (signup → confirm → login → admin)
 - [ ] Test AI SOP scanner with real documents
+- [ ] Wire up email service (Resend/SendGrid) for task notifications and user invites
 
 ## Backlog
 - [ ] Add RLS policies to all PM tables
@@ -19,8 +21,19 @@
 - [ ] Timeline view (Gantt-style) for phases
 - [ ] Budget vs actuals tracking
 - [ ] Seed Honey Lake Digital and VakPak as sample projects
+- [ ] Asana import: support CSV format in addition to JSON
+- [ ] Asana import: connect via Asana API for live import (requires PAT)
 
 ## Completed
+- [x] User dashboard, personal projects, email notifications, admin management, Asana import
+  - Dashboard landing page with tasks sorted by due date, overdue highlighting, stats cards
+  - Personal project system: auto-created per-member, hidden from main project list
+  - Email notification toggle on task create/edit (placeholder until email service configured)
+  - Admin user management: simplified 2-tier (admin/user), invite by email, delete users
+  - Asana import groundwork: JSON upload → project/phases/tasks with subtask mapping
+  - Migration 011: is_personal + personal_member_slug on projects, notify_assignee on tasks
+  - Admin link added to NavBar
+  - API routes: /projects/personal, /admin/users/invite, /import/asana
 - [x] My Tasks page + task comments, attachments, and subtasks
   - Added My Tasks to main nav — cross-project task view with member filter
   - Standalone tasks (no project) can be created from My Tasks page
