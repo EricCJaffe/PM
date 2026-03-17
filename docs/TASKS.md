@@ -34,7 +34,13 @@
   - pm_project_templates: read-only for all authenticated users, admin-only write
   - Service role (API routes) bypasses RLS automatically
 - [ ] Apply migration 014_rls_policies.sql to Supabase
-- [ ] Add org-scoped filtering to API routes for external users (projects, tasks, orgs)
+- [x] Add org-scoped filtering to API routes for external users (projects, tasks, orgs)
+  - Simplified security model: FSA staff (admin/user) = all-client access, External = single assigned client
+  - Organizations API now calls getUserOrgFilter() to scope results for external users
+  - Client detail page enforces access check via getUserOrgFilter()
+  - Admin invite UI simplified: internal users auto-get all-org access, external users pick one client
+  - Admin user list shows "All Clients" for staff, client dropdown for external users
+  - Role change rebuilds org access automatically (internal→all orgs, external→cleared)
 - [ ] Test AI SOP scanner with real documents
 - [ ] Wire up email service (Resend/SendGrid) for task notifications and user invites
 - [ ] Set up Vercel Cron for daily recurring task generation (/api/pm/series/generate)
