@@ -174,13 +174,17 @@ export async function getProjects(orgId?: string, includePersonal = false): Prom
   const supabase = createServiceClient();
   let query = supabase.from("pm_projects").select("*").order("created_at", { ascending: false });
   if (orgId) query = query.eq("org_id", orgId);
-  if (!includePersonal) query = query.or("is_personal.is.null,is_personal.eq.false");
 
   const { data: projects } = await query;
   if (!projects?.length) return [];
 
+  // Filter out personal projects in JS (safe even if column doesn't exist yet)
+  const filtered = includePersonal
+    ? projects
+    : projects.filter((p: Record<string, unknown>) => !p.is_personal);
+
   // Build org name lookup
-  const orgIds = [...new Set(projects.map((p: { org_id: string }) => p.org_id))];
+  const orgIds = [...new Set(filtered.map((p: { org_id: string }) => p.org_id))];
   const { data: orgs } = await supabase
     .from("pm_organizations")
     .select("id, name")
@@ -188,7 +192,7 @@ export async function getProjects(orgId?: string, includePersonal = false): Prom
   const orgNameMap = new Map((orgs ?? []).map((o: { id: string; name: string }) => [o.id, o.name]));
 
   const stats: ProjectWithStats[] = [];
-  for (const p of projects) {
+  for (const p of filtered) {
     const { count: phaseCount } = await supabase
       .from("pm_phases")
       .select("*", { count: "exact", head: true })

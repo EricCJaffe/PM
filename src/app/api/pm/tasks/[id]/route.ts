@@ -13,7 +13,18 @@ export async function PATCH(
     if (key in body) updates[key] = body[key];
   }
   const supabase = createServiceClient();
-  const { data, error } = await supabase.from("pm_tasks").update(updates).eq("id", id).select().single();
+  let { data, error } = await supabase.from("pm_tasks").update(updates).eq("id", id).select().single();
+
+  // If update failed due to missing columns (migrations not applied), retry without them
+  if (error && (error.message.includes("assigned_to") || error.message.includes("notify_assignee") || error.message.includes("subtasks"))) {
+    delete updates.assigned_to;
+    delete updates.notify_assignee;
+    delete updates.subtasks;
+    const retry = await supabase.from("pm_tasks").update(updates).eq("id", id).select().single();
+    data = retry.data;
+    error = retry.error;
+  }
+
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }

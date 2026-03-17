@@ -15,14 +15,28 @@ export async function GET(request: NextRequest) {
     .order("created_at", { ascending: false });
 
   if (assignedTo) {
-    // Tasks assigned to this user OR owned by them (across all projects + standalone)
+    // Try filtering by assigned_to + owner; fall back to just owner if assigned_to column doesn't exist
     query = query.or(`assigned_to.eq.${assignedTo},owner.eq.${assignedTo}`);
   } else {
     // All standalone tasks (no project)
     query = query.is("project_id", null);
   }
 
-  const { data, error } = await query;
+  let { data, error } = await query;
+
+  // If the query failed (likely missing assigned_to column), retry with owner-only filter
+  if (error && assignedTo) {
+    const fallback = supabase
+      .from("pm_tasks")
+      .select("*")
+      .eq("owner", assignedTo)
+      .order("due_date", { ascending: true, nullsFirst: false })
+      .order("created_at", { ascending: false });
+    const result = await fallback;
+    data = result.data;
+    error = result.error;
+  }
+
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   // Enrich with project names

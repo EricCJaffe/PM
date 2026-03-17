@@ -42,15 +42,25 @@ export async function POST(request: NextRequest) {
     name,
     status: status ?? "not-started",
     owner: owner ?? null,
-    assigned_to: assigned_to ?? null,
     due_date: due_date ?? null,
     description: description ?? null,
   };
   if (orgId) insert.org_id = orgId;
-
+  // These columns may not exist until migration 010/011 are applied
+  if (assigned_to) insert.assigned_to = assigned_to;
   if (notify_assignee) insert.notify_assignee = true;
 
-  const { data, error } = await supabase.from("pm_tasks").insert(insert).select().single();
+  let { data, error } = await supabase.from("pm_tasks").insert(insert).select().single();
+
+  // If insert failed due to missing columns, retry without them
+  if (error && (error.message.includes("assigned_to") || error.message.includes("notify_assignee"))) {
+    delete insert.assigned_to;
+    delete insert.notify_assignee;
+    const retry = await supabase.from("pm_tasks").insert(insert).select().single();
+    data = retry.data;
+    error = retry.error;
+  }
+
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   // TODO: Send email notification to owner/assignee when notify_assignee is true

@@ -43,8 +43,12 @@ export default function MyTasksPage() {
   // New task form
   const [showNewTask, setShowNewTask] = useState(false);
   const [newTaskName, setNewTaskName] = useState("");
+  const [newTaskDesc, setNewTaskDesc] = useState("");
   const [newTaskDue, setNewTaskDue] = useState("");
+  const [newTaskStatus, setNewTaskStatus] = useState<PMStatus>("not-started");
+  const [newTaskOwner, setNewTaskOwner] = useState("");
   const [newTaskPersonal, setNewTaskPersonal] = useState(false);
+  const [newTaskNotify, setNewTaskNotify] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [siteOrgId, setSiteOrgId] = useState<string | null>(null);
@@ -138,13 +142,16 @@ export default function MyTasksPage() {
     if (!newTaskName.trim()) return;
     setSaving(true);
     try {
+      const taskOwner = newTaskOwner || selectedMember || null;
       const body: Record<string, unknown> = {
         name: newTaskName,
-        assigned_to: selectedMember || null,
-        owner: selectedMember || null,
+        description: newTaskDesc || null,
+        status: newTaskStatus,
+        assigned_to: taskOwner,
+        owner: taskOwner,
         due_date: newTaskDue || null,
+        notify_assignee: newTaskNotify,
       };
-      // If "personal" toggled, attach to personal project
       if (newTaskPersonal && personalProjectId) {
         body.project_id = personalProjectId;
       }
@@ -158,8 +165,12 @@ export default function MyTasksPage() {
       const projectName = newTaskPersonal ? `${memberName(selectedMember)} — Personal` : null;
       setTasks((prev) => [{ ...data, project_name: projectName }, ...prev]);
       setNewTaskName("");
+      setNewTaskDesc("");
       setNewTaskDue("");
+      setNewTaskStatus("not-started");
+      setNewTaskOwner("");
       setNewTaskPersonal(false);
+      setNewTaskNotify(false);
       setShowNewTask(false);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to create task");
@@ -275,39 +286,90 @@ export default function MyTasksPage() {
       {/* New task form */}
       {showNewTask && (
         <div className="card mb-6 space-y-3">
-          <div className="flex items-center gap-3">
-            <input
-              type="text"
-              value={newTaskName}
-              onChange={(e) => setNewTaskName(e.target.value)}
-              className="flex-1 bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text focus:outline-none focus:border-blue-500"
-              placeholder="Task name..."
-              autoFocus
-              onKeyDown={(e) => { if (e.key === "Enter") createStandaloneTask(); }}
-            />
-            <input
-              type="date"
-              value={newTaskDue}
-              onChange={(e) => setNewTaskDue(e.target.value)}
-              className="bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text focus:outline-none focus:border-blue-500"
-            />
-            <button
-              onClick={createStandaloneTask}
-              disabled={saving || !newTaskName.trim()}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              {saving ? "Adding..." : "Add"}
-            </button>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs text-pm-muted block mb-1">Task Name *</label>
+              <input
+                type="text"
+                value={newTaskName}
+                onChange={(e) => setNewTaskName(e.target.value)}
+                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text focus:outline-none focus:border-blue-500"
+                placeholder="Task name..."
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="text-xs text-pm-muted block mb-1">Description</label>
+              <textarea
+                value={newTaskDesc}
+                onChange={(e) => setNewTaskDesc(e.target.value)}
+                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text focus:outline-none focus:border-blue-500 resize-none"
+                rows={2}
+                placeholder="Optional details..."
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="text-xs text-pm-muted block mb-1">Status</label>
+                <select
+                  value={newTaskStatus}
+                  onChange={(e) => setNewTaskStatus(e.target.value as PMStatus)}
+                  className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text focus:outline-none focus:border-blue-500"
+                >
+                  {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-pm-muted block mb-1">Due Date</label>
+                <input
+                  type="date"
+                  value={newTaskDue}
+                  onChange={(e) => setNewTaskDue(e.target.value)}
+                  className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-pm-muted block mb-1">Owner</label>
+                <select
+                  value={newTaskOwner}
+                  onChange={(e) => setNewTaskOwner(e.target.value)}
+                  className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text focus:outline-none focus:border-blue-500"
+                >
+                  <option value="">— Same as selected member —</option>
+                  {members.map((m) => <option key={m.slug} value={m.slug}>{m.display_name}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="flex items-center gap-6">
+              <label className="flex items-center gap-2 text-xs text-pm-muted cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={newTaskPersonal}
+                  onChange={(e) => setNewTaskPersonal(e.target.checked)}
+                  className="rounded border-pm-border"
+                />
+                Personal project (private)
+              </label>
+              <label className="flex items-center gap-2 text-xs text-pm-muted cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={newTaskNotify}
+                  onChange={(e) => setNewTaskNotify(e.target.checked)}
+                  className="rounded border-pm-border"
+                />
+                Email notify owner
+              </label>
+            </div>
+            <div className="flex justify-end pt-1">
+              <button
+                onClick={createStandaloneTask}
+                disabled={saving || !newTaskName.trim()}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                {saving ? "Adding..." : "Add Task"}
+              </button>
+            </div>
           </div>
-          <label className="flex items-center gap-2 text-xs text-pm-muted cursor-pointer">
-            <input
-              type="checkbox"
-              checked={newTaskPersonal}
-              onChange={(e) => setNewTaskPersonal(e.target.checked)}
-              className="rounded border-pm-border"
-            />
-            Add to Personal project (private, only visible to you)
-          </label>
         </div>
       )}
 

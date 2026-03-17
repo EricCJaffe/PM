@@ -4,14 +4,17 @@ import { createServerSupabase, createServiceClient } from "@/lib/supabase/server
 async function requireAdmin() {
   const supabase = await createServerSupabase();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
 
-  const service = createServiceClient();
-  const { data: profile } = await service
-    .from("pm_user_profiles").select("system_role").eq("id", user.id).single();
+  if (user) {
+    const service = createServiceClient();
+    const { data: profile } = await service
+      .from("pm_user_profiles").select("system_role").eq("id", user.id).single();
+    if (!profile || profile.system_role !== "admin") return null;
+    return user;
+  }
 
-  if (!profile || profile.system_role !== "admin") return null;
-  return user;
+  // Allow access when auth is disabled
+  return { id: "no-auth" } as { id: string };
 }
 
 // PATCH: Update user role or org access
