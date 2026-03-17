@@ -1,5 +1,6 @@
 -- BusinessOS PM — Row Level Security Policies
 -- Enables RLS on all PM tables and defines access policies.
+-- Idempotent: drops existing policies before recreating.
 --
 -- Access model:
 --   admin  (system_role) → full CRUD on everything
@@ -71,11 +72,14 @@ $$;
 -- ═══════════════════════════════════════════════════════════════════════════
 ALTER TABLE pm_organizations ENABLE ROW LEVEL SECURITY;
 
--- Internal users see all orgs; external users see only their assigned orgs
+DROP POLICY IF EXISTS "pm_organizations_select" ON pm_organizations;
+DROP POLICY IF EXISTS "pm_organizations_insert" ON pm_organizations;
+DROP POLICY IF EXISTS "pm_organizations_update" ON pm_organizations;
+DROP POLICY IF EXISTS "pm_organizations_delete" ON pm_organizations;
+
 CREATE POLICY "pm_organizations_select" ON pm_organizations
   FOR SELECT USING (pm_has_org_access(id));
 
--- Only internal users can insert/update/delete
 CREATE POLICY "pm_organizations_insert" ON pm_organizations
   FOR INSERT WITH CHECK (pm_is_internal());
 
@@ -90,6 +94,11 @@ CREATE POLICY "pm_organizations_delete" ON pm_organizations
 -- 2. pm_members (direct org_id)
 -- ═══════════════════════════════════════════════════════════════════════════
 ALTER TABLE pm_members ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "pm_members_select" ON pm_members;
+DROP POLICY IF EXISTS "pm_members_insert" ON pm_members;
+DROP POLICY IF EXISTS "pm_members_update" ON pm_members;
+DROP POLICY IF EXISTS "pm_members_delete" ON pm_members;
 
 CREATE POLICY "pm_members_select" ON pm_members
   FOR SELECT USING (pm_has_org_access(org_id));
@@ -109,6 +118,11 @@ CREATE POLICY "pm_members_delete" ON pm_members
 -- ═══════════════════════════════════════════════════════════════════════════
 ALTER TABLE pm_projects ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "pm_projects_select" ON pm_projects;
+DROP POLICY IF EXISTS "pm_projects_insert" ON pm_projects;
+DROP POLICY IF EXISTS "pm_projects_update" ON pm_projects;
+DROP POLICY IF EXISTS "pm_projects_delete" ON pm_projects;
+
 CREATE POLICY "pm_projects_select" ON pm_projects
   FOR SELECT USING (pm_has_org_access(org_id));
 
@@ -127,6 +141,11 @@ CREATE POLICY "pm_projects_delete" ON pm_projects
 -- ═══════════════════════════════════════════════════════════════════════════
 ALTER TABLE pm_phases ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "pm_phases_select" ON pm_phases;
+DROP POLICY IF EXISTS "pm_phases_insert" ON pm_phases;
+DROP POLICY IF EXISTS "pm_phases_update" ON pm_phases;
+DROP POLICY IF EXISTS "pm_phases_delete" ON pm_phases;
+
 CREATE POLICY "pm_phases_select" ON pm_phases
   FOR SELECT USING (pm_has_project_access(project_id));
 
@@ -144,6 +163,11 @@ CREATE POLICY "pm_phases_delete" ON pm_phases
 -- 5. pm_tasks (via project_id → projects.org_id, may be NULL for standalone)
 -- ═══════════════════════════════════════════════════════════════════════════
 ALTER TABLE pm_tasks ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "pm_tasks_select" ON pm_tasks;
+DROP POLICY IF EXISTS "pm_tasks_insert" ON pm_tasks;
+DROP POLICY IF EXISTS "pm_tasks_update" ON pm_tasks;
+DROP POLICY IF EXISTS "pm_tasks_delete" ON pm_tasks;
 
 -- Tasks with a project: check project org access
 -- Standalone tasks (project_id IS NULL): only internal users
@@ -170,6 +194,11 @@ CREATE POLICY "pm_tasks_delete" ON pm_tasks
 -- ═══════════════════════════════════════════════════════════════════════════
 ALTER TABLE pm_risks ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "pm_risks_select" ON pm_risks;
+DROP POLICY IF EXISTS "pm_risks_insert" ON pm_risks;
+DROP POLICY IF EXISTS "pm_risks_update" ON pm_risks;
+DROP POLICY IF EXISTS "pm_risks_delete" ON pm_risks;
+
 CREATE POLICY "pm_risks_select" ON pm_risks
   FOR SELECT USING (pm_has_project_access(project_id));
 
@@ -187,6 +216,11 @@ CREATE POLICY "pm_risks_delete" ON pm_risks
 -- 7. pm_daily_logs (via project_id)
 -- ═══════════════════════════════════════════════════════════════════════════
 ALTER TABLE pm_daily_logs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "pm_daily_logs_select" ON pm_daily_logs;
+DROP POLICY IF EXISTS "pm_daily_logs_insert" ON pm_daily_logs;
+DROP POLICY IF EXISTS "pm_daily_logs_update" ON pm_daily_logs;
+DROP POLICY IF EXISTS "pm_daily_logs_delete" ON pm_daily_logs;
 
 CREATE POLICY "pm_daily_logs_select" ON pm_daily_logs
   FOR SELECT USING (pm_has_project_access(project_id));
@@ -206,6 +240,11 @@ CREATE POLICY "pm_daily_logs_delete" ON pm_daily_logs
 -- ═══════════════════════════════════════════════════════════════════════════
 ALTER TABLE pm_files ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "pm_files_select" ON pm_files;
+DROP POLICY IF EXISTS "pm_files_insert" ON pm_files;
+DROP POLICY IF EXISTS "pm_files_update" ON pm_files;
+DROP POLICY IF EXISTS "pm_files_delete" ON pm_files;
+
 CREATE POLICY "pm_files_select" ON pm_files
   FOR SELECT USING (pm_has_project_access(project_id));
 
@@ -224,7 +263,11 @@ CREATE POLICY "pm_files_delete" ON pm_files
 -- ═══════════════════════════════════════════════════════════════════════════
 ALTER TABLE pm_task_comments ENABLE ROW LEVEL SECURITY;
 
--- For SELECT: check access through the task's project
+DROP POLICY IF EXISTS "pm_task_comments_select" ON pm_task_comments;
+DROP POLICY IF EXISTS "pm_task_comments_insert" ON pm_task_comments;
+DROP POLICY IF EXISTS "pm_task_comments_update" ON pm_task_comments;
+DROP POLICY IF EXISTS "pm_task_comments_delete" ON pm_task_comments;
+
 CREATE POLICY "pm_task_comments_select" ON pm_task_comments
   FOR SELECT USING (
     EXISTS (
@@ -251,6 +294,11 @@ CREATE POLICY "pm_task_comments_delete" ON pm_task_comments
 -- 10. pm_task_attachments (via task_id → tasks.project_id → projects.org_id)
 -- ═══════════════════════════════════════════════════════════════════════════
 ALTER TABLE pm_task_attachments ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "pm_task_attachments_select" ON pm_task_attachments;
+DROP POLICY IF EXISTS "pm_task_attachments_insert" ON pm_task_attachments;
+DROP POLICY IF EXISTS "pm_task_attachments_update" ON pm_task_attachments;
+DROP POLICY IF EXISTS "pm_task_attachments_delete" ON pm_task_attachments;
 
 CREATE POLICY "pm_task_attachments_select" ON pm_task_attachments
   FOR SELECT USING (
@@ -279,6 +327,11 @@ CREATE POLICY "pm_task_attachments_delete" ON pm_task_attachments
 -- ═══════════════════════════════════════════════════════════════════════════
 ALTER TABLE pm_task_series ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "pm_task_series_select" ON pm_task_series;
+DROP POLICY IF EXISTS "pm_task_series_insert" ON pm_task_series;
+DROP POLICY IF EXISTS "pm_task_series_update" ON pm_task_series;
+DROP POLICY IF EXISTS "pm_task_series_delete" ON pm_task_series;
+
 CREATE POLICY "pm_task_series_select" ON pm_task_series
   FOR SELECT USING (pm_has_org_access(org_id));
 
@@ -296,6 +349,11 @@ CREATE POLICY "pm_task_series_delete" ON pm_task_series
 -- 12. pm_series_exceptions (via series_id → task_series.org_id)
 -- ═══════════════════════════════════════════════════════════════════════════
 ALTER TABLE pm_series_exceptions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "pm_series_exceptions_select" ON pm_series_exceptions;
+DROP POLICY IF EXISTS "pm_series_exceptions_insert" ON pm_series_exceptions;
+DROP POLICY IF EXISTS "pm_series_exceptions_update" ON pm_series_exceptions;
+DROP POLICY IF EXISTS "pm_series_exceptions_delete" ON pm_series_exceptions;
 
 CREATE POLICY "pm_series_exceptions_select" ON pm_series_exceptions
   FOR SELECT USING (
@@ -321,6 +379,11 @@ CREATE POLICY "pm_series_exceptions_delete" ON pm_series_exceptions
 -- ═══════════════════════════════════════════════════════════════════════════
 ALTER TABLE pm_process_maps ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "pm_process_maps_select" ON pm_process_maps;
+DROP POLICY IF EXISTS "pm_process_maps_insert" ON pm_process_maps;
+DROP POLICY IF EXISTS "pm_process_maps_update" ON pm_process_maps;
+DROP POLICY IF EXISTS "pm_process_maps_delete" ON pm_process_maps;
+
 CREATE POLICY "pm_process_maps_select" ON pm_process_maps
   FOR SELECT USING (pm_has_org_access(org_id));
 
@@ -338,6 +401,11 @@ CREATE POLICY "pm_process_maps_delete" ON pm_process_maps
 -- 14. pm_opportunities (direct org_id)
 -- ═══════════════════════════════════════════════════════════════════════════
 ALTER TABLE pm_opportunities ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "pm_opportunities_select" ON pm_opportunities;
+DROP POLICY IF EXISTS "pm_opportunities_insert" ON pm_opportunities;
+DROP POLICY IF EXISTS "pm_opportunities_update" ON pm_opportunities;
+DROP POLICY IF EXISTS "pm_opportunities_delete" ON pm_opportunities;
 
 CREATE POLICY "pm_opportunities_select" ON pm_opportunities
   FOR SELECT USING (pm_has_org_access(org_id));
@@ -357,6 +425,11 @@ CREATE POLICY "pm_opportunities_delete" ON pm_opportunities
 -- ═══════════════════════════════════════════════════════════════════════════
 ALTER TABLE pm_kpis ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "pm_kpis_select" ON pm_kpis;
+DROP POLICY IF EXISTS "pm_kpis_insert" ON pm_kpis;
+DROP POLICY IF EXISTS "pm_kpis_update" ON pm_kpis;
+DROP POLICY IF EXISTS "pm_kpis_delete" ON pm_kpis;
+
 CREATE POLICY "pm_kpis_select" ON pm_kpis
   FOR SELECT USING (pm_has_org_access(org_id));
 
@@ -374,6 +447,11 @@ CREATE POLICY "pm_kpis_delete" ON pm_kpis
 -- 16. pm_documents (direct org_id)
 -- ═══════════════════════════════════════════════════════════════════════════
 ALTER TABLE pm_documents ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "pm_documents_select" ON pm_documents;
+DROP POLICY IF EXISTS "pm_documents_insert" ON pm_documents;
+DROP POLICY IF EXISTS "pm_documents_update" ON pm_documents;
+DROP POLICY IF EXISTS "pm_documents_delete" ON pm_documents;
 
 CREATE POLICY "pm_documents_select" ON pm_documents
   FOR SELECT USING (pm_has_org_access(org_id));
@@ -393,10 +471,14 @@ CREATE POLICY "pm_documents_delete" ON pm_documents
 -- ═══════════════════════════════════════════════════════════════════════════
 ALTER TABLE pm_share_tokens ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "pm_share_tokens_select" ON pm_share_tokens;
+DROP POLICY IF EXISTS "pm_share_tokens_insert" ON pm_share_tokens;
+DROP POLICY IF EXISTS "pm_share_tokens_update" ON pm_share_tokens;
+DROP POLICY IF EXISTS "pm_share_tokens_delete" ON pm_share_tokens;
+
 CREATE POLICY "pm_share_tokens_select" ON pm_share_tokens
   FOR SELECT USING (pm_has_org_access(org_id));
 
--- Only internal users manage share tokens
 CREATE POLICY "pm_share_tokens_insert" ON pm_share_tokens
   FOR INSERT WITH CHECK (pm_is_internal());
 
@@ -411,6 +493,11 @@ CREATE POLICY "pm_share_tokens_delete" ON pm_share_tokens
 -- 18. pm_user_profiles (users can read their own; admins can read all)
 -- ═══════════════════════════════════════════════════════════════════════════
 ALTER TABLE pm_user_profiles ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "pm_user_profiles_select" ON pm_user_profiles;
+DROP POLICY IF EXISTS "pm_user_profiles_insert" ON pm_user_profiles;
+DROP POLICY IF EXISTS "pm_user_profiles_update" ON pm_user_profiles;
+DROP POLICY IF EXISTS "pm_user_profiles_delete" ON pm_user_profiles;
 
 -- Users can always read their own profile; internal users can read all
 CREATE POLICY "pm_user_profiles_select" ON pm_user_profiles
@@ -452,6 +539,11 @@ CREATE POLICY "pm_user_profiles_delete" ON pm_user_profiles
 -- ═══════════════════════════════════════════════════════════════════════════
 ALTER TABLE pm_user_org_access ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "pm_user_org_access_select" ON pm_user_org_access;
+DROP POLICY IF EXISTS "pm_user_org_access_insert" ON pm_user_org_access;
+DROP POLICY IF EXISTS "pm_user_org_access_update" ON pm_user_org_access;
+DROP POLICY IF EXISTS "pm_user_org_access_delete" ON pm_user_org_access;
+
 CREATE POLICY "pm_user_org_access_select" ON pm_user_org_access
   FOR SELECT USING (
     user_id = auth.uid() OR pm_is_internal()
@@ -487,6 +579,11 @@ CREATE POLICY "pm_user_org_access_delete" ON pm_user_org_access
 -- 20. pm_project_templates (global read for all authenticated users)
 -- ═══════════════════════════════════════════════════════════════════════════
 ALTER TABLE pm_project_templates ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "pm_project_templates_select" ON pm_project_templates;
+DROP POLICY IF EXISTS "pm_project_templates_insert" ON pm_project_templates;
+DROP POLICY IF EXISTS "pm_project_templates_update" ON pm_project_templates;
+DROP POLICY IF EXISTS "pm_project_templates_delete" ON pm_project_templates;
 
 -- All authenticated users can read templates
 CREATE POLICY "pm_project_templates_select" ON pm_project_templates
