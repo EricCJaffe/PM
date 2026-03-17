@@ -1,27 +1,35 @@
 # Tasks
 
-## In Progress
-- [ ] Apply migration 013_auth_system_upgrade.sql to Supabase (FK fix, role constraints, user_id on members)
-- [ ] Run bootstrap script: `npx tsx scripts/bootstrap-admin-user.ts` (link Eric Jaffe to auth)
-- [ ] Configure Supabase callback URLs (see docs/ENVIRONMENT.md)
-- [ ] Apply migration 005_auth_user_roles.sql to Supabase
+## Migrations — Apply to Supabase (in order)
+- [x] Apply migration 005_auth_user_roles.sql to Supabase
 - [ ] Apply migration 006_org_contact_fields.sql to Supabase
-- [ ] Apply migration 008_site_org_flag.sql to Supabase
+- [ ] Apply migration 007_fix_tasks_org_fk.sql to Supabase
+- [ ] Apply migration 008_site_org_flag.sql to Supabase (required before FSA backfill)
 - [ ] Apply migration 009_task_sort_order.sql to Supabase
+- [ ] Apply migration 010_task_comments_attachments.sql to Supabase
 - [ ] Apply migration 011_personal_projects_and_notifications.sql to Supabase
 - [ ] Apply migration 012_recurring_tasks.sql to Supabase
-- [ ] Run FSA site-org backfill: `npx tsx scripts/backfill-fsa-site-org.ts`
-- [ ] Run Reverb Church backfill: `npx tsx scripts/backfill-reverb-church.ts`
+- [ ] Apply migration 013_auth_system_upgrade.sql to Supabase (FK fix, role constraints, user_id on members)
+
+## Backfill Scripts — Run in order (after all migrations)
+1. [ ] Run FSA site-org backfill: `npx tsx scripts/backfill-fsa-site-org.ts` — Creates "Foundation Stone Advisors" as site-level org with Eric Jaffe as owner
+2. [ ] Run bootstrap admin user: `npx tsx scripts/bootstrap-admin-user.ts` — Links Eric Jaffe's Supabase auth user to PM system as admin, grants access to all orgs
+3. [ ] Run Reverb Church backfill: `npx tsx scripts/backfill-reverb-church.ts` — Creates sample ministry-discovery project (optional, good for testing)
+
+## Prepare for Additional Users
 - [ ] Disable self-registration in Supabase Dashboard (Project Settings → Authentication → User Signups → toggle OFF)
-- [ ] Run bootstrap SQL script in Supabase SQL Editor (link Eric Jaffe to auth as admin)
+- [ ] Configure Supabase callback URLs for auth redirects (see docs/ENVIRONMENT.md)
 - [ ] End-to-end test: full auth flow (login → admin console → add user → external user scoping)
+- [ ] Onboarding notes: new users are added via admin console, which creates auth user + links to pm_members with org access. Each user gets a role per org: admin, user, or external (read-only)
+
+## Still Pending
+- [ ] Add RLS policies to all PM tables (leverage pm_user_org_access for row-level filtering)
+- [ ] Add org-scoped filtering to API routes for external users (projects, tasks, orgs)
 - [ ] Test AI SOP scanner with real documents
 - [ ] Wire up email service (Resend/SendGrid) for task notifications and user invites
 - [ ] Set up Vercel Cron for daily recurring task generation (/api/pm/series/generate)
 
 ## Backlog
-- [ ] Add RLS policies to all PM tables (leverage pm_user_org_access for row-level filtering)
-- [ ] Add org-scoped filtering to API routes for external users (projects, tasks, orgs)
 - [ ] AI daily standup generation (`/daily/YYYY-MM-DD.md`)
 - [ ] Risk radar — AI scan of escalating risks
 - [ ] Natural language updates ("Set X due date to April 15")
