@@ -6,6 +6,7 @@ import { StatusBadge } from "./StatusBadge";
 import { Modal, Field, Input, Select, Textarea, ModalActions } from "./Modal";
 import { OwnerPicker } from "./OwnerPicker";
 import { TaskDetailModal } from "./TaskDetailModal";
+import { RecurrencePicker, type RecurrenceConfig } from "./RecurrencePicker";
 import {
   DndContext,
   closestCenter,
@@ -46,6 +47,7 @@ function TaskModal({
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [notifyAssignee, setNotifyAssignee] = useState(false);
+  const [recurrence, setRecurrence] = useState<RecurrenceConfig | null>(null);
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -60,19 +62,62 @@ function TaskModal({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    const payload = { ...form, due_date: form.due_date || null, phase_id: form.phase_id || null, notify_assignee: notifyAssignee };
-    const body = { project_id: projectId, ...payload };
-    const res = await fetch("/api/pm/tasks", {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
-    });
-    setSaving(false);
-    if (!res.ok) {
-      const { error } = await res.json().catch(() => ({ error: "Unknown error" }));
-      alert(`Failed to save task: ${error}`);
-      return;
+    try {
+      if (recurrence) {
+        // Create a recurring series
+        const seriesBody: Record<string, unknown> = {
+          project_id: projectId,
+          phase_id: form.phase_id || null,
+          name: form.name,
+          description: form.description || null,
+          status_template: form.status,
+          owner: form.owner || null,
+          recurrence_mode: recurrence.recurrence_mode,
+          freq: recurrence.freq,
+          interval: recurrence.interval,
+          by_weekday: recurrence.by_weekday,
+          by_monthday: recurrence.by_monthday,
+          by_setpos: recurrence.by_setpos,
+          dtstart: recurrence.dtstart,
+          until_date: recurrence.until_date,
+          max_count: recurrence.max_count,
+          time_of_day: recurrence.time_of_day,
+          timezone: recurrence.timezone,
+          completion_delay_days: recurrence.completion_delay_days,
+        };
+        const seriesRes = await fetch("/api/pm/series", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(seriesBody),
+        });
+        if (!seriesRes.ok) {
+          const { error } = await seriesRes.json().catch(() => ({ error: "Unknown error" }));
+          alert(`Failed to create series: ${error}`);
+          return;
+        }
+        const seriesData = await seriesRes.json();
+        await fetch("/api/pm/series/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ series_id: seriesData.id, horizon: 14 }),
+        });
+      } else {
+        const payload = { ...form, due_date: form.due_date || null, phase_id: form.phase_id || null, notify_assignee: notifyAssignee };
+        const body = { project_id: projectId, ...payload };
+        const res = await fetch("/api/pm/tasks", {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+        });
+        if (!res.ok) {
+          const { error } = await res.json().catch(() => ({ error: "Unknown error" }));
+          alert(`Failed to save task: ${error}`);
+          return;
+        }
+      }
+      onClose();
+      router.refresh();
+    } finally {
+      setSaving(false);
     }
-    onClose();
-    router.refresh();
   }
 
   return (
@@ -115,8 +160,9 @@ function TaskModal({
             Email notify owner when creating this task
           </label>
         )}
+        <RecurrencePicker value={recurrence} onChange={setRecurrence} />
         <div className="flex justify-end pt-2">
-          <ModalActions onClose={onClose} saving={saving} label="Add Task" />
+          <ModalActions onClose={onClose} saving={saving} label={recurrence ? "Create Series" : "Add Task"} />
         </div>
       </form>
     </Modal>
