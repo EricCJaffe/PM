@@ -5,6 +5,7 @@ import Link from "next/link";
 import { StatusBadge } from "@/components/StatusBadge";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { Modal, Field, Input, Select, Textarea } from "@/components/Modal";
+import { RecurrencePicker, type RecurrenceConfig } from "@/components/RecurrencePicker";
 import type { PMStatus, Subtask } from "@/types/pm";
 
 interface DashTask {
@@ -19,6 +20,9 @@ interface DashTask {
   project_id: string | null;
   phase_id: string | null;
   project_name: string | null;
+  series_id: string | null;
+  series_occurrence_date: string | null;
+  is_exception: boolean;
   created_at: string;
 }
 
@@ -53,6 +57,7 @@ export default function HomePage() {
   const [newTaskStatus, setNewTaskStatus] = useState<PMStatus>("not-started");
   const [newTaskOwner, setNewTaskOwner] = useState("");
   const [newTaskNotify, setNewTaskNotify] = useState(false);
+  const [newTaskRecurrence, setNewTaskRecurrence] = useState<RecurrenceConfig | null>(null);
   const [saving, setSaving] = useState(false);
 
   // Load members
@@ -144,29 +149,71 @@ export default function HomePage() {
     setSaving(true);
     try {
       const taskOwner = newTaskOwner || selectedMember || null;
-      const body: Record<string, unknown> = {
-        name: newTaskName,
-        description: newTaskDesc || null,
-        status: newTaskStatus,
-        assigned_to: taskOwner,
-        owner: taskOwner,
-        due_date: newTaskDue || null,
-        notify_assignee: newTaskNotify,
-      };
-      const res = await fetch("/api/pm/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      setTasks((prev) => [{ ...data, project_name: null }, ...prev]);
+
+      if (newTaskRecurrence) {
+        // Create a recurring task series
+        const seriesBody: Record<string, unknown> = {
+          name: newTaskName,
+          description: newTaskDesc || null,
+          status_template: newTaskStatus,
+          assigned_to: taskOwner,
+          owner: taskOwner,
+          recurrence_mode: newTaskRecurrence.recurrence_mode,
+          freq: newTaskRecurrence.freq,
+          interval: newTaskRecurrence.interval,
+          by_weekday: newTaskRecurrence.by_weekday,
+          by_monthday: newTaskRecurrence.by_monthday,
+          by_setpos: newTaskRecurrence.by_setpos,
+          dtstart: newTaskRecurrence.dtstart,
+          until_date: newTaskRecurrence.until_date,
+          max_count: newTaskRecurrence.max_count,
+          time_of_day: newTaskRecurrence.time_of_day,
+          timezone: newTaskRecurrence.timezone,
+          completion_delay_days: newTaskRecurrence.completion_delay_days,
+        };
+        const seriesRes = await fetch("/api/pm/series", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(seriesBody),
+        });
+        const seriesData = await seriesRes.json();
+        if (seriesData.error) throw new Error(seriesData.error);
+
+        // Generate initial instances
+        await fetch("/api/pm/series/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ series_id: seriesData.id, horizon: 14 }),
+        });
+      } else {
+        // Create a one-time task
+        const body: Record<string, unknown> = {
+          name: newTaskName,
+          description: newTaskDesc || null,
+          status: newTaskStatus,
+          assigned_to: taskOwner,
+          owner: taskOwner,
+          due_date: newTaskDue || null,
+          notify_assignee: newTaskNotify,
+        };
+        const res = await fetch("/api/pm/tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+      }
+
+      // Reload tasks list to pick up new tasks
+      loadTasks();
       setNewTaskName("");
       setNewTaskDesc("");
       setNewTaskDue("");
       setNewTaskStatus("not-started");
       setNewTaskOwner("");
       setNewTaskNotify(false);
+      setNewTaskRecurrence(null);
       setShowNewTask(false);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to create task");
@@ -210,6 +257,11 @@ export default function HomePage() {
             <span className={`text-sm ${task.status === "complete" ? "text-pm-muted line-through" : "text-pm-text"}`}>
               {task.name}
             </span>
+            {task.series_id && (
+              <svg className="w-3 h-3 text-pm-accent shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            )}
             {task.status !== "complete" && task.status !== "not-started" && (
               <StatusBadge status={task.status} />
             )}
@@ -400,6 +452,7 @@ export default function HomePage() {
                 Email notify owner when creating this task
               </label>
             )}
+            <RecurrencePicker value={newTaskRecurrence} onChange={setNewTaskRecurrence} />
             <div className="flex items-center justify-between pt-2">
               <span />
               <button
@@ -407,7 +460,7 @@ export default function HomePage() {
                 disabled={saving || !newTaskName.trim()}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
               >
-                {saving ? "Adding..." : "Add Task"}
+                {saving ? "Adding..." : newTaskRecurrence ? "Create Series" : "Add Task"}
               </button>
             </div>
           </div>

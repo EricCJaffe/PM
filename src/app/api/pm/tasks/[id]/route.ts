@@ -8,7 +8,7 @@ export async function PATCH(
 ) {
   const { id } = await params;
   const body = await request.json();
-  const allowed = ["name", "status", "owner", "assigned_to", "due_date", "description", "phase_id", "sort_order", "subtasks", "notify_assignee"];
+  const allowed = ["name", "status", "owner", "assigned_to", "due_date", "description", "phase_id", "sort_order", "subtasks", "notify_assignee", "is_exception", "series_id", "series_occurrence_date", "original_date"];
   const updates: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in body) updates[key] = body[key];
@@ -27,6 +27,29 @@ export async function PATCH(
   }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // If a series instance was marked complete, check for completion-based recurrence
+  if (body.status === "complete" && data?.series_id) {
+    try {
+      const { data: series } = await supabase
+        .from("pm_task_series")
+        .select("recurrence_mode, is_paused")
+        .eq("id", data.series_id)
+        .single();
+      if (series && series.recurrence_mode === "completion" && !series.is_paused) {
+        // Update last_generated_date to today and trigger generation
+        const today = new Date().toISOString().slice(0, 10);
+        await supabase.from("pm_task_series").update({ last_generated_date: today }).eq("id", data.series_id);
+        // Fire and forget — generate next instance
+        const baseUrl = request.nextUrl.origin;
+        fetch(`${baseUrl}/api/pm/series/generate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ series_id: data.series_id, horizon: 365 }),
+        }).catch(() => {});
+      }
+    } catch {}
+  }
 
   // Send email notification on save if notify_assignee is checked
   if (body.notify_assignee && data?.owner) {
@@ -57,11 +80,27 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const { searchParams } = new URL(request.url);
+  const deleteSeries = searchParams.get("series") === "true";
+
   const supabase = createServiceClient();
+
+  if (deleteSeries) {
+    // Get the task's series_id first
+    const { data: task } = await supabase.from("pm_tasks").select("series_id").eq("id", id).single();
+    if (task?.series_id) {
+      // Delete the entire series (cascades to exceptions, unlinks instances)
+      await supabase.from("pm_tasks").delete().eq("series_id", task.series_id).neq("status", "complete");
+      await supabase.from("pm_tasks").update({ series_id: null }).eq("series_id", task.series_id);
+      await supabase.from("pm_task_series").delete().eq("id", task.series_id);
+      return NextResponse.json({ success: true });
+    }
+  }
+
   const { error } = await supabase.from("pm_tasks").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });

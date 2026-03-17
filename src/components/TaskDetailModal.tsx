@@ -17,6 +17,9 @@ interface TaskLike {
   subtasks: Subtask[];
   project_id?: string | null;
   phase_id?: string | null;
+  series_id?: string | null;
+  series_occurrence_date?: string | null;
+  is_exception?: boolean;
 }
 
 interface PhaseOption {
@@ -52,6 +55,8 @@ export function TaskDetailModal({
     phase_id: task.phase_id ?? "",
   });
   const [notifyAssignee, setNotifyAssignee] = useState(false);
+  const [editScope, setEditScope] = useState<"this" | "future" | "all">("this");
+  const isSeries = !!task.series_id;
 
   // Members for owner picker (loaded from memberMap or fetched)
   const memberEntries = Object.entries(memberMap);
@@ -111,15 +116,36 @@ export function TaskDetailModal({
       if (phases && form.phase_id !== undefined) {
         payload.phase_id = form.phase_id || null;
       }
+
+      // Save this instance
       const res = await fetch(`/api/pm/tasks/${task.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          ...payload,
+          // Mark as exception if editing a single series instance
+          ...(isSeries && editScope === "this" ? { is_exception: true } : {}),
+        }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({ error: "Unknown error" }));
         throw new Error(data.error);
       }
+
+      // If editing future or all, also update the series template
+      if (isSeries && task.series_id && (editScope === "future" || editScope === "all")) {
+        await fetch(`/api/pm/series/${task.series_id}?scope=${editScope}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: form.name,
+            description: form.description || null,
+            owner: form.owner || null,
+            status_template: form.status,
+          }),
+        });
+      }
+
       onClose();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to save");
@@ -129,8 +155,34 @@ export function TaskDetailModal({
   }
 
   async function handleDelete() {
-    if (!confirm(`Delete task "${task.name}"?`)) return;
-    await fetch(`/api/pm/tasks/${task.id}`, { method: "DELETE" });
+    if (isSeries && task.series_id) {
+      const choice = prompt(
+        `This is a recurring task. Type:\n  "this" — delete this occurrence only\n  "series" — delete entire series\n  Cancel to abort`,
+        "this"
+      );
+      if (!choice) return;
+
+      if (choice === "series") {
+        await fetch(`/api/pm/series/${task.series_id}`, { method: "DELETE" });
+      } else {
+        // Delete just this instance and add a skip exception
+        await fetch(`/api/pm/tasks/${task.id}`, { method: "DELETE" });
+        if (task.series_occurrence_date) {
+          await fetch(`/api/pm/series/${task.series_id}/exceptions`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              exception_date: task.series_occurrence_date,
+              exception_type: "skip",
+              reason: "Deleted by user",
+            }),
+          });
+        }
+      }
+    } else {
+      if (!confirm(`Delete task "${task.name}"?`)) return;
+      await fetch(`/api/pm/tasks/${task.id}`, { method: "DELETE" });
+    }
     if (onDelete) onDelete();
     onClose();
   }
@@ -321,6 +373,31 @@ export function TaskDetailModal({
               />
               Email notify owner when saving this task
             </label>
+          )}
+          {/* Series edit scope */}
+          {isSeries && (
+            <div className="bg-pm-bg rounded-lg p-3 space-y-2">
+              <div className="flex items-center gap-2 text-xs text-pm-accent font-medium">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Recurring task
+              </div>
+              <div className="flex gap-2">
+                {(["this", "future", "all"] as const).map((scope) => (
+                  <label key={scope} className="flex items-center gap-1 text-xs text-pm-muted cursor-pointer">
+                    <input
+                      type="radio"
+                      name="edit_scope"
+                      checked={editScope === scope}
+                      onChange={() => setEditScope(scope)}
+                      className="border-pm-border"
+                    />
+                    {scope === "this" ? "This occurrence" : scope === "future" ? "This & future" : "Entire series"}
+                  </label>
+                ))}
+              </div>
+            </div>
           )}
           <div className="flex items-center justify-between pt-2">
             <button

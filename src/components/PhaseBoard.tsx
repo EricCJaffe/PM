@@ -6,6 +6,7 @@ import { StatusBadge } from "./StatusBadge";
 import { ProgressBar } from "./ProgressBar";
 import { Modal, Field, Input, Select, Textarea, ModalActions } from "./Modal";
 import { OwnerPicker } from "./OwnerPicker";
+import { RecurrencePicker, type RecurrenceConfig } from "./RecurrencePicker";
 
 const TASK_STATUSES = ["not-started", "in-progress", "complete", "blocked", "pending", "on-hold"] as const;
 const PHASE_STATUSES = ["not-started", "in-progress", "complete", "blocked", "pending", "on-hold"] as const;
@@ -28,6 +29,7 @@ function TaskModal({
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [notifyAssignee, setNotifyAssignee] = useState(false);
+  const [recurrence, setRecurrence] = useState<RecurrenceConfig | null>(null);
   const [form, setForm] = useState({
     name: task?.name ?? "",
     description: task?.description ?? "",
@@ -41,22 +43,67 @@ function TaskModal({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    const url = task ? `/api/pm/tasks/${task.id}` : "/api/pm/tasks";
-    const method = task ? "PATCH" : "POST";
-    const payload = task
-      ? { ...form, due_date: form.due_date || null, owner: form.owner || null, notify_assignee: notifyAssignee }
-      : { project_id: projectId, phase_id: phaseId, ...form, due_date: form.due_date || null, owner: form.owner || null, notify_assignee: notifyAssignee };
-    const res = await fetch(url, {
-      method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
-    });
-    setSaving(false);
-    if (!res.ok) {
-      const { error } = await res.json().catch(() => ({ error: "Unknown error" }));
-      alert(`Failed to save task: ${error}`);
-      return;
+
+    try {
+      if (!task && recurrence) {
+        // Create a recurring series
+        const seriesBody: Record<string, unknown> = {
+          project_id: projectId,
+          phase_id: phaseId,
+          name: form.name,
+          description: form.description || null,
+          status_template: form.status,
+          owner: form.owner || null,
+          recurrence_mode: recurrence.recurrence_mode,
+          freq: recurrence.freq,
+          interval: recurrence.interval,
+          by_weekday: recurrence.by_weekday,
+          by_monthday: recurrence.by_monthday,
+          by_setpos: recurrence.by_setpos,
+          dtstart: recurrence.dtstart,
+          until_date: recurrence.until_date,
+          max_count: recurrence.max_count,
+          time_of_day: recurrence.time_of_day,
+          timezone: recurrence.timezone,
+          completion_delay_days: recurrence.completion_delay_days,
+        };
+        const seriesRes = await fetch("/api/pm/series", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(seriesBody),
+        });
+        if (!seriesRes.ok) {
+          const { error } = await seriesRes.json().catch(() => ({ error: "Unknown error" }));
+          alert(`Failed to create series: ${error}`);
+          return;
+        }
+        const seriesData = await seriesRes.json();
+        await fetch("/api/pm/series/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ series_id: seriesData.id, horizon: 14 }),
+        });
+      } else {
+        // One-time task or editing existing
+        const url = task ? `/api/pm/tasks/${task.id}` : "/api/pm/tasks";
+        const method = task ? "PATCH" : "POST";
+        const payload = task
+          ? { ...form, due_date: form.due_date || null, owner: form.owner || null, notify_assignee: notifyAssignee }
+          : { project_id: projectId, phase_id: phaseId, ...form, due_date: form.due_date || null, owner: form.owner || null, notify_assignee: notifyAssignee };
+        const res = await fetch(url, {
+          method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const { error } = await res.json().catch(() => ({ error: "Unknown error" }));
+          alert(`Failed to save task: ${error}`);
+          return;
+        }
+      }
+      onClose();
+      router.refresh();
+    } finally {
+      setSaving(false);
     }
-    onClose();
-    router.refresh();
   }
 
   async function handleDelete() {
@@ -100,13 +147,14 @@ function TaskModal({
             Email notify owner when {task ? "saving" : "creating"} this task
           </label>
         )}
+        {!task && <RecurrencePicker value={recurrence} onChange={setRecurrence} />}
         <div className="flex items-center justify-between pt-2">
           {task ? (
             <button type="button" onClick={handleDelete} className="text-sm text-red-400 hover:text-red-300">
               Delete Task
             </button>
           ) : <span />}
-          <ModalActions onClose={onClose} saving={saving} label={task ? "Save Changes" : "Add Task"} />
+          <ModalActions onClose={onClose} saving={saving} label={task ? "Save Changes" : recurrence ? "Create Series" : "Add Task"} />
         </div>
       </form>
     </Modal>

@@ -78,6 +78,7 @@ src/
 │   ├── supabase/           # client.ts, server.ts
 │   ├── openai.ts           # Lazy-init OpenAI client
 │   ├── queries.ts          # All Supabase query functions
+│   ├── recurrence.ts       # Recurrence engine (occurrence generation, validation)
 │   └── vault.ts            # Vault storage read/write/generation
 └── types/
     └── pm.ts               # All TypeScript types
@@ -105,6 +106,8 @@ docs/                       # Project documentation
 | `pm_files` | Index of all vault markdown files |
 | `pm_task_comments` | Comment threads on tasks |
 | `pm_task_attachments` | File attachments on tasks |
+| `pm_task_series` | Recurring task templates (recurrence rules, schedule tracking) |
+| `pm_series_exceptions` | Skipped/rescheduled dates for recurring series |
 
 ## Project Templates
 | Slug | Name | Phases |
@@ -143,6 +146,10 @@ vault/[org-slug]/[project-slug]/
 | `/api/pm/tasks/[id]/comments` | GET, POST, DELETE | Task comment threads |
 | `/api/pm/tasks/[id]/attachments` | GET, POST, DELETE | Task file attachments |
 | `/api/pm/templates/generate` | POST | AI-generate template phases/tasks |
+| `/api/pm/series` | GET, POST | List / create recurring task series |
+| `/api/pm/series/[id]` | GET, PATCH, DELETE | View / update / delete a series |
+| `/api/pm/series/[id]/exceptions` | POST, DELETE | Add / remove skip/reschedule exceptions |
+| `/api/pm/series/generate` | POST | Generate task instances for due series |
 
 ## Security Rules
 - **Never** put OpenAI API keys, service role keys, or GitHub tokens in `NEXT_PUBLIC_*` vars

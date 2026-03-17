@@ -6,11 +6,13 @@
 - [ ] Apply migration 008_site_org_flag.sql to Supabase
 - [ ] Apply migration 009_task_sort_order.sql to Supabase
 - [ ] Apply migration 011_personal_projects_and_notifications.sql to Supabase
+- [ ] Apply migration 012_recurring_tasks.sql to Supabase
 - [ ] Run FSA site-org backfill: `npx tsx scripts/backfill-fsa-site-org.ts`
 - [ ] Run Reverb Church backfill: `npx tsx scripts/backfill-reverb-church.ts`
 - [ ] End-to-end test: full auth flow (signup → confirm → login → admin)
 - [ ] Test AI SOP scanner with real documents
 - [ ] Wire up email service (Resend/SendGrid) for task notifications and user invites
+- [ ] Set up Vercel Cron for daily recurring task generation (/api/pm/series/generate)
 
 ## Backlog
 - [ ] Add RLS policies to all PM tables
@@ -25,6 +27,21 @@
 - [ ] Asana import: connect via Asana API for live import (requires PAT)
 
 ## Completed
+- [x] Recurring tasks system (series, instances, exceptions)
+  - Database schema: pm_task_series, pm_series_exceptions tables + series columns on pm_tasks
+  - Recurrence engine: daily/weekly/monthly/yearly, every N intervals, specific weekdays, ordinal weekday rules (first Monday, last Friday), day-of-month rules
+  - Two recurrence modes: fixed schedule and completion-based
+  - End conditions: never, until date, after N occurrences
+  - Exception handling: skip or reschedule individual occurrences
+  - Edit scope: this occurrence / this & future / entire series
+  - Series-aware delete: delete single instance or entire series
+  - Completion-based trigger: auto-generates next instance when current is completed
+  - Idempotent generation: unique constraint prevents duplicate instances
+  - RecurrencePicker UI component with quick presets (weekdays, weekly, bi-weekly, monthly, 1st Monday, last Friday)
+  - API routes: /api/pm/series (CRUD), /api/pm/series/generate (instance generation), /api/pm/series/[id]/exceptions
+  - Migration 012_recurring_tasks.sql
+  - Recurring task indicator (recycle icon) on dashboard task rows
+- [x] Unified Add Task dialog to match Edit Task modal style (dashboard + project board)
 - [x] User dashboard, personal projects, email notifications, admin management, Asana import
   - Dashboard landing page with tasks sorted by due date, overdue highlighting, stats cards
   - Personal project system: auto-created per-member, hidden from main project list
