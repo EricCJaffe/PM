@@ -7,6 +7,7 @@ import { ProgressBar } from "./ProgressBar";
 import { Modal, Field, Input, Select, Textarea, ModalActions } from "./Modal";
 import { OwnerPicker } from "./OwnerPicker";
 import { RecurrencePicker, type RecurrenceConfig } from "./RecurrencePicker";
+import { TaskDetailModal } from "./TaskDetailModal";
 
 const TASK_STATUSES = ["not-started", "in-progress", "complete", "blocked", "pending", "on-hold"] as const;
 const PHASE_STATUSES = ["not-started", "in-progress", "complete", "blocked", "pending", "on-hold"] as const;
@@ -279,6 +280,7 @@ function PhaseBoardCard({
   orgId: string;
   memberMap: Record<string, string>;
 }) {
+  const router = useRouter();
   const [editPhase, setEditPhase] = useState(false);
   const [editTask, setEditTask] = useState<Task | null | "new">(null);
 
@@ -359,7 +361,13 @@ function PhaseBoardCard({
       {editPhase && <PhaseModal projectId={projectId} orgId={orgId} phase={phase} onClose={() => setEditPhase(false)} />}
       {editTask === "new" && <TaskModal projectId={projectId} orgId={orgId} phaseId={phase.id} onClose={() => setEditTask(null)} />}
       {editTask && editTask !== "new" && (
-        <TaskModal projectId={projectId} orgId={orgId} phaseId={phase.id} task={editTask} onClose={() => setEditTask(null)} />
+        <TaskDetailModal
+          task={editTask}
+          memberMap={memberMap}
+          orgId={orgId}
+          onDelete={() => router.refresh()}
+          onClose={() => { setEditTask(null); router.refresh(); }}
+        />
       )}
     </>
   );
