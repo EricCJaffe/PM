@@ -23,7 +23,17 @@
 - [ ] Onboarding notes: new users are added via admin console, which creates auth user + links to pm_members with org access. Each user gets a role per org: admin, user, or external (read-only)
 
 ## Still Pending
-- [ ] Add RLS policies to all PM tables (leverage pm_user_org_access for row-level filtering)
+- [x] Add RLS policies to all PM tables (leverage pm_user_org_access for row-level filtering)
+  - Migration 014_rls_policies.sql: enables RLS on all 20 PM tables
+  - 4 helper functions: pm_is_internal(), pm_has_org_access(), pm_has_project_access(), pm_is_internal_write()
+  - Internal users (admin/user): full CRUD on all tables
+  - External users: read-only, scoped to assigned orgs via pm_user_org_access
+  - Chained access: phases/tasks/risks/logs/files resolve org through project_id → projects.org_id
+  - Standalone tasks (NULL project_id): visible only to internal users
+  - pm_user_profiles: users see own + admins see all; self-update allowed
+  - pm_project_templates: read-only for all authenticated users, admin-only write
+  - Service role (API routes) bypasses RLS automatically
+- [ ] Apply migration 014_rls_policies.sql to Supabase
 - [ ] Add org-scoped filtering to API routes for external users (projects, tasks, orgs)
 - [ ] Test AI SOP scanner with real documents
 - [ ] Wire up email service (Resend/SendGrid) for task notifications and user invites

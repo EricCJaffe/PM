@@ -145,3 +145,34 @@ This module shares a Supabase project with FSA. Auth and org/tenant schema are r
 | `007_fix_tasks_org_fk.sql` | Fix pm_tasks org_id FK constraint |
 | `008_site_org_flag.sql` | Add is_site_org flag to pm_organizations (unique constraint) |
 | `009_task_sort_order.sql` | Add sort_order to pm_tasks for drag-and-drop reordering |
+| `010_task_comments_attachments.sql` | Task comments and file attachments tables |
+| `011_personal_projects_and_notifications.sql` | Personal projects, notification flag |
+| `012_recurring_tasks.sql` | Recurring task series, exceptions, instance tracking |
+| `013_auth_system_upgrade.sql` | FK fix on pm_user_org_access, role constraints, user_id on pm_members |
+| `014_rls_policies.sql` | RLS enabled on all 20 PM tables with org-scoped access policies |
+
+## Row Level Security (RLS)
+
+All PM tables have RLS enabled (migration 014). Access model:
+
+| Role | Read | Write |
+|---|---|---|
+| `admin` (system_role) | All rows | All rows |
+| `user` (system_role) | All rows | All rows |
+| `external` (system_role) | Org-scoped via pm_user_org_access | No write access |
+| `anon` (no auth) | No access | No access |
+| `service_role` | Bypasses RLS | Bypasses RLS |
+
+### Helper Functions
+| Function | Purpose |
+|---|---|
+| `pm_is_internal()` | Returns true if auth user has system_role admin or user |
+| `pm_has_org_access(org_id)` | Returns true if internal OR has pm_user_org_access row for org |
+| `pm_has_project_access(project_id)` | Returns true if internal OR has org access for the project's org |
+
+### Access Chains
+- **Direct org_id**: pm_organizations, pm_members, pm_projects, pm_task_series, pm_process_maps, pm_opportunities, pm_kpis, pm_documents, pm_share_tokens
+- **Via project_id → org_id**: pm_phases, pm_tasks, pm_risks, pm_daily_logs, pm_files
+- **Via task_id → project_id → org_id**: pm_task_comments, pm_task_attachments
+- **Via series_id → org_id**: pm_series_exceptions
+- **Special**: pm_user_profiles (own row + admin), pm_user_org_access (own rows + admin), pm_project_templates (global read, admin write)
