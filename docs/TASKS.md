@@ -1,6 +1,9 @@
 # Tasks
 
 ## In Progress
+- [ ] Apply migration 013_auth_system_upgrade.sql to Supabase (FK fix, role constraints, user_id on members)
+- [ ] Run bootstrap script: `npx tsx scripts/bootstrap-admin-user.ts` (link Eric Jaffe to auth)
+- [ ] Configure Supabase callback URLs (see docs/ENVIRONMENT.md)
 - [ ] Apply migration 005_auth_user_roles.sql to Supabase
 - [ ] Apply migration 006_org_contact_fields.sql to Supabase
 - [ ] Apply migration 008_site_org_flag.sql to Supabase
@@ -9,13 +12,16 @@
 - [ ] Apply migration 012_recurring_tasks.sql to Supabase
 - [ ] Run FSA site-org backfill: `npx tsx scripts/backfill-fsa-site-org.ts`
 - [ ] Run Reverb Church backfill: `npx tsx scripts/backfill-reverb-church.ts`
-- [ ] End-to-end test: full auth flow (signup → confirm → login → admin)
+- [ ] Disable self-registration in Supabase Dashboard (Project Settings → Authentication → User Signups → toggle OFF)
+- [ ] Run bootstrap SQL script in Supabase SQL Editor (link Eric Jaffe to auth as admin)
+- [ ] End-to-end test: full auth flow (login → admin console → add user → external user scoping)
 - [ ] Test AI SOP scanner with real documents
 - [ ] Wire up email service (Resend/SendGrid) for task notifications and user invites
 - [ ] Set up Vercel Cron for daily recurring task generation (/api/pm/series/generate)
 
 ## Backlog
-- [ ] Add RLS policies to all PM tables
+- [ ] Add RLS policies to all PM tables (leverage pm_user_org_access for row-level filtering)
+- [ ] Add org-scoped filtering to API routes for external users (projects, tasks, orgs)
 - [ ] AI daily standup generation (`/daily/YYYY-MM-DD.md`)
 - [ ] Risk radar — AI scan of escalating risks
 - [ ] Natural language updates ("Set X due date to April 15")
@@ -27,6 +33,17 @@
 - [ ] Asana import: connect via Asana API for live import (requires PAT)
 
 ## Completed
+- [x] Auth system upgrade: 3-tier roles (admin/user/external), real auth user creation, org-scoped access
+  - Migration 013: FK fix on pm_user_org_access, role CHECK update, user_id on pm_members
+  - Invite flow: uses supabase.auth.admin.createUser() for real auth users + auto-creates pm_members
+  - Admin console: role picker (admin/user/external), org checkbox assignment, magic link generation
+  - Auth middleware: protects all routes, redirects to /login, refreshes sessions
+  - Login page: password + magic link modes, no self-signup (admin creates users)
+  - NavBar: role-aware (hides Admin for non-admins), user menu with sign out
+  - Auth helper lib: getUserSession(), getUserOrgFilter() for org-scoped queries
+  - Bootstrap script: links existing Eric Jaffe auth user to PM profile as admin
+  - Docs: callback URL configuration in ENVIRONMENT.md
+- [x] Unified task modals with full tabs and recurrence across all pages
 - [x] Recurring tasks system (series, instances, exceptions)
   - Database schema: pm_task_series, pm_series_exceptions tables + series columns on pm_tasks
   - Recurrence engine: daily/weekly/monthly/yearly, every N intervals, specific weekdays, ordinal weekday rules (first Monday, last Friday), day-of-month rules

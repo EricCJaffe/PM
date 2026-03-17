@@ -3,10 +3,7 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type { Task, PhaseWithTasks } from "@/types/pm";
 import { StatusBadge } from "./StatusBadge";
-import { Modal, Field, Input, Select, Textarea, ModalActions } from "./Modal";
-import { OwnerPicker } from "./OwnerPicker";
 import { TaskDetailModal } from "./TaskDetailModal";
-import { RecurrencePicker, type RecurrenceConfig } from "./RecurrencePicker";
 import {
   DndContext,
   closestCenter,
@@ -26,148 +23,6 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-
-const STATUSES = ["not-started", "in-progress", "complete", "blocked", "pending", "on-hold"] as const;
-
-// ─── Task Modal ──────────────────────────────────────────────────────────────
-
-function TaskModal({
-  projectId,
-  orgId,
-  phases,
-  defaultPhaseId,
-  onClose,
-}: {
-  projectId: string;
-  orgId: string;
-  phases: PhaseWithTasks[];
-  defaultPhaseId?: string;
-  onClose: () => void;
-}) {
-  const router = useRouter();
-  const [saving, setSaving] = useState(false);
-  const [notifyAssignee, setNotifyAssignee] = useState(false);
-  const [recurrence, setRecurrence] = useState<RecurrenceConfig | null>(null);
-  const [form, setForm] = useState({
-    name: "",
-    description: "",
-    status: "not-started",
-    owner: "",
-    due_date: "",
-    phase_id: defaultPhaseId ?? "",
-  });
-
-  function set(field: string, value: string) { setForm((f) => ({ ...f, [field]: value })); }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      if (recurrence) {
-        // Create a recurring series
-        const seriesBody: Record<string, unknown> = {
-          project_id: projectId,
-          phase_id: form.phase_id || null,
-          name: form.name,
-          description: form.description || null,
-          status_template: form.status,
-          owner: form.owner || null,
-          recurrence_mode: recurrence.recurrence_mode,
-          freq: recurrence.freq,
-          interval: recurrence.interval,
-          by_weekday: recurrence.by_weekday,
-          by_monthday: recurrence.by_monthday,
-          by_setpos: recurrence.by_setpos,
-          dtstart: recurrence.dtstart,
-          until_date: recurrence.until_date,
-          max_count: recurrence.max_count,
-          time_of_day: recurrence.time_of_day,
-          timezone: recurrence.timezone,
-          completion_delay_days: recurrence.completion_delay_days,
-        };
-        const seriesRes = await fetch("/api/pm/series", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(seriesBody),
-        });
-        if (!seriesRes.ok) {
-          const { error } = await seriesRes.json().catch(() => ({ error: "Unknown error" }));
-          alert(`Failed to create series: ${error}`);
-          return;
-        }
-        const seriesData = await seriesRes.json();
-        await fetch("/api/pm/series/generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ series_id: seriesData.id, horizon: 14 }),
-        });
-      } else {
-        const payload = { ...form, due_date: form.due_date || null, phase_id: form.phase_id || null, notify_assignee: notifyAssignee };
-        const body = { project_id: projectId, ...payload };
-        const res = await fetch("/api/pm/tasks", {
-          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
-        });
-        if (!res.ok) {
-          const { error } = await res.json().catch(() => ({ error: "Unknown error" }));
-          alert(`Failed to save task: ${error}`);
-          return;
-        }
-      }
-      onClose();
-      router.refresh();
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <Modal title="Add Task" onClose={onClose}>
-      <form onSubmit={handleSubmit}>
-        <Field label="Task Name">
-          <Input value={form.name} onChange={(e) => set("name", e.target.value)} required autoFocus />
-        </Field>
-        <Field label="Description">
-          <Textarea value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="Optional details…" />
-        </Field>
-        <Field label="Phase">
-          <Select value={form.phase_id} onChange={(e) => set("phase_id", e.target.value)}>
-            <option value="">— No phase —</option>
-            {phases.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </Select>
-        </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Status">
-            <Select value={form.status} onChange={(e) => set("status", e.target.value)}>
-              {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-            </Select>
-          </Field>
-          <Field label="Due Date">
-            <Input type="date" value={form.due_date} onChange={(e) => set("due_date", e.target.value)} />
-          </Field>
-        </div>
-        <Field label="Owner">
-          <OwnerPicker orgId={orgId} value={form.owner} onChange={(v) => set("owner", v)} />
-        </Field>
-        {/* Email notification toggle */}
-        {form.owner && (
-          <label className="flex items-center gap-2 pt-2 text-xs text-pm-muted cursor-pointer">
-            <input
-              type="checkbox"
-              checked={notifyAssignee}
-              onChange={(e) => setNotifyAssignee(e.target.checked)}
-              className="rounded border-pm-border"
-            />
-            Email notify owner when creating this task
-          </label>
-        )}
-        <RecurrencePicker value={recurrence} onChange={setRecurrence} />
-        <div className="flex justify-end pt-2">
-          <ModalActions onClose={onClose} saving={saving} label={recurrence ? "Create Series" : "Add Task"} />
-        </div>
-      </form>
-    </Modal>
-  );
-}
 
 // ─── Sortable Task Row ───────────────────────────────────────────────────────
 
@@ -499,14 +354,19 @@ export function EditableTaskTable({
         </DndContext>
       )}
 
-      {/* Modal — Add new task only (simple form with phase picker) */}
+      {/* Modal — Add new task (full unified modal with tabs + recurrence) */}
       {modal && !modal.task && (
-        <TaskModal
-          projectId={projectId}
+        <TaskDetailModal
+          task={null}
+          memberMap={memberMap}
+          phases={phases.map((p) => ({ id: p.id, name: p.name }))}
           orgId={orgId}
-          phases={phases}
-          defaultPhaseId={modal.phaseId}
-          onClose={() => setModal(null)}
+          onClose={() => { setModal(null); router.refresh(); }}
+          createContext={{
+            project_id: projectId,
+            phase_id: modal.phaseId || undefined,
+            org_id: orgId,
+          }}
         />
       )}
 

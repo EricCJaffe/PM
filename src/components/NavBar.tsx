@@ -1,22 +1,55 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ThemeToggle } from "./ThemeToggle";
+import { createClient } from "@/lib/supabase/client";
 
-const navItems = [
-  { href: "/projects", label: "Projects" },
-  { href: "/clients", label: "Clients" },
-  { href: "/admin/users", label: "Admin" },
-];
+interface UserInfo {
+  display_name: string;
+  system_role: string;
+}
 
 export function NavBar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [user, setUser] = useState<UserInfo | null>(null);
+  const [showMenu, setShowMenu] = useState(false);
 
-  // Hide NavBar on public share pages
-  if (pathname.startsWith("/share/")) return null;
-  // Hide NavBar on login page
-  if (pathname === "/login") return null;
+  const hidden = pathname.startsWith("/share/") || pathname === "/login";
+
+  // Fetch user profile on mount
+  useEffect(() => {
+    if (hidden) return;
+    fetch("/api/pm/auth/profile")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data && !data.error) {
+          setUser({ display_name: data.display_name, system_role: data.system_role });
+        }
+      })
+      .catch(() => {});
+  }, [hidden]);
+
+  // Hide NavBar on public share pages and login
+  if (hidden) return null;
+
+  const isAdmin = user?.system_role === "admin";
+
+  const navItems = [
+    { href: "/", label: "Dashboard" },
+    { href: "/projects", label: "Projects" },
+    { href: "/clients", label: "Clients" },
+    ...(isAdmin ? [{ href: "/admin/users", label: "Admin" }] : []),
+  ];
+
+  async function handleSignOut() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  }
 
   return (
     <nav className="border-b border-pm-border bg-pm-card/50">
@@ -26,7 +59,9 @@ export function NavBar() {
         </Link>
         <div className="flex items-center gap-1">
           {navItems.map((item) => {
-            const isActive = pathname.startsWith(item.href);
+            const isActive = item.href === "/"
+              ? pathname === "/"
+              : pathname.startsWith(item.href);
             return (
               <Link
                 key={item.href}
@@ -42,6 +77,36 @@ export function NavBar() {
             );
           })}
           <ThemeToggle />
+
+          {/* User menu */}
+          {user && (
+            <div className="relative ml-2">
+              <button
+                onClick={() => setShowMenu(!showMenu)}
+                className="w-8 h-8 rounded-full bg-pm-accent/20 text-pm-accent flex items-center justify-center text-xs font-bold hover:bg-pm-accent/30 transition-colors"
+                title={user.display_name}
+              >
+                {user.display_name[0]?.toUpperCase() || "?"}
+              </button>
+              {showMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-pm-card border border-pm-border rounded-lg shadow-xl z-50 py-1">
+                    <div className="px-3 py-2 border-b border-pm-border">
+                      <div className="text-sm font-medium text-pm-text truncate">{user.display_name}</div>
+                      <div className="text-xs text-pm-muted capitalize">{user.system_role}</div>
+                    </div>
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full text-left px-3 py-2 text-sm text-pm-muted hover:text-pm-text hover:bg-pm-bg transition-colors"
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </nav>

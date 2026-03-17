@@ -40,7 +40,7 @@ export async function GET() {
   // Get orgs for display
   const { data: orgs } = await service
     .from("pm_organizations")
-    .select("id, name, slug");
+    .select("id, name, slug, is_site_org");
 
   return NextResponse.json({
     users: users ?? [],

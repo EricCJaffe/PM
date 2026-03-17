@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Modal, Field, Input, Select, Textarea } from "./Modal";
+import { RecurrencePicker, type RecurrenceConfig } from "./RecurrencePicker";
 import type { PMStatus, Subtask, TaskComment, TaskAttachment } from "@/types/pm";
 
 const STATUSES: PMStatus[] = ["not-started", "in-progress", "complete", "blocked", "pending", "on-hold"];
@@ -27,6 +28,22 @@ interface PhaseOption {
   name: string;
 }
 
+interface CreateContext {
+  project_id?: string;
+  phase_id?: string;
+  org_id?: string;
+  default_owner?: string;
+}
+
+/**
+ * Unified task modal — handles BOTH creating new tasks and editing existing ones.
+ *
+ * Create mode: pass `task` as undefined/null and provide `createContext`.
+ * Edit mode:   pass an existing `task` object.
+ *
+ * Both modes show the full tabbed interface (Details, Subtasks, Comments, Files)
+ * with recurrence support.
+ */
 export function TaskDetailModal({
   task,
   memberMap,
@@ -34,118 +51,91 @@ export function TaskDetailModal({
   onDelete,
   phases,
   orgId,
+  createContext,
 }: {
-  task: TaskLike;
+  task?: TaskLike | null;
   memberMap: Record<string, string>;
   onClose: () => void;
   onDelete?: () => void;
   phases?: PhaseOption[];
   orgId?: string;
+  createContext?: CreateContext;
 }) {
+  const isCreate = !task;
   const [activeTab, setActiveTab] = useState<"details" | "subtasks" | "comments" | "files">("details");
   const [saving, setSaving] = useState(false);
 
-  // Detail form — includes owner + notify
+  // Detail form
   const [form, setForm] = useState({
-    name: task.name,
-    description: task.description ?? "",
-    status: task.status,
-    due_date: task.due_date ?? "",
-    owner: task.owner ?? "",
-    phase_id: task.phase_id ?? "",
+    name: task?.name ?? "",
+    description: task?.description ?? "",
+    status: task?.status ?? "not-started",
+    due_date: task?.due_date ?? "",
+    owner: task?.owner ?? createContext?.default_owner ?? "",
+    phase_id: task?.phase_id ?? createContext?.phase_id ?? "",
   });
   const [notifyAssignee, setNotifyAssignee] = useState(false);
   const [editScope, setEditScope] = useState<"this" | "future" | "all">("this");
-  const isSeries = !!task.series_id;
+  const isSeries = !!task?.series_id;
 
-  // Members for owner picker (loaded from memberMap or fetched)
+  // Recurrence — available for new tasks and for converting existing tasks
+  const [recurrence, setRecurrence] = useState<RecurrenceConfig | null>(null);
+
+  // Members for owner picker
   const memberEntries = Object.entries(memberMap);
 
-  // Subtasks
-  const [subtasks, setSubtasks] = useState<Subtask[]>(task.subtasks || []);
+  // Subtasks — works in both create and edit mode (stored as JSONB)
+  const [subtasks, setSubtasks] = useState<Subtask[]>(task?.subtasks || []);
   const [newSubtask, setNewSubtask] = useState("");
 
-  // Comments
+  // Comments (edit mode only)
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [postingComment, setPostingComment] = useState(false);
 
-  // Attachments
+  // Attachments (edit mode only)
   const [attachments, setAttachments] = useState<TaskAttachment[]>([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load comments when tab opens
+  // Load comments when tab opens (edit mode only)
   useEffect(() => {
-    if (activeTab === "comments" && comments.length === 0) {
-      setLoadingComments(true);
-      fetch(`/api/pm/tasks/${task.id}/comments`)
-        .then((r) => r.json())
-        .then((data) => { if (Array.isArray(data)) setComments(data); })
-        .catch(() => {})
-        .finally(() => setLoadingComments(false));
-    }
-  }, [activeTab, task.id, comments.length]);
+    if (!task || activeTab !== "comments" || comments.length > 0) return;
+    setLoadingComments(true);
+    fetch(`/api/pm/tasks/${task.id}/comments`)
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setComments(data); })
+      .catch(() => {})
+      .finally(() => setLoadingComments(false));
+  }, [activeTab, task, comments.length]);
 
-  // Load attachments when tab opens
+  // Load attachments when tab opens (edit mode only)
   useEffect(() => {
-    if (activeTab === "files" && attachments.length === 0) {
-      setLoadingFiles(true);
-      fetch(`/api/pm/tasks/${task.id}/attachments`)
-        .then((r) => r.json())
-        .then((data) => { if (Array.isArray(data)) setAttachments(data); })
-        .catch(() => {})
-        .finally(() => setLoadingFiles(false));
-    }
-  }, [activeTab, task.id, attachments.length]);
+    if (!task || activeTab !== "files" || attachments.length > 0) return;
+    setLoadingFiles(true);
+    fetch(`/api/pm/tasks/${task.id}/attachments`)
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setAttachments(data); })
+      .catch(() => {})
+      .finally(() => setLoadingFiles(false));
+  }, [activeTab, task, attachments.length]);
 
-  // Save details — then close the dialog
-  async function saveDetails() {
+  // ─── Save / Create ──────────────────────────────────────────────────
+
+  async function handleSave() {
+    if (!form.name.trim()) {
+      alert("Task name is required");
+      return;
+    }
     setSaving(true);
     try {
-      const payload: Record<string, unknown> = {
-        name: form.name,
-        description: form.description || null,
-        status: form.status,
-        due_date: form.due_date || null,
-        owner: form.owner || null,
-        notify_assignee: notifyAssignee,
-      };
-      if (phases && form.phase_id !== undefined) {
-        payload.phase_id = form.phase_id || null;
+      if (isCreate) {
+        await handleCreate();
+      } else {
+        await handleUpdate();
       }
-
-      // Save this instance
-      const res = await fetch(`/api/pm/tasks/${task.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...payload,
-          // Mark as exception if editing a single series instance
-          ...(isSeries && editScope === "this" ? { is_exception: true } : {}),
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({ error: "Unknown error" }));
-        throw new Error(data.error);
-      }
-
-      // If editing future or all, also update the series template
-      if (isSeries && task.series_id && (editScope === "future" || editScope === "all")) {
-        await fetch(`/api/pm/series/${task.series_id}?scope=${editScope}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: form.name,
-            description: form.description || null,
-            owner: form.owner || null,
-            status_template: form.status,
-          }),
-        });
-      }
-
       onClose();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to save");
@@ -154,18 +144,177 @@ export function TaskDetailModal({
     }
   }
 
+  async function handleCreate() {
+    if (recurrence) {
+      // Create a recurring series
+      const seriesBody: Record<string, unknown> = {
+        project_id: createContext?.project_id ?? null,
+        phase_id: form.phase_id || createContext?.phase_id || null,
+        org_id: createContext?.org_id ?? orgId ?? null,
+        name: form.name,
+        description: form.description || null,
+        status_template: form.status,
+        owner: form.owner || null,
+        subtasks_template: subtasks.length > 0 ? subtasks : [],
+        recurrence_mode: recurrence.recurrence_mode,
+        freq: recurrence.freq,
+        interval: recurrence.interval,
+        by_weekday: recurrence.by_weekday,
+        by_monthday: recurrence.by_monthday,
+        by_setpos: recurrence.by_setpos,
+        dtstart: recurrence.dtstart,
+        until_date: recurrence.until_date,
+        max_count: recurrence.max_count,
+        time_of_day: recurrence.time_of_day,
+        timezone: recurrence.timezone,
+        completion_delay_days: recurrence.completion_delay_days,
+      };
+      const res = await fetch("/api/pm/series", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(seriesBody),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(data.error);
+      }
+      const seriesData = await res.json();
+      // Generate initial instances
+      await fetch("/api/pm/series/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ series_id: seriesData.id, horizon: 14 }),
+      });
+    } else {
+      // Create a one-time task
+      const body: Record<string, unknown> = {
+        project_id: createContext?.project_id ?? null,
+        phase_id: form.phase_id || createContext?.phase_id || null,
+        name: form.name,
+        description: form.description || null,
+        status: form.status,
+        owner: form.owner || null,
+        assigned_to: form.owner || null,
+        due_date: form.due_date || null,
+        subtasks: subtasks.length > 0 ? subtasks : [],
+        notify_assignee: notifyAssignee,
+      };
+      const res = await fetch("/api/pm/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(data.error);
+      }
+    }
+  }
+
+  async function handleUpdate() {
+    if (!task) return;
+    const payload: Record<string, unknown> = {
+      name: form.name,
+      description: form.description || null,
+      status: form.status,
+      due_date: form.due_date || null,
+      owner: form.owner || null,
+      notify_assignee: notifyAssignee,
+    };
+    if (phases && form.phase_id !== undefined) {
+      payload.phase_id = form.phase_id || null;
+    }
+
+    // Save this instance
+    const res = await fetch(`/api/pm/tasks/${task.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...payload,
+        ...(isSeries && editScope === "this" ? { is_exception: true } : {}),
+      }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({ error: "Unknown error" }));
+      throw new Error(data.error);
+    }
+
+    // If editing future or all, also update the series template
+    if (isSeries && task.series_id && (editScope === "future" || editScope === "all")) {
+      await fetch(`/api/pm/series/${task.series_id}?scope=${editScope}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name,
+          description: form.description || null,
+          owner: form.owner || null,
+          status_template: form.status,
+        }),
+      });
+    }
+
+    // If converting to recurring (existing task, recurrence just enabled)
+    if (!isSeries && recurrence) {
+      const seriesBody: Record<string, unknown> = {
+        project_id: task.project_id ?? null,
+        phase_id: form.phase_id || task.phase_id || null,
+        name: form.name,
+        description: form.description || null,
+        status_template: form.status,
+        owner: form.owner || null,
+        subtasks_template: subtasks.length > 0 ? subtasks : [],
+        recurrence_mode: recurrence.recurrence_mode,
+        freq: recurrence.freq,
+        interval: recurrence.interval,
+        by_weekday: recurrence.by_weekday,
+        by_monthday: recurrence.by_monthday,
+        by_setpos: recurrence.by_setpos,
+        dtstart: recurrence.dtstart,
+        until_date: recurrence.until_date,
+        max_count: recurrence.max_count,
+        time_of_day: recurrence.time_of_day,
+        timezone: recurrence.timezone,
+        completion_delay_days: recurrence.completion_delay_days,
+      };
+      const seriesRes = await fetch("/api/pm/series", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(seriesBody),
+      });
+      if (seriesRes.ok) {
+        const seriesData = await seriesRes.json();
+        // Link this task as the first instance
+        await fetch(`/api/pm/tasks/${task.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            series_id: seriesData.id,
+            series_occurrence_date: task.due_date || new Date().toISOString().slice(0, 10),
+          }),
+        });
+        // Generate future instances
+        await fetch("/api/pm/series/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ series_id: seriesData.id, horizon: 14 }),
+        });
+      }
+    }
+  }
+
+  // ─── Delete ─────────────────────────────────────────────────────────
+
   async function handleDelete() {
+    if (!task) return;
     if (isSeries && task.series_id) {
       const choice = prompt(
         `This is a recurring task. Type:\n  "this" — delete this occurrence only\n  "series" — delete entire series\n  Cancel to abort`,
         "this"
       );
       if (!choice) return;
-
       if (choice === "series") {
         await fetch(`/api/pm/series/${task.series_id}`, { method: "DELETE" });
       } else {
-        // Delete just this instance and add a skip exception
         await fetch(`/api/pm/tasks/${task.id}`, { method: "DELETE" });
         if (task.series_occurrence_date) {
           await fetch(`/api/pm/series/${task.series_id}/exceptions`, {
@@ -187,28 +336,30 @@ export function TaskDetailModal({
     onClose();
   }
 
-  // Subtask management
+  // ─── Subtask management ─────────────────────────────────────────────
+
   function addSubtask() {
     if (!newSubtask.trim()) return;
     const updated = [...subtasks, { text: newSubtask.trim(), done: false }];
     setSubtasks(updated);
     setNewSubtask("");
-    saveSubtasks(updated);
+    if (task) saveSubtasks(updated);
   }
 
   function toggleSubtask(idx: number) {
     const updated = subtasks.map((s, i) => i === idx ? { ...s, done: !s.done } : s);
     setSubtasks(updated);
-    saveSubtasks(updated);
+    if (task) saveSubtasks(updated);
   }
 
   function removeSubtask(idx: number) {
     const updated = subtasks.filter((_, i) => i !== idx);
     setSubtasks(updated);
-    saveSubtasks(updated);
+    if (task) saveSubtasks(updated);
   }
 
   async function saveSubtasks(subs: Subtask[]) {
+    if (!task) return;
     await fetch(`/api/pm/tasks/${task.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -216,9 +367,10 @@ export function TaskDetailModal({
     });
   }
 
-  // Comment management
+  // ─── Comment management ─────────────────────────────────────────────
+
   async function postComment() {
-    if (!newComment.trim()) return;
+    if (!task || !newComment.trim()) return;
     setPostingComment(true);
     try {
       const res = await fetch(`/api/pm/tasks/${task.id}/comments`, {
@@ -238,6 +390,7 @@ export function TaskDetailModal({
   }
 
   async function deleteComment(commentId: string) {
+    if (!task) return;
     try {
       await fetch(`/api/pm/tasks/${task.id}/comments`, {
         method: "DELETE",
@@ -250,8 +403,10 @@ export function TaskDetailModal({
     }
   }
 
-  // File management
+  // ─── File management ────────────────────────────────────────────────
+
   async function uploadFile(file: File) {
+    if (!task) return;
     setUploading(true);
     try {
       const formData = new FormData();
@@ -272,6 +427,7 @@ export function TaskDetailModal({
   }
 
   async function deleteAttachment(attachmentId: string) {
+    if (!task) return;
     try {
       await fetch(`/api/pm/tasks/${task.id}/attachments`, {
         method: "DELETE",
@@ -284,6 +440,8 @@ export function TaskDetailModal({
     }
   }
 
+  // ─── Helpers ────────────────────────────────────────────────────────
+
   function formatFileSize(bytes: number) {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -295,6 +453,8 @@ export function TaskDetailModal({
     return d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
 
+  // ─── Render ─────────────────────────────────────────────────────────
+
   const completedSubs = subtasks.filter((s) => s.done).length;
   const tabs = [
     { id: "details" as const, label: "Details" },
@@ -303,8 +463,13 @@ export function TaskDetailModal({
     { id: "files" as const, label: `Files${attachments.length > 0 ? ` (${attachments.length})` : ""}` },
   ];
 
+  const title = isCreate ? "New Task" : task.name;
+  const saveLabel = isCreate
+    ? (recurrence ? "Create Series" : "Add Task")
+    : (saving ? "Saving..." : "Save Task");
+
   return (
-    <Modal title={task.name} onClose={onClose}>
+    <Modal title={title} onClose={onClose}>
       {/* Tab bar */}
       <div className="flex items-center gap-1 border-b border-pm-border mb-4 -mt-1">
         {tabs.map((tab) => (
@@ -322,11 +487,15 @@ export function TaskDetailModal({
         ))}
       </div>
 
-      {/* Details tab */}
+      {/* ─── Details tab ─────────────────────────────────────────────── */}
       {activeTab === "details" && (
         <div className="space-y-4">
           <Field label="Task Name">
-            <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+            <Input
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              autoFocus={isCreate}
+            />
           </Field>
           <Field label="Description">
             <Textarea
@@ -335,7 +504,7 @@ export function TaskDetailModal({
               placeholder="Add details..."
             />
           </Field>
-          {/* Phase picker — only shown when phases are available (project context) */}
+          {/* Phase picker */}
           {phases && phases.length > 0 && (
             <Field label="Phase">
               <Select value={form.phase_id} onChange={(e) => setForm((f) => ({ ...f, phase_id: e.target.value }))}>
@@ -355,14 +524,22 @@ export function TaskDetailModal({
             </Field>
           </div>
           <Field label="Owner / Assigned To">
-            <Select value={form.owner} onChange={(e) => setForm((f) => ({ ...f, owner: e.target.value }))}>
-              <option value="">— Unassigned —</option>
-              {memberEntries.map(([slug, name]) => (
-                <option key={slug} value={slug}>{name}</option>
-              ))}
-            </Select>
+            {memberEntries.length > 0 ? (
+              <Select value={form.owner} onChange={(e) => setForm((f) => ({ ...f, owner: e.target.value }))}>
+                <option value="">— Unassigned —</option>
+                {memberEntries.map(([slug, name]) => (
+                  <option key={slug} value={slug}>{name}</option>
+                ))}
+              </Select>
+            ) : (
+              <Input
+                value={form.owner}
+                onChange={(e) => setForm((f) => ({ ...f, owner: e.target.value }))}
+                placeholder="Owner slug..."
+              />
+            )}
           </Field>
-          {/* Email notification toggle */}
+          {/* Email notification */}
           {form.owner && (
             <label className="flex items-center gap-2 text-xs text-pm-muted cursor-pointer">
               <input
@@ -371,10 +548,14 @@ export function TaskDetailModal({
                 onChange={(e) => setNotifyAssignee(e.target.checked)}
                 className="rounded border-pm-border"
               />
-              Email notify owner when saving this task
+              Email notify owner when {isCreate ? "creating" : "saving"} this task
             </label>
           )}
-          {/* Series edit scope */}
+          {/* Recurrence — for new tasks or converting existing tasks */}
+          {!isSeries && (
+            <RecurrencePicker value={recurrence} onChange={setRecurrence} />
+          )}
+          {/* Series edit scope — for existing recurring tasks */}
           {isSeries && (
             <div className="bg-pm-bg rounded-lg p-3 space-y-2">
               <div className="flex items-center gap-2 text-xs text-pm-accent font-medium">
@@ -399,26 +580,25 @@ export function TaskDetailModal({
               </div>
             </div>
           )}
+          {/* Action buttons */}
           <div className="flex items-center justify-between pt-2">
+            {task ? (
+              <button type="button" onClick={handleDelete} className="text-sm text-red-400 hover:text-red-300">
+                Delete Task
+              </button>
+            ) : <span />}
             <button
-              type="button"
-              onClick={handleDelete}
-              className="text-sm text-red-400 hover:text-red-300"
-            >
-              Delete Task
-            </button>
-            <button
-              onClick={saveDetails}
-              disabled={saving}
+              onClick={handleSave}
+              disabled={saving || !form.name.trim()}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
             >
-              {saving ? "Saving..." : "Save Task"}
+              {saving ? "Saving..." : saveLabel}
             </button>
           </div>
         </div>
       )}
 
-      {/* Subtasks tab */}
+      {/* ─── Subtasks tab ────────────────────────────────────────────── */}
       {activeTab === "subtasks" && (
         <div className="space-y-3">
           {subtasks.length > 0 && (
@@ -470,13 +650,19 @@ export function TaskDetailModal({
               Add
             </button>
           </div>
+
+          {isCreate && subtasks.length > 0 && (
+            <p className="text-xs text-pm-muted">Subtasks will be saved when you create the task.</p>
+          )}
         </div>
       )}
 
-      {/* Comments tab */}
+      {/* ─── Comments tab ────────────────────────────────────────────── */}
       {activeTab === "comments" && (
         <div className="space-y-4">
-          {loadingComments ? (
+          {isCreate ? (
+            <p className="text-pm-muted text-sm text-center py-4">Save the task first to add comments.</p>
+          ) : loadingComments ? (
             <p className="text-pm-muted text-sm">Loading comments...</p>
           ) : comments.length === 0 ? (
             <p className="text-pm-muted text-sm text-center py-4">No comments yet. Start the conversation.</p>
@@ -504,70 +690,78 @@ export function TaskDetailModal({
             </div>
           )}
 
-          <div className="flex items-start gap-2 pt-1">
-            <textarea
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); postComment(); } }}
-              className="flex-1 bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text focus:outline-none focus:border-blue-500 resize-none"
-              rows={2}
-              placeholder="Write a comment... (Enter to send)"
-            />
-            <button
-              onClick={postComment}
-              disabled={postingComment || !newComment.trim()}
-              className="px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              {postingComment ? "..." : "Send"}
-            </button>
-          </div>
+          {!isCreate && (
+            <div className="flex items-start gap-2 pt-1">
+              <textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); postComment(); } }}
+                className="flex-1 bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text focus:outline-none focus:border-blue-500 resize-none"
+                rows={2}
+                placeholder="Write a comment... (Enter to send)"
+              />
+              <button
+                onClick={postComment}
+                disabled={postingComment || !newComment.trim()}
+                className="px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                {postingComment ? "..." : "Send"}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Files tab */}
+      {/* ─── Files tab ───────────────────────────────────────────────── */}
       {activeTab === "files" && (
         <div className="space-y-4">
-          <input
-            ref={fileInputRef}
-            type="file"
-            className="hidden"
-            onChange={(e) => { if (e.target.files?.[0]) uploadFile(e.target.files[0]); e.target.value = ""; }}
-          />
-
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="w-full border-2 border-dashed border-pm-border hover:border-pm-accent rounded-lg py-4 text-sm text-pm-muted hover:text-pm-accent transition-colors"
-          >
-            {uploading ? "Uploading..." : "Click to upload a file"}
-          </button>
-
-          {loadingFiles ? (
-            <p className="text-pm-muted text-sm">Loading files...</p>
-          ) : attachments.length === 0 ? (
-            <p className="text-pm-muted text-sm text-center py-4">No files attached yet.</p>
+          {isCreate ? (
+            <p className="text-pm-muted text-sm text-center py-4">Save the task first to attach files.</p>
           ) : (
-            <div className="space-y-2">
-              {attachments.map((a) => (
-                <div key={a.id} className="flex items-center gap-3 bg-pm-bg rounded-lg px-3 py-2 group">
-                  <div className="w-8 h-8 bg-pm-card rounded flex items-center justify-center shrink-0">
-                    <svg className="w-4 h-4 text-pm-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                    </svg>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm text-pm-text truncate">{a.file_name}</div>
-                    <div className="text-xs text-pm-muted">{formatFileSize(a.file_size)}</div>
-                  </div>
-                  <button
-                    onClick={() => deleteAttachment(a.id)}
-                    className="text-red-400/0 group-hover:text-red-400/60 hover:!text-red-400 text-xs transition-colors shrink-0"
-                  >
-                    Remove
-                  </button>
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                onChange={(e) => { if (e.target.files?.[0]) uploadFile(e.target.files[0]); e.target.value = ""; }}
+              />
+
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="w-full border-2 border-dashed border-pm-border hover:border-pm-accent rounded-lg py-4 text-sm text-pm-muted hover:text-pm-accent transition-colors"
+              >
+                {uploading ? "Uploading..." : "Click to upload a file"}
+              </button>
+
+              {loadingFiles ? (
+                <p className="text-pm-muted text-sm">Loading files...</p>
+              ) : attachments.length === 0 ? (
+                <p className="text-pm-muted text-sm text-center py-4">No files attached yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {attachments.map((a) => (
+                    <div key={a.id} className="flex items-center gap-3 bg-pm-bg rounded-lg px-3 py-2 group">
+                      <div className="w-8 h-8 bg-pm-card rounded flex items-center justify-center shrink-0">
+                        <svg className="w-4 h-4 text-pm-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm text-pm-text truncate">{a.file_name}</div>
+                        <div className="text-xs text-pm-muted">{formatFileSize(a.file_size)}</div>
+                      </div>
+                      <button
+                        onClick={() => deleteAttachment(a.id)}
+                        className="text-red-400/0 group-hover:text-red-400/60 hover:!text-red-400 text-xs transition-colors shrink-0"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
       )}
