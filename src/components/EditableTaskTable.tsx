@@ -34,29 +34,25 @@ function TaskModal({
   projectId,
   orgId,
   phases,
-  task,
   defaultPhaseId,
   onClose,
-  onOpenDetail,
 }: {
   projectId: string;
   orgId: string;
   phases: PhaseWithTasks[];
-  task?: Task;
   defaultPhaseId?: string;
   onClose: () => void;
-  onOpenDetail?: (task: Task) => void;
 }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [notifyAssignee, setNotifyAssignee] = useState(false);
   const [form, setForm] = useState({
-    name: task?.name ?? "",
-    description: task?.description ?? "",
-    status: task?.status ?? "not-started",
-    owner: task?.owner ?? "",
-    due_date: task?.due_date ?? "",
-    phase_id: task?.phase_id ?? defaultPhaseId ?? "",
+    name: "",
+    description: "",
+    status: "not-started",
+    owner: "",
+    due_date: "",
+    phase_id: defaultPhaseId ?? "",
   });
 
   function set(field: string, value: string) { setForm((f) => ({ ...f, [field]: value })); }
@@ -65,11 +61,9 @@ function TaskModal({
     e.preventDefault();
     setSaving(true);
     const payload = { ...form, due_date: form.due_date || null, phase_id: form.phase_id || null, notify_assignee: notifyAssignee };
-    const url = task ? `/api/pm/tasks/${task.id}` : "/api/pm/tasks";
-    const method = task ? "PATCH" : "POST";
-    const body = task ? payload : { project_id: projectId, ...payload };
-    const res = await fetch(url, {
-      method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    const body = { project_id: projectId, ...payload };
+    const res = await fetch("/api/pm/tasks", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
     });
     setSaving(false);
     if (!res.ok) {
@@ -81,16 +75,8 @@ function TaskModal({
     router.refresh();
   }
 
-  async function handleDelete() {
-    if (!task) return;
-    if (!confirm(`Delete task "${task.name}"?`)) return;
-    await fetch(`/api/pm/tasks/${task.id}`, { method: "DELETE" });
-    onClose();
-    router.refresh();
-  }
-
   return (
-    <Modal title={task ? "Edit Task" : "Add Task"} onClose={onClose}>
+    <Modal title="Add Task" onClose={onClose}>
       <form onSubmit={handleSubmit}>
         <Field label="Task Name">
           <Input value={form.name} onChange={(e) => set("name", e.target.value)} required autoFocus />
@@ -126,25 +112,11 @@ function TaskModal({
               onChange={(e) => setNotifyAssignee(e.target.checked)}
               className="rounded border-pm-border"
             />
-            Email notify owner when {task ? "saving" : "creating"} this task
+            Email notify owner when creating this task
           </label>
         )}
-        <div className="flex items-center justify-between pt-2">
-          <div className="flex items-center gap-3">
-            {task && (
-              <button type="button" onClick={handleDelete} className="text-sm text-red-400 hover:text-red-300">Delete</button>
-            )}
-            {task && onOpenDetail && (
-              <button
-                type="button"
-                onClick={() => { onClose(); onOpenDetail(task); }}
-                className="text-sm text-pm-accent hover:text-pm-accent-hover"
-              >
-                Subtasks / Comments / Files
-              </button>
-            )}
-          </div>
-          <ModalActions onClose={onClose} saving={saving} label={task ? "Save Changes" : "Add Task"} />
+        <div className="flex justify-end pt-2">
+          <ModalActions onClose={onClose} saving={saving} label="Add Task" />
         </div>
       </form>
     </Modal>
@@ -311,7 +283,6 @@ export function EditableTaskTable({
 }) {
   const router = useRouter();
   const [modal, setModal] = useState<{ task?: Task; phaseId?: string } | null>(null);
-  const [detailTask, setDetailTask] = useState<Task | null>(null);
   const [tasks, setTasks] = useState(initialTasks);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
 
@@ -482,7 +453,7 @@ export function EditableTaskTable({
         </DndContext>
       )}
 
-      {/* Modal */}
+      {/* Modal — Add new task only (simple form with phase picker) */}
       {modal && !modal.task && (
         <TaskModal
           projectId={projectId}
@@ -492,23 +463,16 @@ export function EditableTaskTable({
           onClose={() => setModal(null)}
         />
       )}
-      {modal?.task && (
-        <TaskModal
-          projectId={projectId}
-          orgId={orgId}
-          phases={phases}
-          task={modal.task}
-          onClose={() => setModal(null)}
-          onOpenDetail={(t) => setDetailTask(t)}
-        />
-      )}
 
-      {/* Task detail modal (subtasks, comments, files) */}
-      {detailTask && (
+      {/* Edit existing task — opens full TaskDetailModal directly */}
+      {modal?.task && (
         <TaskDetailModal
-          task={detailTask}
+          task={modal.task}
           memberMap={memberMap}
-          onClose={() => { setDetailTask(null); router.refresh(); }}
+          phases={phases.map((p) => ({ id: p.id, name: p.name }))}
+          orgId={orgId}
+          onDelete={() => router.refresh()}
+          onClose={() => { setModal(null); router.refresh(); }}
         />
       )}
     </div>

@@ -138,9 +138,15 @@ export default function HomePage() {
           </select>
           <Link
             href="/my-tasks"
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+            className="px-4 py-2 bg-pm-card border border-pm-border hover:border-pm-accent text-pm-text rounded-lg text-sm font-medium transition-colors"
           >
             All Tasks
+          </Link>
+          <Link
+            href="/my-tasks?new=1"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            + New Task
           </Link>
         </div>
       </div>

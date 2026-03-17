@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { StatusBadge } from "@/components/StatusBadge";
-import type { PMStatus, Subtask, TaskComment, TaskAttachment } from "@/types/pm";
+import type { PMStatus, Subtask } from "@/types/pm";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
 
 interface MyTask {
@@ -28,20 +29,38 @@ interface MemberOption {
 }
 
 const STATUSES: PMStatus[] = ["not-started", "in-progress", "complete", "blocked", "pending", "on-hold"];
+const BOARD_COLUMNS: { status: PMStatus; label: string; color: string }[] = [
+  { status: "not-started", label: "To Do", color: "border-pm-muted/30" },
+  { status: "in-progress", label: "In Progress", color: "border-yellow-500/40" },
+  { status: "blocked", label: "Blocked", color: "border-red-500/40" },
+  { status: "complete", label: "Done", color: "border-green-500/40" },
+];
 
 export default function MyTasksPage() {
+  return (
+    <Suspense fallback={<div className="max-w-6xl mx-auto p-6 text-pm-muted">Loading...</div>}>
+      <MyTasksInner />
+    </Suspense>
+  );
+}
+
+function MyTasksInner() {
+  const searchParams = useSearchParams();
+  const autoOpen = searchParams.get("new") === "1";
+
   const [tasks, setTasks] = useState<MyTask[]>([]);
   const [members, setMembers] = useState<MemberOption[]>([]);
   const [selectedMember, setSelectedMember] = useState("");
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | "active" | "completed">("active");
+  const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
+  const [view, setView] = useState<"list" | "board">("list");
   const [selectedTask, setSelectedTask] = useState<MyTask | null>(null);
 
   // Personal project
   const [personalProjectId, setPersonalProjectId] = useState<string | null>(null);
 
   // New task form
-  const [showNewTask, setShowNewTask] = useState(false);
+  const [showNewTask, setShowNewTask] = useState(autoOpen);
   const [newTaskName, setNewTaskName] = useState("");
   const [newTaskDesc, setNewTaskDesc] = useState("");
   const [newTaskDue, setNewTaskDue] = useState("");
@@ -60,7 +79,6 @@ export default function MyTasksPage() {
       .then((orgs) => {
         if (!Array.isArray(orgs) || orgs.length === 0) return;
         setSiteOrgId(orgs[0].id);
-        // Load members from first org (site org) for picker
         return fetch(`/api/pm/members/assignable?org_id=${orgs[0].id}`)
           .then((r) => r.json())
           .then((data) => {
@@ -69,10 +87,7 @@ export default function MyTasksPage() {
                 slug: m.slug,
                 display_name: m.display_name,
               })));
-              // Default to first member
-              if (data.length > 0) {
-                setSelectedMember(data[0].slug);
-              }
+              if (data.length > 0) setSelectedMember(data[0].slug);
             }
           });
       })
@@ -90,7 +105,6 @@ export default function MyTasksPage() {
 
   const loadTasks = useCallback(() => {
     if (!selectedMember) {
-      // Load all standalone tasks
       fetch("/api/pm/tasks/my")
         .then((r) => r.json())
         .then((data) => { if (Array.isArray(data)) setTasks(data); })
@@ -116,13 +130,13 @@ export default function MyTasksPage() {
     return true;
   });
 
-  // Group by project — separate personal project tasks from regular project tasks
+  // Group by project for list view — personal + standalone first, then by project
   const standalone = filteredTasks.filter((t) => !t.project_id);
   const personalProjectTasks = filteredTasks.filter((t) => t.project_id === personalProjectId && personalProjectId);
   const byProject = new Map<string, { name: string; tasks: MyTask[] }>();
   for (const t of filteredTasks) {
     if (!t.project_id) continue;
-    if (t.project_id === personalProjectId) continue; // handled separately
+    if (t.project_id === personalProjectId) continue;
     if (!byProject.has(t.project_id)) {
       byProject.set(t.project_id, { name: t.project_name || "Unknown Project", tasks: [] });
     }
@@ -179,20 +193,20 @@ export default function MyTasksPage() {
     }
   };
 
-  const memberName = (slug: string) => members.find((m) => m.slug === slug)?.display_name || slug;
-
+  const memberMap = Object.fromEntries(members.map((m) => [m.slug, m.display_name]));
+  const memberName = (slug: string) => memberMap[slug] || slug;
   const isOverdue = (t: MyTask) => t.due_date && t.status !== "complete" && new Date(t.due_date) < new Date();
-
   const completedSubtasks = (t: MyTask) => (t.subtasks || []).filter((s) => s.done).length;
   const totalSubtasks = (t: MyTask) => (t.subtasks || []).length;
 
   function TaskRow({ task }: { task: MyTask }) {
     return (
       <div
-        className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-pm-bg/50 group border border-transparent hover:border-pm-border/50 transition-colors cursor-pointer"
+        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-pm-bg/50 group border transition-colors cursor-pointer ${
+          isOverdue(task) ? "border-red-500/20 bg-red-500/5" : "border-transparent hover:border-pm-border/50"
+        }`}
         onClick={() => setSelectedTask(task)}
       >
-        {/* Quick complete toggle */}
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -210,7 +224,6 @@ export default function MyTasksPage() {
             </svg>
           )}
         </button>
-
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className={`text-sm ${task.status === "complete" ? "text-pm-muted line-through" : "text-pm-text"}`}>
@@ -220,26 +233,71 @@ export default function MyTasksPage() {
               <StatusBadge status={task.status} />
             )}
           </div>
-          {totalSubtasks(task) > 0 && (
-            <span className="text-xs text-pm-muted">{completedSubtasks(task)}/{totalSubtasks(task)} subtasks</span>
-          )}
+          <div className="flex items-center gap-2">
+            {task.project_name && <span className="text-xs text-pm-muted">{task.project_name}</span>}
+            {totalSubtasks(task) > 0 && (
+              <span className="text-xs text-pm-muted">{completedSubtasks(task)}/{totalSubtasks(task)} subtasks</span>
+            )}
+          </div>
         </div>
-
         {task.due_date && (
           <span className={`text-xs shrink-0 ${isOverdue(task) ? "text-red-400 font-medium" : "text-pm-muted"}`}>
-            {task.due_date}
+            {isOverdue(task) ? `Overdue: ${task.due_date}` : task.due_date}
           </span>
         )}
       </div>
     );
   }
 
+  // Board view card
+  function BoardCard({ task }: { task: MyTask }) {
+    return (
+      <div
+        onClick={() => setSelectedTask(task)}
+        className={`card cursor-pointer hover:border-pm-muted/50 transition-colors p-3 ${
+          isOverdue(task) ? "border-red-500/30" : ""
+        }`}
+      >
+        <div className="text-sm text-pm-text mb-1">{task.name}</div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {task.project_name && (
+            <span className="text-[10px] bg-pm-accent/10 text-pm-accent px-1.5 py-0.5 rounded">{task.project_name}</span>
+          )}
+          {!task.project_name && !task.project_id && (
+            <span className="text-[10px] bg-pm-muted/10 text-pm-muted px-1.5 py-0.5 rounded">Standalone</span>
+          )}
+          {task.due_date && (
+            <span className={`text-[10px] ${isOverdue(task) ? "text-red-400 font-medium" : "text-pm-muted"}`}>
+              {task.due_date}
+            </span>
+          )}
+          {task.owner && (
+            <span className="text-[10px] text-pm-muted">{memberName(task.owner)}</span>
+          )}
+        </div>
+        {totalSubtasks(task) > 0 && (
+          <div className="mt-1.5">
+            <div className="flex items-center gap-1">
+              <div className="flex-1 h-1 bg-pm-border rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-pm-accent rounded-full"
+                  style={{ width: `${totalSubtasks(task) > 0 ? (completedSubtasks(task) / totalSubtasks(task)) * 100 : 0}%` }}
+                />
+              </div>
+              <span className="text-[10px] text-pm-muted">{completedSubtasks(task)}/{totalSubtasks(task)}</span>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="max-w-6xl mx-auto p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold text-pm-text">My Tasks</h1>
-          <p className="text-pm-muted mt-1">Tasks across all projects and standalone items</p>
+          <p className="text-pm-muted mt-1">Tasks across all projects and personal items</p>
         </div>
         <button
           onClick={() => setShowNewTask(!showNewTask)}
@@ -249,7 +307,7 @@ export default function MyTasksPage() {
         </button>
       </div>
 
-      {/* Filters */}
+      {/* Filters + View toggle */}
       <div className="flex items-center gap-4 mb-6">
         <select
           value={selectedMember}
@@ -263,7 +321,7 @@ export default function MyTasksPage() {
         </select>
 
         <div className="flex items-center gap-1 border border-pm-border rounded-lg p-0.5">
-          {(["active", "all", "completed"] as const).map((f) => (
+          {(["all", "active", "completed"] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -278,7 +336,27 @@ export default function MyTasksPage() {
           ))}
         </div>
 
-        <span className="text-xs text-pm-muted ml-auto">
+        {/* View toggle */}
+        <div className="flex items-center gap-1 border border-pm-border rounded-lg p-0.5 ml-auto">
+          <button
+            onClick={() => setView("list")}
+            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+              view === "list" ? "bg-pm-accent/20 text-pm-accent" : "text-pm-muted hover:text-pm-text"
+            }`}
+          >
+            List
+          </button>
+          <button
+            onClick={() => setView("board")}
+            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+              view === "board" ? "bg-pm-accent/20 text-pm-accent" : "text-pm-muted hover:text-pm-text"
+            }`}
+          >
+            Board
+          </button>
+        </div>
+
+        <span className="text-xs text-pm-muted">
           {filteredTasks.length} task{filteredTasks.length !== 1 ? "s" : ""}
         </span>
       </div>
@@ -382,27 +460,40 @@ export default function MyTasksPage() {
             {filter === "active" ? "All caught up! No active tasks." : "No tasks match the current filter."}
           </p>
         </div>
-      ) : (
-        <div className="space-y-6">
-          {/* Standalone tasks */}
-          {standalone.length > 0 && (
-            <div>
-              <h2 className="text-sm font-medium text-pm-muted mb-2 px-3">Standalone Tasks</h2>
-              <div className="space-y-0.5">
-                {standalone.map((task) => <TaskRow key={task.id} task={task} />)}
+      ) : view === "board" ? (
+        /* ─── Board View ─── */
+        <div className="grid grid-cols-4 gap-4">
+          {BOARD_COLUMNS.map((col) => {
+            const colTasks = filteredTasks.filter((t) => {
+              if (col.status === "not-started") return t.status === "not-started" || t.status === "pending" || t.status === "on-hold";
+              return t.status === col.status;
+            });
+            return (
+              <div key={col.status} className={`rounded-lg border-t-2 ${col.color}`}>
+                <div className="flex items-center justify-between px-3 py-2">
+                  <h3 className="text-xs font-semibold text-pm-muted uppercase tracking-wider">{col.label}</h3>
+                  <span className="text-xs text-pm-muted">{colTasks.length}</span>
+                </div>
+                <div className="space-y-2 px-1 pb-2 min-h-[100px]">
+                  {colTasks.map((t) => <BoardCard key={t.id} task={t} />)}
+                </div>
               </div>
-            </div>
-          )}
-
-          {/* Personal project tasks */}
-          {personalProjectTasks.length > 0 && (
+            );
+          })}
+        </div>
+      ) : (
+        /* ─── List View — grouped by project ─── */
+        <div className="space-y-6">
+          {/* Personal / standalone tasks */}
+          {(standalone.length > 0 || personalProjectTasks.length > 0) && (
             <div>
-              <h2 className="text-sm font-medium text-pm-muted mb-2 px-3 flex items-center gap-2">
-                Personal Project
-                <span className="text-[10px] bg-pm-accent/10 text-pm-accent px-1.5 py-0.5 rounded">Private</span>
+              <h2 className="text-sm font-semibold text-pm-text mb-2 px-3 flex items-center gap-2">
+                Personal
+                <span className="text-[10px] bg-pm-accent/10 text-pm-accent px-1.5 py-0.5 rounded font-normal">Private</span>
               </h2>
               <div className="space-y-0.5">
                 {personalProjectTasks.map((task) => <TaskRow key={task.id} task={task} />)}
+                {standalone.map((task) => <TaskRow key={task.id} task={task} />)}
               </div>
             </div>
           )}
@@ -410,8 +501,8 @@ export default function MyTasksPage() {
           {/* Project-grouped tasks */}
           {[...byProject.entries()].map(([projectId, { name, tasks: projectTasks }]) => (
             <div key={projectId}>
-              <h2 className="text-sm font-medium text-pm-muted mb-2 px-3">
-                <Link href={`/projects/${projectTasks[0]?.slug ? "" : ""}${projectId}`} className="hover:text-pm-accent transition-colors">
+              <h2 className="text-sm font-semibold text-pm-text mb-2 px-3">
+                <Link href={`/projects/${projectId}`} className="hover:text-pm-accent transition-colors">
                   {name}
                 </Link>
               </h2>
@@ -427,7 +518,8 @@ export default function MyTasksPage() {
       {selectedTask && (
         <TaskDetailModal
           task={selectedTask}
-          memberMap={Object.fromEntries(members.map((m) => [m.slug, m.display_name]))}
+          memberMap={memberMap}
+          onDelete={loadTasks}
           onClose={() => { setSelectedTask(null); loadTasks(); }}
         />
       )}

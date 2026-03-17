@@ -1,9 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 import { Modal, Field, Input, Select, Textarea } from "./Modal";
-import { StatusBadge } from "./StatusBadge";
 import type { PMStatus, Subtask, TaskComment, TaskAttachment } from "@/types/pm";
 
 const STATUSES: PMStatus[] = ["not-started", "in-progress", "complete", "blocked", "pending", "on-hold"];
@@ -18,28 +16,45 @@ interface TaskLike {
   due_date: string | null;
   subtasks: Subtask[];
   project_id?: string | null;
+  phase_id?: string | null;
+}
+
+interface PhaseOption {
+  id: string;
+  name: string;
 }
 
 export function TaskDetailModal({
   task,
   memberMap,
   onClose,
+  onDelete,
+  phases,
+  orgId,
 }: {
   task: TaskLike;
   memberMap: Record<string, string>;
   onClose: () => void;
+  onDelete?: () => void;
+  phases?: PhaseOption[];
+  orgId?: string;
 }) {
-  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"details" | "subtasks" | "comments" | "files">("details");
   const [saving, setSaving] = useState(false);
 
-  // Detail form
+  // Detail form — includes owner + notify
   const [form, setForm] = useState({
     name: task.name,
     description: task.description ?? "",
     status: task.status,
     due_date: task.due_date ?? "",
+    owner: task.owner ?? "",
+    phase_id: task.phase_id ?? "",
   });
+  const [notifyAssignee, setNotifyAssignee] = useState(false);
+
+  // Members for owner picker (loaded from memberMap or fetched)
+  const memberEntries = Object.entries(memberMap);
 
   // Subtasks
   const [subtasks, setSubtasks] = useState<Subtask[]>(task.subtasks || []);
@@ -81,24 +96,43 @@ export function TaskDetailModal({
     }
   }, [activeTab, task.id, attachments.length]);
 
-  // Save details
+  // Save details — then close the dialog
   async function saveDetails() {
     setSaving(true);
     try {
+      const payload: Record<string, unknown> = {
+        name: form.name,
+        description: form.description || null,
+        status: form.status,
+        due_date: form.due_date || null,
+        owner: form.owner || null,
+        notify_assignee: notifyAssignee,
+      };
+      if (phases && form.phase_id !== undefined) {
+        payload.phase_id = form.phase_id || null;
+      }
       const res = await fetch(`/api/pm/tasks/${task.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, due_date: form.due_date || null }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({ error: "Unknown error" }));
         throw new Error(data.error);
       }
+      onClose();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to save");
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleDelete() {
+    if (!confirm(`Delete task "${task.name}"?`)) return;
+    await fetch(`/api/pm/tasks/${task.id}`, { method: "DELETE" });
+    if (onDelete) onDelete();
+    onClose();
   }
 
   // Subtask management
@@ -138,7 +172,7 @@ export function TaskDetailModal({
       const res = await fetch(`/api/pm/tasks/${task.id}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ author: "user", body: newComment.trim() }),
+        body: JSON.stringify({ author: form.owner || "user", body: newComment.trim() }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
@@ -170,7 +204,7 @@ export function TaskDetailModal({
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("uploaded_by", "user");
+      formData.append("uploaded_by", form.owner || "user");
       const res = await fetch(`/api/pm/tasks/${task.id}/attachments`, {
         method: "POST",
         body: formData,
@@ -249,6 +283,15 @@ export function TaskDetailModal({
               placeholder="Add details..."
             />
           </Field>
+          {/* Phase picker — only shown when phases are available (project context) */}
+          {phases && phases.length > 0 && (
+            <Field label="Phase">
+              <Select value={form.phase_id} onChange={(e) => setForm((f) => ({ ...f, phase_id: e.target.value }))}>
+                <option value="">— No phase —</option>
+                {phases.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </Select>
+            </Field>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Status">
               <Select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as PMStatus }))}>
@@ -259,13 +302,40 @@ export function TaskDetailModal({
               <Input type="date" value={form.due_date} onChange={(e) => setForm((f) => ({ ...f, due_date: e.target.value }))} />
             </Field>
           </div>
-          <div className="flex justify-end pt-2">
+          <Field label="Owner / Assigned To">
+            <Select value={form.owner} onChange={(e) => setForm((f) => ({ ...f, owner: e.target.value }))}>
+              <option value="">— Unassigned —</option>
+              {memberEntries.map(([slug, name]) => (
+                <option key={slug} value={slug}>{name}</option>
+              ))}
+            </Select>
+          </Field>
+          {/* Email notification toggle */}
+          {form.owner && (
+            <label className="flex items-center gap-2 text-xs text-pm-muted cursor-pointer">
+              <input
+                type="checkbox"
+                checked={notifyAssignee}
+                onChange={(e) => setNotifyAssignee(e.target.checked)}
+                className="rounded border-pm-border"
+              />
+              Email notify owner when saving this task
+            </label>
+          )}
+          <div className="flex items-center justify-between pt-2">
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="text-sm text-red-400 hover:text-red-300"
+            >
+              Delete Task
+            </button>
             <button
               onClick={saveDetails}
               disabled={saving}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
             >
-              {saving ? "Saving..." : "Save Changes"}
+              {saving ? "Saving..." : "Save Task"}
             </button>
           </div>
         </div>
