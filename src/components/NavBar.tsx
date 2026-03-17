@@ -17,12 +17,11 @@ export function NavBar() {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [showMenu, setShowMenu] = useState(false);
 
-  // Hide NavBar on public share pages and login
-  if (pathname.startsWith("/share/")) return null;
-  if (pathname === "/login") return null;
+  const hidden = pathname.startsWith("/share/") || pathname === "/login";
 
   // Fetch user profile on mount
   useEffect(() => {
+    if (hidden) return;
     fetch("/api/pm/auth/profile")
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
@@ -31,7 +30,10 @@ export function NavBar() {
         }
       })
       .catch(() => {});
-  }, []);
+  }, [hidden]);
+
+  // Hide NavBar on public share pages and login
+  if (hidden) return null;
 
   const isAdmin = user?.system_role === "admin";
 
