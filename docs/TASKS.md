@@ -45,6 +45,23 @@
 - [ ] Wire up email service (Resend/SendGrid) for task notifications and user invites
 - [ ] Set up Vercel Cron for daily recurring task generation (/api/pm/series/generate)
 
+## New Features — Planned
+- [ ] CRM system: prospect/client lifecycle, contact management, company info, prospect→client conversion
+  - Company records with name, address, website, phone + primary contact (name, email, phone)
+  - Prospect → Client status workflow
+  - Client detail view with tabs: Info, Forms/Proposals, Projects, Notes
+  - Integrates with existing project system (clients who convert get project capabilities)
+- [ ] Proposal/quotation builder: template-based document generation with AI formatting
+  - Templates (starting with Statement of Work) with fixed boilerplate + variable fields
+  - Form UI to capture variable parts of each template
+  - AI transforms template + form data + client info into formatted quotation
+  - Email sending to client contacts
+  - File management: all generated proposals saved and browsable per client
+- [ ] Notes system: client notes with file attachments
+  - Personal and shared notes per client/prospect
+  - Meeting notes, general notes, file uploads
+  - Viewable from client detail tab
+
 ## Backlog
 - [ ] AI daily standup generation (`/daily/YYYY-MM-DD.md`)
 - [ ] Risk radar — AI scan of escalating risks
