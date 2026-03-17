@@ -51,6 +51,13 @@
 - [ ] Asana import: connect via Asana API for live import (requires PAT)
 
 ## Completed
+- [x] Dashboard UX fixes: member picker removal, task creation org_id fix, user settings page
+  - Removed member-switcher dropdown from dashboard — auto-detects logged-in user via auth profile
+  - Fixed org_id null constraint error when creating standalone tasks from dashboard (API now accepts org_id param)
+  - Added "Personal Task" indicator in New Task modal when creating without a project
+  - New /settings page for users to update their display name
+  - Settings link added to UserMenu dropdown
+  - PATCH /api/pm/auth/profile endpoint for profile updates
 - [x] Auth system upgrade: 3-tier roles (admin/user/external), real auth user creation, org-scoped access
   - Migration 013: FK fix on pm_user_org_access, role CHECK update, user_id on pm_members
   - Invite flow: uses supabase.auth.admin.createUser() for real auth users + auto-creates pm_members

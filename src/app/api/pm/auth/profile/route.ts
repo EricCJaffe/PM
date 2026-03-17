@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase, createServiceClient } from "@/lib/supabase/server";
 
 // POST: Ensure authenticated user has a profile
@@ -44,4 +44,36 @@ export async function GET() {
     .from("pm_user_org_access").select("*").eq("user_id", user.id);
 
   return NextResponse.json({ ...profile, org_access: orgAccess ?? [] });
+}
+
+// PATCH: Update current user's profile (display_name)
+export async function PATCH(request: NextRequest) {
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
+  const body = await request.json();
+  const updates: Record<string, unknown> = {};
+  if (typeof body.display_name === "string" && body.display_name.trim()) {
+    updates.display_name = body.display_name.trim();
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
+  }
+
+  const service = createServiceClient();
+  const { data, error } = await service
+    .from("pm_user_profiles")
+    .update(updates)
+    .eq("id", user.id)
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Also update auth user metadata so it stays in sync
+  await supabase.auth.updateUser({ data: { display_name: updates.display_name } });
+
+  return NextResponse.json(data);
 }
