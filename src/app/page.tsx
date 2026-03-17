@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { StatusBadge } from "@/components/StatusBadge";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
+import { Modal, Field, Input, Select, Textarea } from "@/components/Modal";
 import type { PMStatus, Subtask } from "@/types/pm";
 
 interface DashTask {
@@ -291,10 +292,10 @@ export default function HomePage() {
             ))}
           </select>
           <button
-            onClick={() => setShowNewTask(!showNewTask)}
+            onClick={() => setShowNewTask(true)}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
           >
-            {showNewTask ? "Cancel" : "+ New Task"}
+            + New Task
           </button>
         </div>
       </div>
@@ -358,64 +359,59 @@ export default function HomePage() {
         </span>
       </div>
 
-      {/* New task form */}
+      {/* New task modal */}
       {showNewTask && (
-        <div className="card mb-6 space-y-3">
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs text-pm-muted block mb-1">Task Name *</label>
-              <input
-                type="text"
+        <Modal title="New Task" onClose={() => setShowNewTask(false)}>
+          <div className="space-y-4">
+            <Field label="Task Name">
+              <Input
                 value={newTaskName}
                 onChange={(e) => setNewTaskName(e.target.value)}
-                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text focus:outline-none focus:border-blue-500"
-                placeholder="Task name..."
+                required
                 autoFocus
               />
-            </div>
-            <div>
-              <label className="text-xs text-pm-muted block mb-1">Description</label>
-              <textarea
+            </Field>
+            <Field label="Description">
+              <Textarea
                 value={newTaskDesc}
                 onChange={(e) => setNewTaskDesc(e.target.value)}
-                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text focus:outline-none focus:border-blue-500 resize-none"
-                rows={2}
                 placeholder="Optional details..."
               />
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="text-xs text-pm-muted block mb-1">Status</label>
-                <select value={newTaskStatus} onChange={(e) => setNewTaskStatus(e.target.value as PMStatus)} className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text focus:outline-none focus:border-blue-500">
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Status">
+                <Select value={newTaskStatus} onChange={(e) => setNewTaskStatus(e.target.value as PMStatus)}>
                   {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-pm-muted block mb-1">Due Date</label>
-                <input type="date" value={newTaskDue} onChange={(e) => setNewTaskDue(e.target.value)} className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text focus:outline-none focus:border-blue-500" />
-              </div>
-              <div>
-                <label className="text-xs text-pm-muted block mb-1">Owner</label>
-                <select value={newTaskOwner} onChange={(e) => setNewTaskOwner(e.target.value)} className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text focus:outline-none focus:border-blue-500">
-                  <option value="">— Same as selected member —</option>
-                  {members.map((m) => <option key={m.slug} value={m.slug}>{m.display_name}</option>)}
-                </select>
-              </div>
+                </Select>
+              </Field>
+              <Field label="Due Date">
+                <Input type="date" value={newTaskDue} onChange={(e) => setNewTaskDue(e.target.value)} />
+              </Field>
             </div>
-            <div className="flex items-center justify-between">
-              {newTaskOwner && newTaskOwner !== selectedMember && (
-                <label className="flex items-center gap-2 text-xs text-pm-muted cursor-pointer">
-                  <input type="checkbox" checked={newTaskNotify} onChange={(e) => setNewTaskNotify(e.target.checked)} className="rounded border-pm-border" />
-                  Email notify owner
-                </label>
-              )}
-              {(!newTaskOwner || newTaskOwner === selectedMember) && <div />}
-              <button onClick={createTask} disabled={saving || !newTaskName.trim()} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors">
+            <Field label="Owner / Assigned To">
+              <Select value={newTaskOwner} onChange={(e) => setNewTaskOwner(e.target.value)}>
+                <option value="">— Same as selected member —</option>
+                {members.map((m) => <option key={m.slug} value={m.slug}>{m.display_name}</option>)}
+              </Select>
+            </Field>
+            {newTaskOwner && newTaskOwner !== selectedMember && (
+              <label className="flex items-center gap-2 text-xs text-pm-muted cursor-pointer">
+                <input type="checkbox" checked={newTaskNotify} onChange={(e) => setNewTaskNotify(e.target.checked)} className="rounded border-pm-border" />
+                Email notify owner when creating this task
+              </label>
+            )}
+            <div className="flex items-center justify-between pt-2">
+              <span />
+              <button
+                onClick={createTask}
+                disabled={saving || !newTaskName.trim()}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+              >
                 {saving ? "Adding..." : "Add Task"}
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Main content */}

@@ -27,6 +27,7 @@ function TaskModal({
 }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
+  const [notifyAssignee, setNotifyAssignee] = useState(false);
   const [form, setForm] = useState({
     name: task?.name ?? "",
     description: task?.description ?? "",
@@ -43,8 +44,8 @@ function TaskModal({
     const url = task ? `/api/pm/tasks/${task.id}` : "/api/pm/tasks";
     const method = task ? "PATCH" : "POST";
     const payload = task
-      ? { ...form, due_date: form.due_date || null }
-      : { project_id: projectId, phase_id: phaseId, ...form, due_date: form.due_date || null };
+      ? { ...form, due_date: form.due_date || null, owner: form.owner || null, notify_assignee: notifyAssignee }
+      : { project_id: projectId, phase_id: phaseId, ...form, due_date: form.due_date || null, owner: form.owner || null, notify_assignee: notifyAssignee };
     const res = await fetch(url, {
       method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
     });
@@ -75,23 +76,34 @@ function TaskModal({
         <Field label="Description">
           <Textarea value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="Optional details…" />
         </Field>
-        <Field label="Status">
-          <Select value={form.status} onChange={(e) => set("status", e.target.value)}>
-            {TASK_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-          </Select>
-        </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Owner">
-            <OwnerPicker orgId={orgId} value={form.owner} onChange={(v) => set("owner", v)} />
+          <Field label="Status">
+            <Select value={form.status} onChange={(e) => set("status", e.target.value)}>
+              {TASK_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+            </Select>
           </Field>
           <Field label="Due Date">
             <Input type="date" value={form.due_date} onChange={(e) => set("due_date", e.target.value)} />
           </Field>
         </div>
+        <Field label="Owner / Assigned To">
+          <OwnerPicker orgId={orgId} value={form.owner} onChange={(v) => set("owner", v)} />
+        </Field>
+        {form.owner && (
+          <label className="flex items-center gap-2 text-xs text-pm-muted cursor-pointer">
+            <input
+              type="checkbox"
+              checked={notifyAssignee}
+              onChange={(e) => setNotifyAssignee(e.target.checked)}
+              className="rounded border-pm-border"
+            />
+            Email notify owner when {task ? "saving" : "creating"} this task
+          </label>
+        )}
         <div className="flex items-center justify-between pt-2">
           {task ? (
             <button type="button" onClick={handleDelete} className="text-sm text-red-400 hover:text-red-300">
-              Delete task
+              Delete Task
             </button>
           ) : <span />}
           <ModalActions onClose={onClose} saving={saving} label={task ? "Save Changes" : "Add Task"} />
