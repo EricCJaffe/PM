@@ -6,161 +6,9 @@ import { StatusBadge } from "./StatusBadge";
 import { ProgressBar } from "./ProgressBar";
 import { Modal, Field, Input, Select, Textarea, ModalActions } from "./Modal";
 import { OwnerPicker } from "./OwnerPicker";
-import { RecurrencePicker, type RecurrenceConfig } from "./RecurrencePicker";
 import { TaskDetailModal } from "./TaskDetailModal";
 
-const TASK_STATUSES = ["not-started", "in-progress", "complete", "blocked", "pending", "on-hold"] as const;
 const PHASE_STATUSES = ["not-started", "in-progress", "complete", "blocked", "pending", "on-hold"] as const;
-
-// ─── Task Modal ───────────────────────────────────────────────────────────────
-
-function TaskModal({
-  projectId,
-  orgId,
-  phaseId,
-  task,
-  onClose,
-}: {
-  projectId: string;
-  orgId: string;
-  phaseId: string;
-  task?: Task;
-  onClose: () => void;
-}) {
-  const router = useRouter();
-  const [saving, setSaving] = useState(false);
-  const [notifyAssignee, setNotifyAssignee] = useState(false);
-  const [recurrence, setRecurrence] = useState<RecurrenceConfig | null>(null);
-  const [form, setForm] = useState({
-    name: task?.name ?? "",
-    description: task?.description ?? "",
-    status: task?.status ?? "not-started",
-    owner: task?.owner ?? "",
-    due_date: task?.due_date ?? "",
-  });
-
-  function set(field: string, value: string) { setForm((f) => ({ ...f, [field]: value })); }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-
-    try {
-      if (!task && recurrence) {
-        // Create a recurring series
-        const seriesBody: Record<string, unknown> = {
-          project_id: projectId,
-          phase_id: phaseId,
-          name: form.name,
-          description: form.description || null,
-          status_template: form.status,
-          owner: form.owner || null,
-          recurrence_mode: recurrence.recurrence_mode,
-          freq: recurrence.freq,
-          interval: recurrence.interval,
-          by_weekday: recurrence.by_weekday,
-          by_monthday: recurrence.by_monthday,
-          by_setpos: recurrence.by_setpos,
-          dtstart: recurrence.dtstart,
-          until_date: recurrence.until_date,
-          max_count: recurrence.max_count,
-          time_of_day: recurrence.time_of_day,
-          timezone: recurrence.timezone,
-          completion_delay_days: recurrence.completion_delay_days,
-        };
-        const seriesRes = await fetch("/api/pm/series", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(seriesBody),
-        });
-        if (!seriesRes.ok) {
-          const { error } = await seriesRes.json().catch(() => ({ error: "Unknown error" }));
-          alert(`Failed to create series: ${error}`);
-          return;
-        }
-        const seriesData = await seriesRes.json();
-        await fetch("/api/pm/series/generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ series_id: seriesData.id, horizon: 14 }),
-        });
-      } else {
-        // One-time task or editing existing
-        const url = task ? `/api/pm/tasks/${task.id}` : "/api/pm/tasks";
-        const method = task ? "PATCH" : "POST";
-        const payload = task
-          ? { ...form, due_date: form.due_date || null, owner: form.owner || null, notify_assignee: notifyAssignee }
-          : { project_id: projectId, phase_id: phaseId, ...form, due_date: form.due_date || null, owner: form.owner || null, notify_assignee: notifyAssignee };
-        const res = await fetch(url, {
-          method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
-        });
-        if (!res.ok) {
-          const { error } = await res.json().catch(() => ({ error: "Unknown error" }));
-          alert(`Failed to save task: ${error}`);
-          return;
-        }
-      }
-      onClose();
-      router.refresh();
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleDelete() {
-    if (!task) return;
-    if (!confirm(`Delete task "${task.name}"?`)) return;
-    await fetch(`/api/pm/tasks/${task.id}`, { method: "DELETE" });
-    onClose();
-    router.refresh();
-  }
-
-  return (
-    <Modal title={task ? "Edit Task" : "Add Task"} onClose={onClose}>
-      <form onSubmit={handleSubmit}>
-        <Field label="Task Name">
-          <Input value={form.name} onChange={(e) => set("name", e.target.value)} required autoFocus />
-        </Field>
-        <Field label="Description">
-          <Textarea value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="Optional details…" />
-        </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Status">
-            <Select value={form.status} onChange={(e) => set("status", e.target.value)}>
-              {TASK_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-            </Select>
-          </Field>
-          <Field label="Due Date">
-            <Input type="date" value={form.due_date} onChange={(e) => set("due_date", e.target.value)} />
-          </Field>
-        </div>
-        <Field label="Owner / Assigned To">
-          <OwnerPicker orgId={orgId} value={form.owner} onChange={(v) => set("owner", v)} />
-        </Field>
-        {form.owner && (
-          <label className="flex items-center gap-2 text-xs text-pm-muted cursor-pointer">
-            <input
-              type="checkbox"
-              checked={notifyAssignee}
-              onChange={(e) => setNotifyAssignee(e.target.checked)}
-              className="rounded border-pm-border"
-            />
-            Email notify owner when {task ? "saving" : "creating"} this task
-          </label>
-        )}
-        {!task && <RecurrencePicker value={recurrence} onChange={setRecurrence} />}
-        <div className="flex items-center justify-between pt-2">
-          {task ? (
-            <button type="button" onClick={handleDelete} className="text-sm text-red-400 hover:text-red-300">
-              Delete Task
-            </button>
-          ) : <span />}
-          <ModalActions onClose={onClose} saving={saving} label={task ? "Save Changes" : recurrence ? "Create Series" : "Add Task"} />
-        </div>
-      </form>
-    </Modal>
-  );
-}
 
 // ─── Phase Modal ──────────────────────────────────────────────────────────────
 
@@ -359,7 +207,19 @@ function PhaseBoardCard({
       </div>
 
       {editPhase && <PhaseModal projectId={projectId} orgId={orgId} phase={phase} onClose={() => setEditPhase(false)} />}
-      {editTask === "new" && <TaskModal projectId={projectId} orgId={orgId} phaseId={phase.id} onClose={() => setEditTask(null)} />}
+      {editTask === "new" && (
+        <TaskDetailModal
+          task={null}
+          memberMap={memberMap}
+          orgId={orgId}
+          onClose={() => { setEditTask(null); router.refresh(); }}
+          createContext={{
+            project_id: projectId,
+            phase_id: phase.id,
+            org_id: orgId,
+          }}
+        />
+      )}
       {editTask && editTask !== "new" && (
         <TaskDetailModal
           task={editTask}

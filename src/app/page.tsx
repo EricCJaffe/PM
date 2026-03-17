@@ -4,8 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { StatusBadge } from "@/components/StatusBadge";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
-import { Modal, Field, Input, Select, Textarea } from "@/components/Modal";
-import { RecurrencePicker, type RecurrenceConfig } from "@/components/RecurrencePicker";
 import type { PMStatus, Subtask } from "@/types/pm";
 
 interface DashTask {
@@ -31,7 +29,6 @@ interface MemberOption {
   display_name: string;
 }
 
-const STATUSES: PMStatus[] = ["not-started", "in-progress", "complete", "blocked", "pending", "on-hold"];
 const BOARD_COLUMNS: { status: PMStatus; label: string; color: string }[] = [
   { status: "not-started", label: "To Do", color: "border-pm-muted/30" },
   { status: "in-progress", label: "In Progress", color: "border-yellow-500/40" },
@@ -49,16 +46,8 @@ export default function HomePage() {
   const [selectedTask, setSelectedTask] = useState<DashTask | null>(null);
   const [siteOrgId, setSiteOrgId] = useState<string | null>(null);
 
-  // New task form
+  // New task modal
   const [showNewTask, setShowNewTask] = useState(false);
-  const [newTaskName, setNewTaskName] = useState("");
-  const [newTaskDesc, setNewTaskDesc] = useState("");
-  const [newTaskDue, setNewTaskDue] = useState("");
-  const [newTaskStatus, setNewTaskStatus] = useState<PMStatus>("not-started");
-  const [newTaskOwner, setNewTaskOwner] = useState("");
-  const [newTaskNotify, setNewTaskNotify] = useState(false);
-  const [newTaskRecurrence, setNewTaskRecurrence] = useState<RecurrenceConfig | null>(null);
-  const [saving, setSaving] = useState(false);
 
   // Load members
   useEffect(() => {
@@ -144,83 +133,6 @@ export default function HomePage() {
     setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, status: newStatus } : t));
   };
 
-  const createTask = async () => {
-    if (!newTaskName.trim()) return;
-    setSaving(true);
-    try {
-      const taskOwner = newTaskOwner || selectedMember || null;
-
-      if (newTaskRecurrence) {
-        // Create a recurring task series
-        const seriesBody: Record<string, unknown> = {
-          name: newTaskName,
-          description: newTaskDesc || null,
-          status_template: newTaskStatus,
-          assigned_to: taskOwner,
-          owner: taskOwner,
-          recurrence_mode: newTaskRecurrence.recurrence_mode,
-          freq: newTaskRecurrence.freq,
-          interval: newTaskRecurrence.interval,
-          by_weekday: newTaskRecurrence.by_weekday,
-          by_monthday: newTaskRecurrence.by_monthday,
-          by_setpos: newTaskRecurrence.by_setpos,
-          dtstart: newTaskRecurrence.dtstart,
-          until_date: newTaskRecurrence.until_date,
-          max_count: newTaskRecurrence.max_count,
-          time_of_day: newTaskRecurrence.time_of_day,
-          timezone: newTaskRecurrence.timezone,
-          completion_delay_days: newTaskRecurrence.completion_delay_days,
-        };
-        const seriesRes = await fetch("/api/pm/series", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(seriesBody),
-        });
-        const seriesData = await seriesRes.json();
-        if (seriesData.error) throw new Error(seriesData.error);
-
-        // Generate initial instances
-        await fetch("/api/pm/series/generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ series_id: seriesData.id, horizon: 14 }),
-        });
-      } else {
-        // Create a one-time task
-        const body: Record<string, unknown> = {
-          name: newTaskName,
-          description: newTaskDesc || null,
-          status: newTaskStatus,
-          assigned_to: taskOwner,
-          owner: taskOwner,
-          due_date: newTaskDue || null,
-          notify_assignee: newTaskNotify,
-        };
-        const res = await fetch("/api/pm/tasks", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        const data = await res.json();
-        if (data.error) throw new Error(data.error);
-      }
-
-      // Reload tasks list to pick up new tasks
-      loadTasks();
-      setNewTaskName("");
-      setNewTaskDesc("");
-      setNewTaskDue("");
-      setNewTaskStatus("not-started");
-      setNewTaskOwner("");
-      setNewTaskNotify(false);
-      setNewTaskRecurrence(null);
-      setShowNewTask(false);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to create task");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   // ─── Task Row (list / timeline views) ────────────────────────────────
 
@@ -413,58 +325,16 @@ export default function HomePage() {
 
       {/* New task modal */}
       {showNewTask && (
-        <Modal title="New Task" onClose={() => setShowNewTask(false)}>
-          <div className="space-y-4">
-            <Field label="Task Name">
-              <Input
-                value={newTaskName}
-                onChange={(e) => setNewTaskName(e.target.value)}
-                required
-                autoFocus
-              />
-            </Field>
-            <Field label="Description">
-              <Textarea
-                value={newTaskDesc}
-                onChange={(e) => setNewTaskDesc(e.target.value)}
-                placeholder="Optional details..."
-              />
-            </Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Status">
-                <Select value={newTaskStatus} onChange={(e) => setNewTaskStatus(e.target.value as PMStatus)}>
-                  {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-                </Select>
-              </Field>
-              <Field label="Due Date">
-                <Input type="date" value={newTaskDue} onChange={(e) => setNewTaskDue(e.target.value)} />
-              </Field>
-            </div>
-            <Field label="Owner / Assigned To">
-              <Select value={newTaskOwner} onChange={(e) => setNewTaskOwner(e.target.value)}>
-                <option value="">— Same as selected member —</option>
-                {members.map((m) => <option key={m.slug} value={m.slug}>{m.display_name}</option>)}
-              </Select>
-            </Field>
-            {newTaskOwner && newTaskOwner !== selectedMember && (
-              <label className="flex items-center gap-2 text-xs text-pm-muted cursor-pointer">
-                <input type="checkbox" checked={newTaskNotify} onChange={(e) => setNewTaskNotify(e.target.checked)} className="rounded border-pm-border" />
-                Email notify owner when creating this task
-              </label>
-            )}
-            <RecurrencePicker value={newTaskRecurrence} onChange={setNewTaskRecurrence} />
-            <div className="flex items-center justify-between pt-2">
-              <span />
-              <button
-                onClick={createTask}
-                disabled={saving || !newTaskName.trim()}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
-              >
-                {saving ? "Adding..." : newTaskRecurrence ? "Create Series" : "Add Task"}
-              </button>
-            </div>
-          </div>
-        </Modal>
+        <TaskDetailModal
+          task={null}
+          memberMap={memberMap}
+          onClose={() => { setShowNewTask(false); loadTasks(); }}
+          orgId={siteOrgId ?? undefined}
+          createContext={{
+            org_id: siteOrgId ?? undefined,
+            default_owner: selectedMember || undefined,
+          }}
+        />
       )}
 
       {/* Main content */}
