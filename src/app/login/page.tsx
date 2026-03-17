@@ -14,59 +14,53 @@ export default function LoginPage() {
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") || "/projects";
+  const redirect = searchParams.get("redirect") || "/";
 
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"password" | "magic">("password");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handlePasswordLogin(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setMessage(null);
     setLoading(true);
 
     const supabase = createClient();
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-    if (mode === "signup") {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { display_name: name },
-          emailRedirectTo: `${window.location.origin}/auth/callback?redirect=${redirect}`,
-        },
-      });
-      if (error) {
-        // If user already exists, suggest signing in
-        if (error.message.toLowerCase().includes("already") || error.message.toLowerCase().includes("exists")) {
-          setError("An account with this email already exists. Try signing in instead.");
-        } else {
-          setError(error.message);
-        }
-      } else if (data.user && !data.session) {
-        // User created but needs email confirmation
-        setMessage("Check your email for a confirmation link.");
-      } else if (data.session) {
-        // Auto-confirmed (e.g. email confirmations disabled in Supabase)
-        try { await fetch("/api/pm/auth/profile", { method: "POST" }); } catch {}
-        router.push(redirect);
-        router.refresh();
-      }
+    if (error) {
+      setError(error.message);
     } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        setError(error.message);
-      } else {
-        // Ensure profile exists — don't block login if this fails
-        try { await fetch("/api/pm/auth/profile", { method: "POST" }); } catch {}
-        router.push(redirect);
-        router.refresh();
-      }
+      try { await fetch("/api/pm/auth/profile", { method: "POST" }); } catch {}
+      router.push(redirect);
+      router.refresh();
+    }
+    setLoading(false);
+  }
+
+  async function handleMagicLink(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email) { setError("Enter your email first."); return; }
+    setError(null);
+    setMessage(null);
+    setLoading(true);
+
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback?redirect=${redirect}`,
+      },
+    });
+
+    if (error) {
+      setError(error.message);
+    } else {
+      setMessage("Check your email for a login link.");
     }
     setLoading(false);
   }
@@ -82,73 +76,60 @@ function LoginForm() {
         <div className="card">
           <div className="flex mb-6 border-b border-pm-border">
             <button
-              onClick={() => { setMode("login"); setError(null); setMessage(null); }}
+              onClick={() => { setMode("password"); setError(null); setMessage(null); }}
               className={`flex-1 pb-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-                mode === "login" ? "border-pm-accent text-pm-accent" : "border-transparent text-pm-muted"
+                mode === "password" ? "border-pm-accent text-pm-accent" : "border-transparent text-pm-muted"
               }`}
             >
-              Sign In
+              Password
             </button>
             <button
-              onClick={() => { setMode("signup"); setError(null); setMessage(null); }}
+              onClick={() => { setMode("magic"); setError(null); setMessage(null); }}
               className={`flex-1 pb-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-                mode === "signup" ? "border-pm-accent text-pm-accent" : "border-transparent text-pm-muted"
+                mode === "magic" ? "border-pm-accent text-pm-accent" : "border-transparent text-pm-muted"
               }`}
             >
-              Sign Up
+              Magic Link
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {mode === "signup" && (
+          {mode === "password" ? (
+            <form onSubmit={handlePasswordLogin} className="space-y-4">
               <div>
-                <label className="block text-sm text-pm-muted mb-1">Full Name</label>
+                <label className="block text-sm text-pm-muted mb-1">Email</label>
                 <input
-                  type="text"
+                  type="email"
                   required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text text-sm focus:outline-none focus:border-pm-accent"
-                  placeholder="Your name"
+                  placeholder="you@company.com"
                 />
               </div>
-            )}
-            <div>
-              <label className="block text-sm text-pm-muted mb-1">Email</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text text-sm focus:outline-none focus:border-pm-accent"
-                placeholder="you@company.com"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-pm-muted mb-1">Password</label>
-              <input
-                type="password"
-                required
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text text-sm focus:outline-none focus:border-pm-accent"
-                placeholder="Min 6 characters"
-              />
-            </div>
+              <div>
+                <label className="block text-sm text-pm-muted mb-1">Password</label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text text-sm focus:outline-none focus:border-pm-accent"
+                  placeholder="Your password"
+                />
+              </div>
 
-            {error && <p className="text-sm text-pm-blocked">{error}</p>}
-            {message && <p className="text-sm text-pm-complete">{message}</p>}
+              {error && <p className="text-sm text-pm-blocked">{error}</p>}
+              {message && <p className="text-sm text-pm-complete">{message}</p>}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 bg-pm-accent hover:bg-pm-accent-hover disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              {loading ? "Please wait…" : mode === "login" ? "Sign In" : "Create Account"}
-            </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-2.5 bg-pm-accent hover:bg-pm-accent-hover disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                {loading ? "Signing in..." : "Sign In"}
+              </button>
 
-            {mode === "login" && (
               <button
                 type="button"
                 onClick={async () => {
@@ -165,9 +146,42 @@ function LoginForm() {
               >
                 Forgot password?
               </button>
-            )}
-          </form>
+            </form>
+          ) : (
+            <form onSubmit={handleMagicLink} className="space-y-4">
+              <div>
+                <label className="block text-sm text-pm-muted mb-1">Email</label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text text-sm focus:outline-none focus:border-pm-accent"
+                  placeholder="you@company.com"
+                />
+              </div>
+
+              {error && <p className="text-sm text-pm-blocked">{error}</p>}
+              {message && <p className="text-sm text-pm-complete">{message}</p>}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-2.5 bg-pm-accent hover:bg-pm-accent-hover disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                {loading ? "Sending..." : "Send Magic Link"}
+              </button>
+
+              <p className="text-xs text-pm-muted text-center">
+                We&apos;ll email you a link to sign in — no password needed.
+              </p>
+            </form>
+          )}
         </div>
+
+        <p className="text-xs text-pm-muted text-center mt-4">
+          Contact your administrator if you need an account.
+        </p>
       </div>
     </div>
   );

@@ -15,6 +15,23 @@
 | `GITHUB_TOKEN` | `.env.local` | GitHub PAT for vault export (**server only**) |
 | `GITHUB_VAULT_REPO` | `.env.local` | Target repo for vault export (e.g. `EricCJaffe/businessos-vault`) |
 
+## Supabase Auth — Callback URLs
+
+The Supabase project must have the PM site's URL(s) listed in the **Redirect URLs** under
+Dashboard → Authentication → URL Configuration. Add these entries:
+
+| URL | Purpose |
+|---|---|
+| `http://localhost:3000/auth/callback` | Local development |
+| `https://<your-vercel-domain>/auth/callback` | Production deployment |
+
+If this Supabase project is shared with another site, both sites' callback URLs must be listed.
+
+**To configure:**
+1. Go to your Supabase Dashboard → Authentication → URL Configuration
+2. Under "Redirect URLs", add the URLs above
+3. Set "Site URL" to your primary production URL
+
 ## Email (Resend)
 - Sends from: `admin@foundationstoneadvisors.com`
 - Used for: task assignment notifications, user invites
