@@ -344,3 +344,84 @@ ON CONFLICT (slug) DO UPDATE SET
   name = EXCLUDED.name,
   description = EXCLUDED.description,
   phases = EXCLUDED.phases;
+
+-- ═══════════════════════════════════════════════════════════════════════
+-- 012: Recurring Tasks — series, instances, exceptions
+-- ═══════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS pm_task_series (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES pm_projects(id) ON DELETE CASCADE,
+  phase_id UUID REFERENCES pm_phases(id) ON DELETE SET NULL,
+  org_id UUID REFERENCES pm_organizations(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT,
+  owner TEXT,
+  assigned_to TEXT,
+  status_template TEXT NOT NULL DEFAULT 'not-started'
+    CHECK (status_template IN ('not-started','in-progress','complete','blocked','pending','on-hold')),
+  subtasks_template JSONB DEFAULT '[]',
+  recurrence_mode TEXT NOT NULL DEFAULT 'fixed'
+    CHECK (recurrence_mode IN ('fixed', 'completion')),
+  freq TEXT NOT NULL CHECK (freq IN ('daily', 'weekly', 'monthly', 'yearly')),
+  "interval" INT NOT NULL DEFAULT 1 CHECK ("interval" >= 1),
+  by_weekday INT[] DEFAULT '{}',
+  by_monthday INT[] DEFAULT '{}',
+  by_setpos INT,
+  dtstart DATE NOT NULL DEFAULT CURRENT_DATE,
+  until_date DATE,
+  max_count INT,
+  time_of_day TIME,
+  timezone TEXT NOT NULL DEFAULT 'America/New_York',
+  completion_delay_days INT DEFAULT 1,
+  is_paused BOOLEAN NOT NULL DEFAULT false,
+  paused_at TIMESTAMPTZ,
+  next_occurrence DATE,
+  last_generated_date DATE,
+  generated_count INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS pm_series_exceptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  series_id UUID NOT NULL REFERENCES pm_task_series(id) ON DELETE CASCADE,
+  exception_date DATE NOT NULL,
+  exception_type TEXT NOT NULL CHECK (exception_type IN ('skip', 'reschedule')),
+  reschedule_to DATE,
+  reason TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(series_id, exception_date)
+);
+
+ALTER TABLE pm_tasks ADD COLUMN IF NOT EXISTS series_id UUID REFERENCES pm_task_series(id) ON DELETE SET NULL;
+ALTER TABLE pm_tasks ADD COLUMN IF NOT EXISTS series_occurrence_date DATE;
+ALTER TABLE pm_tasks ADD COLUMN IF NOT EXISTS is_exception BOOLEAN DEFAULT false;
+ALTER TABLE pm_tasks ADD COLUMN IF NOT EXISTS original_date DATE;
+
+CREATE INDEX IF NOT EXISTS idx_pm_task_series_project ON pm_task_series(project_id);
+CREATE INDEX IF NOT EXISTS idx_pm_task_series_next ON pm_task_series(next_occurrence) WHERE NOT is_paused;
+CREATE INDEX IF NOT EXISTS idx_pm_task_series_org ON pm_task_series(org_id);
+CREATE INDEX IF NOT EXISTS idx_pm_tasks_series ON pm_tasks(series_id);
+CREATE INDEX IF NOT EXISTS idx_pm_tasks_occurrence_date ON pm_tasks(series_id, series_occurrence_date);
+CREATE INDEX IF NOT EXISTS idx_pm_series_exceptions_series ON pm_series_exceptions(series_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pm_tasks_series_date_unique
+  ON pm_tasks(series_id, series_occurrence_date)
+  WHERE series_id IS NOT NULL AND series_occurrence_date IS NOT NULL;
+
+CREATE OR REPLACE TRIGGER pm_task_series_updated_at
+  BEFORE UPDATE ON pm_task_series
+  FOR EACH ROW EXECUTE FUNCTION pm_set_updated_at();
+
+DO $$ BEGIN
+  ALTER TABLE pm_task_series ADD CONSTRAINT chk_series_end_condition
+    CHECK (NOT (until_date IS NOT NULL AND max_count IS NOT NULL));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE pm_task_series ADD CONSTRAINT chk_completion_delay
+    CHECK (recurrence_mode != 'completion' OR completion_delay_days IS NOT NULL);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;

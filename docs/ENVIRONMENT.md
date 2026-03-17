@@ -11,10 +11,16 @@
 ## Optional
 | Variable | Where | Purpose |
 |---|---|---|
+| `RESEND_API_KEY` | `.env.local` / Vercel | Resend API key for email notifications (**server only**) |
 | `GITHUB_TOKEN` | `.env.local` | GitHub PAT for vault export (**server only**) |
 | `GITHUB_VAULT_REPO` | `.env.local` | Target repo for vault export (e.g. `EricCJaffe/businessos-vault`) |
 
+## Email (Resend)
+- Sends from: `admin@foundationstoneadvisors.com`
+- Used for: task assignment notifications, user invites
+- Gracefully degrades — if `RESEND_API_KEY` is not set, emails are skipped with a console log
+
 ## Security
-- Never put `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`, or `GITHUB_TOKEN` in `NEXT_PUBLIC_*` variables
+- Never put `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`, `RESEND_API_KEY`, or `GITHUB_TOKEN` in `NEXT_PUBLIC_*` variables
 - `.env.local` is in `.gitignore` — never commit it
 - See `.env.local.example` for the template

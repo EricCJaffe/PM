@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ProgressBar } from "@/components/ProgressBar";
 import type { ProjectStatus } from "@/types/pm";
@@ -94,7 +94,6 @@ function ProjectsPageInner() {
 /* ─── Projects Tab ──────────────────────────────────────── */
 
 function ProjectsTab() {
-  const router = useRouter();
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -105,17 +104,6 @@ function ProjectsTab() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
-
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
-    const res = await fetch(`/api/pm/projects/${id}`, { method: "DELETE" });
-    if (res.ok) {
-      setProjects((prev) => prev.filter((p) => p.id !== id));
-    } else {
-      const { error } = await res.json();
-      alert(`Delete failed: ${error}`);
-    }
-  };
 
   const totalTasks = projects.reduce((s, p) => s + p.task_count, 0);
   const completeTasks = projects.reduce((s, p) => s + p.complete_tasks, 0);
@@ -149,53 +137,45 @@ function ProjectsTab() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {projects.map((project) => (
-            <div key={project.id} className="relative group">
-              <Link href={`/projects/${project.slug}`}>
-                <div className="card hover:border-pm-muted/50 transition-colors cursor-pointer">
-                  {project.org_name && (
-                    <div className="text-xs font-medium text-blue-400 mb-2 uppercase tracking-wide">
-                      {project.org_name}
-                    </div>
-                  )}
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h3 className="font-semibold text-lg text-pm-text">{project.name}</h3>
-                      <p className="text-sm text-pm-muted mt-0.5">{project.description}</p>
-                    </div>
-                    <StatusBadge status={project.status} />
+            <Link key={project.id} href={`/projects/${project.slug}`}>
+              <div className="card hover:border-pm-muted/50 transition-colors cursor-pointer">
+                {project.org_name && (
+                  <div className="text-xs font-medium text-blue-400 mb-2 uppercase tracking-wide">
+                    {project.org_name}
                   </div>
-                  <ProgressBar value={project.overall_progress} className="mb-3" />
-                  <div className="grid grid-cols-4 gap-2 text-center text-xs">
-                    <div>
-                      <div className="font-medium text-pm-text">{project.phase_count}</div>
-                      <div className="text-pm-muted">Phases</div>
-                    </div>
-                    <div>
-                      <div className="font-medium text-pm-text">{project.task_count}</div>
-                      <div className="text-pm-muted">Tasks</div>
-                    </div>
-                    <div>
-                      <div className="font-medium text-pm-complete">{project.complete_tasks}</div>
-                      <div className="text-pm-muted">Done</div>
-                    </div>
-                    <div>
-                      <div className="font-medium text-pm-blocked">{project.blocked_tasks}</div>
-                      <div className="text-pm-muted">Blocked</div>
-                    </div>
+                )}
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <h3 className="font-semibold text-lg text-pm-text">{project.name}</h3>
+                    <p className="text-sm text-pm-muted mt-0.5">{project.description}</p>
                   </div>
-                  <div className="flex justify-between items-center mt-3 pt-3 border-t border-pm-border text-xs text-pm-muted">
-                    <span>Owner: {project.owner || "Unassigned"}</span>
-                    <span>{project.overall_progress}% complete</span>
+                  <StatusBadge status={project.status} />
+                </div>
+                <ProgressBar value={project.overall_progress} className="mb-3" />
+                <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                  <div>
+                    <div className="font-medium text-pm-text">{project.phase_count}</div>
+                    <div className="text-pm-muted">Phases</div>
+                  </div>
+                  <div>
+                    <div className="font-medium text-pm-text">{project.task_count}</div>
+                    <div className="text-pm-muted">Tasks</div>
+                  </div>
+                  <div>
+                    <div className="font-medium text-pm-complete">{project.complete_tasks}</div>
+                    <div className="text-pm-muted">Done</div>
+                  </div>
+                  <div>
+                    <div className="font-medium text-pm-blocked">{project.blocked_tasks}</div>
+                    <div className="text-pm-muted">Blocked</div>
                   </div>
                 </div>
-              </Link>
-              <button
-                onClick={() => handleDelete(project.id, project.name)}
-                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-red-600 hover:bg-red-700 text-white text-xs px-2 py-1 rounded z-10"
-              >
-                Delete
-              </button>
-            </div>
+                <div className="flex justify-between items-center mt-3 pt-3 border-t border-pm-border text-xs text-pm-muted">
+                  <span>Owner: {project.owner || "Unassigned"}</span>
+                  <span>{project.overall_progress}% complete</span>
+                </div>
+              </div>
+            </Link>
           ))}
         </div>
       )}
@@ -213,8 +193,10 @@ function TemplatesTab() {
   // Form state
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", slug: "", description: "" });
+  const [phases, setPhases] = useState<TemplatePhase[]>([]);
 
   // Delete confirmation
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -239,14 +221,85 @@ function TemplatesTab() {
 
   const resetForm = () => {
     setForm({ name: "", slug: "", description: "" });
+    setPhases([]);
     setEditingId(null);
     setShowForm(false);
   };
 
   const startEdit = (t: Template) => {
     setForm({ name: t.name, slug: t.slug, description: t.description || "" });
+    setPhases(t.phases || []);
     setEditingId(t.id);
     setShowForm(true);
+  };
+
+  const generateWithAI = async () => {
+    if (!form.name) { alert("Enter a template name first"); return; }
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/pm/templates/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: form.name, description: form.description }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setPhases(data.phases || []);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to generate template");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  // Manual phase management
+  const addPhase = () => {
+    const order = phases.length + 1;
+    setPhases([...phases, { order, slug: "", name: "", group: "", tasks: [] }]);
+  };
+
+  const updatePhase = (idx: number, field: string, value: string) => {
+    setPhases((prev) => prev.map((p, i) => {
+      if (i !== idx) return p;
+      const updated = { ...p, [field]: value };
+      if (field === "name") {
+        updated.slug = value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      }
+      return updated;
+    }));
+  };
+
+  const removePhase = (idx: number) => {
+    setPhases((prev) => prev.filter((_, i) => i !== idx).map((p, i) => ({ ...p, order: i + 1 })));
+  };
+
+  const addTask = (phaseIdx: number) => {
+    setPhases((prev) => prev.map((p, i) => {
+      if (i !== phaseIdx) return p;
+      return { ...p, tasks: [...(p.tasks || []), { slug: "", name: "", description: "" }] };
+    }));
+  };
+
+  const updateTask = (phaseIdx: number, taskIdx: number, field: string, value: string) => {
+    setPhases((prev) => prev.map((p, i) => {
+      if (i !== phaseIdx) return p;
+      const tasks = (p.tasks || []).map((t, j) => {
+        if (j !== taskIdx) return t;
+        const updated = { ...t, [field]: value };
+        if (field === "name") {
+          updated.slug = value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        }
+        return updated;
+      });
+      return { ...p, tasks };
+    }));
+  };
+
+  const removeTask = (phaseIdx: number, taskIdx: number) => {
+    setPhases((prev) => prev.map((p, i) => {
+      if (i !== phaseIdx) return p;
+      return { ...p, tasks: (p.tasks || []).filter((_, j) => j !== taskIdx) };
+    }));
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -256,8 +309,8 @@ function TemplatesTab() {
     try {
       const method = editingId ? "PUT" : "POST";
       const body = editingId
-        ? { id: editingId, name: form.name, description: form.description }
-        : { ...form, phases: [] };
+        ? { id: editingId, name: form.name, description: form.description, phases }
+        : { ...form, phases };
 
       const res = await fetch("/api/pm/templates", {
         method,
@@ -300,6 +353,8 @@ function TemplatesTab() {
   const taskCount = (t: Template) =>
     (t.phases ?? []).reduce((sum, p) => sum + (p.tasks?.length ?? 0), 0);
 
+  const inputCls = "w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text text-sm focus:outline-none focus:border-blue-500";
+
   return (
     <>
       <div className="flex items-center justify-end mb-6">
@@ -317,30 +372,130 @@ function TemplatesTab() {
           <div className="text-sm font-semibold text-pm-text">
             {editingId ? "Edit Template" : "New Template"}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-pm-muted mb-1">Template Name *</label>
-              <input
-                type="text"
-                required
-                value={form.name}
-                onChange={(e) => editingId ? setForm((f) => ({ ...f, name: e.target.value })) : updateSlug(e.target.value)}
-                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
-                placeholder="e.g. Church Plant Launch"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-pm-muted mb-1">Description</label>
-              <textarea
-                value={form.description}
-                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                rows={2}
-                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
-                placeholder="What this template is for..."
-              />
-            </div>
+
+          {/* Name + Description */}
+          <div>
+            <label className="block text-sm font-medium text-pm-muted mb-1">Template Name *</label>
+            <input
+              type="text"
+              required
+              value={form.name}
+              onChange={(e) => editingId ? setForm((f) => ({ ...f, name: e.target.value })) : updateSlug(e.target.value)}
+              className={inputCls}
+              placeholder="e.g. Church Plant Launch"
+            />
           </div>
-          <div className="flex gap-2">
+          <div>
+            <label className="block text-sm font-medium text-pm-muted mb-1">Description</label>
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              rows={2}
+              className={inputCls}
+              placeholder="What this template is for..."
+            />
+          </div>
+
+          {/* AI Generate button */}
+          <div className="flex items-center gap-3 pt-1">
+            <button
+              type="button"
+              onClick={generateWithAI}
+              disabled={generating || !form.name}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+            >
+              {generating ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                "Generate with AI"
+              )}
+            </button>
+            <span className="text-xs text-pm-muted">or add phases manually below</span>
+          </div>
+
+          {/* Phases builder */}
+          <div className="space-y-4 pt-2">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-pm-muted">Phases & Tasks</label>
+              <button
+                type="button"
+                onClick={addPhase}
+                className="text-xs text-pm-accent hover:text-pm-accent-hover font-medium transition-colors"
+              >
+                + Add Phase
+              </button>
+            </div>
+
+            {phases.length === 0 && (
+              <p className="text-xs text-pm-muted text-center py-4 border border-dashed border-pm-border rounded-lg">
+                No phases yet. Use AI to generate or add manually.
+              </p>
+            )}
+
+            {phases.map((phase, pi) => (
+              <div key={pi} className="border border-pm-border rounded-lg p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-pm-muted font-mono shrink-0">P{String(phase.order).padStart(2, "0")}</span>
+                  <input
+                    type="text"
+                    value={phase.name}
+                    onChange={(e) => updatePhase(pi, "name", e.target.value)}
+                    className="flex-1 bg-pm-bg border border-pm-border rounded px-2 py-1 text-sm text-pm-text focus:outline-none focus:border-blue-500"
+                    placeholder="Phase name"
+                  />
+                  <input
+                    type="text"
+                    value={phase.group || ""}
+                    onChange={(e) => updatePhase(pi, "group", e.target.value)}
+                    className="w-28 bg-pm-bg border border-pm-border rounded px-2 py-1 text-xs text-pm-muted focus:outline-none focus:border-blue-500"
+                    placeholder="Group"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removePhase(pi)}
+                    className="text-red-400 hover:text-red-300 text-xs shrink-0"
+                  >
+                    Remove
+                  </button>
+                </div>
+
+                {/* Tasks */}
+                <div className="ml-6 space-y-1">
+                  {(phase.tasks || []).map((task, ti) => (
+                    <div key={ti} className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-pm-muted/50 shrink-0" />
+                      <input
+                        type="text"
+                        value={task.name}
+                        onChange={(e) => updateTask(pi, ti, "name", e.target.value)}
+                        className="flex-1 bg-pm-bg border border-pm-border rounded px-2 py-1 text-xs text-pm-text focus:outline-none focus:border-blue-500"
+                        placeholder="Task name"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeTask(pi, ti)}
+                        className="text-red-400/60 hover:text-red-400 text-xs shrink-0"
+                      >
+                        x
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => addTask(pi)}
+                    className="text-xs text-pm-muted hover:text-pm-accent ml-4 transition-colors"
+                  >
+                    + Add task
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-2 pt-2">
             <button
               type="submit"
               disabled={saving || !form.name || !form.slug}
@@ -361,7 +516,7 @@ function TemplatesTab() {
       ) : templates.length === 0 ? (
         <div className="text-center py-16 text-pm-muted">
           <p className="text-lg mb-2">No templates yet</p>
-          <p className="text-sm">Create your first template or save an existing project as a template.</p>
+          <p className="text-sm">Create a new template, generate one with AI, or save an existing project as a template.</p>
         </div>
       ) : (
         <div className="space-y-3">

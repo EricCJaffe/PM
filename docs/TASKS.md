@@ -5,10 +5,14 @@
 - [ ] Apply migration 006_org_contact_fields.sql to Supabase
 - [ ] Apply migration 008_site_org_flag.sql to Supabase
 - [ ] Apply migration 009_task_sort_order.sql to Supabase
+- [ ] Apply migration 011_personal_projects_and_notifications.sql to Supabase
+- [ ] Apply migration 012_recurring_tasks.sql to Supabase
 - [ ] Run FSA site-org backfill: `npx tsx scripts/backfill-fsa-site-org.ts`
 - [ ] Run Reverb Church backfill: `npx tsx scripts/backfill-reverb-church.ts`
 - [ ] End-to-end test: full auth flow (signup → confirm → login → admin)
 - [ ] Test AI SOP scanner with real documents
+- [ ] Wire up email service (Resend/SendGrid) for task notifications and user invites
+- [ ] Set up Vercel Cron for daily recurring task generation (/api/pm/series/generate)
 
 ## Backlog
 - [ ] Add RLS policies to all PM tables
@@ -19,8 +23,52 @@
 - [ ] Timeline view (Gantt-style) for phases
 - [ ] Budget vs actuals tracking
 - [ ] Seed Honey Lake Digital and VakPak as sample projects
+- [ ] Asana import: support CSV format in addition to JSON
+- [ ] Asana import: connect via Asana API for live import (requires PAT)
 
 ## Completed
+- [x] Recurring tasks system (series, instances, exceptions)
+  - Database schema: pm_task_series, pm_series_exceptions tables + series columns on pm_tasks
+  - Recurrence engine: daily/weekly/monthly/yearly, every N intervals, specific weekdays, ordinal weekday rules (first Monday, last Friday), day-of-month rules
+  - Two recurrence modes: fixed schedule and completion-based
+  - End conditions: never, until date, after N occurrences
+  - Exception handling: skip or reschedule individual occurrences
+  - Edit scope: this occurrence / this & future / entire series
+  - Series-aware delete: delete single instance or entire series
+  - Completion-based trigger: auto-generates next instance when current is completed
+  - Idempotent generation: unique constraint prevents duplicate instances
+  - RecurrencePicker UI component with quick presets (weekdays, weekly, bi-weekly, monthly, 1st Monday, last Friday)
+  - API routes: /api/pm/series (CRUD), /api/pm/series/generate (instance generation), /api/pm/series/[id]/exceptions
+  - Migration 012_recurring_tasks.sql
+  - Recurring task indicator (recycle icon) on dashboard task rows
+- [x] Unified Add Task dialog to match Edit Task modal style (dashboard + project board)
+- [x] User dashboard, personal projects, email notifications, admin management, Asana import
+  - Dashboard landing page with tasks sorted by due date, overdue highlighting, stats cards
+  - Personal project system: auto-created per-member, hidden from main project list
+  - Email notification toggle on task create/edit (placeholder until email service configured)
+  - Admin user management: simplified 2-tier (admin/user), invite by email, delete users
+  - Asana import groundwork: JSON upload → project/phases/tasks with subtask mapping
+  - Migration 011: is_personal + personal_member_slug on projects, notify_assignee on tasks
+  - Admin link added to NavBar
+  - API routes: /projects/personal, /admin/users/invite, /import/asana
+- [x] My Tasks page + task comments, attachments, and subtasks
+  - Added My Tasks to main nav — cross-project task view with member filter
+  - Standalone tasks (no project) can be created from My Tasks page
+  - TaskDetailModal with 4 tabs: Details, Subtasks, Comments, Files
+  - Task comments with threaded discussion (post/delete)
+  - File attachments uploaded to Supabase Storage (upload/delete)
+  - Subtasks stored as JSONB with inline toggle/add/remove
+  - Migration 010: pm_task_comments, pm_task_attachments tables, nullable project_id, assigned_to column
+  - API routes: /tasks/my, /tasks/[id]/comments, /tasks/[id]/attachments
+  - "Subtasks / Comments / Files" link in project task editor opens detail modal
+- [x] Fix risk creation (silent failures) + owner display names + project delete UX + template builder
+  - Risk modal now shows errors instead of silently closing on failure
+  - Owner fields across board, tasks, and risks show display_name instead of slug
+  - Delete button moved from project cards to project editor with dependency warnings
+  - Templates tab now supports manual phase/task building and AI generation
+  - Save as Template redirects to projects?tab=templates
+  - Added GET /api/pm/projects/[id] for dependency counts
+  - Added POST /api/pm/templates/generate for AI template generation
 - [x] Consolidated projects page with tabbed layout (Projects + Templates tabs)
   - Removed "Templates" and "+ New Project" from top nav bar
   - Templates management embedded as a tab within the projects page

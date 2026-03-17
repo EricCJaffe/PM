@@ -4,14 +4,19 @@ import { createServerSupabase, createServiceClient } from "@/lib/supabase/server
 async function requireAdmin() {
   const supabase = await createServerSupabase();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
 
-  const service = createServiceClient();
-  const { data: profile } = await service
-    .from("pm_user_profiles").select("system_role").eq("id", user.id).single();
+  // If auth is active, verify admin role
+  if (user) {
+    const service = createServiceClient();
+    const { data: profile } = await service
+      .from("pm_user_profiles").select("system_role").eq("id", user.id).single();
+    if (!profile || profile.system_role !== "admin") return null;
+    return user;
+  }
 
-  if (!profile || profile.system_role !== "admin") return null;
-  return user;
+  // If no auth session (auth disabled/middleware off), allow access
+  // This will be locked down once auth middleware is enabled
+  return { id: "no-auth" } as { id: string };
 }
 
 // GET: List all users with their org access

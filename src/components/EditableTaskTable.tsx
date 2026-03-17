@@ -5,6 +5,7 @@ import type { Task, PhaseWithTasks } from "@/types/pm";
 import { StatusBadge } from "./StatusBadge";
 import { Modal, Field, Input, Select, Textarea, ModalActions } from "./Modal";
 import { OwnerPicker } from "./OwnerPicker";
+import { TaskDetailModal } from "./TaskDetailModal";
 import {
   DndContext,
   closestCenter,
@@ -33,26 +34,25 @@ function TaskModal({
   projectId,
   orgId,
   phases,
-  task,
   defaultPhaseId,
   onClose,
 }: {
   projectId: string;
   orgId: string;
   phases: PhaseWithTasks[];
-  task?: Task;
   defaultPhaseId?: string;
   onClose: () => void;
 }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
+  const [notifyAssignee, setNotifyAssignee] = useState(false);
   const [form, setForm] = useState({
-    name: task?.name ?? "",
-    description: task?.description ?? "",
-    status: task?.status ?? "not-started",
-    owner: task?.owner ?? "",
-    due_date: task?.due_date ?? "",
-    phase_id: task?.phase_id ?? defaultPhaseId ?? "",
+    name: "",
+    description: "",
+    status: "not-started",
+    owner: "",
+    due_date: "",
+    phase_id: defaultPhaseId ?? "",
   });
 
   function set(field: string, value: string) { setForm((f) => ({ ...f, [field]: value })); }
@@ -60,12 +60,10 @@ function TaskModal({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    const payload = { ...form, due_date: form.due_date || null, phase_id: form.phase_id || null };
-    const url = task ? `/api/pm/tasks/${task.id}` : "/api/pm/tasks";
-    const method = task ? "PATCH" : "POST";
-    const body = task ? payload : { project_id: projectId, ...payload };
-    const res = await fetch(url, {
-      method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    const payload = { ...form, due_date: form.due_date || null, phase_id: form.phase_id || null, notify_assignee: notifyAssignee };
+    const body = { project_id: projectId, ...payload };
+    const res = await fetch("/api/pm/tasks", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
     });
     setSaving(false);
     if (!res.ok) {
@@ -77,16 +75,8 @@ function TaskModal({
     router.refresh();
   }
 
-  async function handleDelete() {
-    if (!task) return;
-    if (!confirm(`Delete task "${task.name}"?`)) return;
-    await fetch(`/api/pm/tasks/${task.id}`, { method: "DELETE" });
-    onClose();
-    router.refresh();
-  }
-
   return (
-    <Modal title={task ? "Edit Task" : "Add Task"} onClose={onClose}>
+    <Modal title="Add Task" onClose={onClose}>
       <form onSubmit={handleSubmit}>
         <Field label="Task Name">
           <Input value={form.name} onChange={(e) => set("name", e.target.value)} required autoFocus />
@@ -113,11 +103,20 @@ function TaskModal({
         <Field label="Owner">
           <OwnerPicker orgId={orgId} value={form.owner} onChange={(v) => set("owner", v)} />
         </Field>
-        <div className="flex items-center justify-between pt-2">
-          {task ? (
-            <button type="button" onClick={handleDelete} className="text-sm text-red-400 hover:text-red-300">Delete task</button>
-          ) : <span />}
-          <ModalActions onClose={onClose} saving={saving} label={task ? "Save Changes" : "Add Task"} />
+        {/* Email notification toggle */}
+        {form.owner && (
+          <label className="flex items-center gap-2 pt-2 text-xs text-pm-muted cursor-pointer">
+            <input
+              type="checkbox"
+              checked={notifyAssignee}
+              onChange={(e) => setNotifyAssignee(e.target.checked)}
+              className="rounded border-pm-border"
+            />
+            Email notify owner when creating this task
+          </label>
+        )}
+        <div className="flex justify-end pt-2">
+          <ModalActions onClose={onClose} saving={saving} label="Add Task" />
         </div>
       </form>
     </Modal>
@@ -129,9 +128,11 @@ function TaskModal({
 function SortableTaskRow({
   task,
   onEdit,
+  memberMap,
 }: {
   task: Task;
   onEdit: (task: Task) => void;
+  memberMap: Record<string, string>;
 }) {
   const {
     attributes,
@@ -175,7 +176,7 @@ function SortableTaskRow({
       >
         <StatusBadge status={task.status} />
         <span className="text-sm text-pm-text truncate flex-1">{task.name}</span>
-        {task.owner && <span className="text-xs text-pm-muted shrink-0">{task.owner}</span>}
+        {task.owner && <span className="text-xs text-pm-muted shrink-0">{memberMap[task.owner] || task.owner}</span>}
         {task.due_date && <span className="text-xs text-pm-muted shrink-0">{task.due_date}</span>}
       </button>
     </div>
@@ -207,11 +208,13 @@ function PhaseSection({
   tasks,
   onEditTask,
   onAddTask,
+  memberMap,
 }: {
   phase: { id: string; name: string; group: string | null; phase_order: number };
   tasks: Task[];
   onEditTask: (task: Task) => void;
   onAddTask: (phaseId: string) => void;
+  memberMap: Record<string, string>;
 }) {
   const complete = tasks.filter((t) => t.status === "complete").length;
   const total = tasks.length;
@@ -254,7 +257,7 @@ function PhaseSection({
             <div className="px-3 py-2 text-xs text-pm-muted italic">No tasks</div>
           ) : (
             tasks.map((task) => (
-              <SortableTaskRow key={task.id} task={task} onEdit={onEditTask} />
+              <SortableTaskRow key={task.id} task={task} onEdit={onEditTask} memberMap={memberMap} />
             ))
           )}
         </div>
@@ -270,11 +273,13 @@ export function EditableTaskTable({
   phases,
   projectId,
   orgId,
+  memberMap,
 }: {
   tasks: Task[];
   phases: PhaseWithTasks[];
   projectId: string;
   orgId: string;
+  memberMap: Record<string, string>;
 }) {
   const router = useRouter();
   const [modal, setModal] = useState<{ task?: Task; phaseId?: string } | null>(null);
@@ -427,6 +432,7 @@ export function EditableTaskTable({
               tasks={tasksByPhase.get(phase.id) ?? []}
               onEditTask={(task) => setModal({ task })}
               onAddTask={(phaseId) => setModal({ phaseId })}
+              memberMap={memberMap}
             />
           ))}
 
@@ -437,6 +443,7 @@ export function EditableTaskTable({
               tasks={unassigned}
               onEditTask={(task) => setModal({ task })}
               onAddTask={() => setModal({ phaseId: "" })}
+              memberMap={memberMap}
             />
           )}
 
@@ -446,7 +453,7 @@ export function EditableTaskTable({
         </DndContext>
       )}
 
-      {/* Modal */}
+      {/* Modal — Add new task only (simple form with phase picker) */}
       {modal && !modal.task && (
         <TaskModal
           projectId={projectId}
@@ -456,13 +463,16 @@ export function EditableTaskTable({
           onClose={() => setModal(null)}
         />
       )}
+
+      {/* Edit existing task — opens full TaskDetailModal directly */}
       {modal?.task && (
-        <TaskModal
-          projectId={projectId}
-          orgId={orgId}
-          phases={phases}
+        <TaskDetailModal
           task={modal.task}
-          onClose={() => setModal(null)}
+          memberMap={memberMap}
+          phases={phases.map((p) => ({ id: p.id, name: p.name }))}
+          orgId={orgId}
+          onDelete={() => router.refresh()}
+          onClose={() => { setModal(null); router.refresh(); }}
         />
       )}
     </div>

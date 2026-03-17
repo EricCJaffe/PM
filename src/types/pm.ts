@@ -91,6 +91,8 @@ export interface Project {
   target_date: string | null;
   budget: number | null;
   status: ProjectStatus;
+  is_personal: boolean;
+  personal_member_slug: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -112,25 +114,97 @@ export interface Phase {
 
 export interface Task {
   id: string;
-  project_id: string;
+  project_id: string | null;
   phase_id: string | null;
   slug: string;
   name: string;
   description: string | null;
   owner: string | null;
+  assigned_to: string | null;
   status: PMStatus;
   sort_order: number;
   due_date: string | null;
   depends_on: string[];
   risk_id: string | null;
   subtasks: Subtask[];
+  series_id: string | null;
+  series_occurrence_date: string | null;
+  is_exception: boolean;
+  original_date: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// ─── Recurring Task Types ───────────────────────────────────────────
+
+export type RecurrenceMode = "fixed" | "completion";
+export type RecurrenceFreq = "daily" | "weekly" | "monthly" | "yearly";
+
+export interface TaskSeries {
+  id: string;
+  project_id: string | null;
+  phase_id: string | null;
+  org_id: string | null;
+  name: string;
+  description: string | null;
+  owner: string | null;
+  assigned_to: string | null;
+  status_template: PMStatus;
+  subtasks_template: Subtask[];
+  recurrence_mode: RecurrenceMode;
+  freq: RecurrenceFreq;
+  interval: number;
+  by_weekday: number[];
+  by_monthday: number[];
+  by_setpos: number | null;
+  dtstart: string;
+  until_date: string | null;
+  max_count: number | null;
+  time_of_day: string | null;
+  timezone: string;
+  completion_delay_days: number | null;
+  is_paused: boolean;
+  paused_at: string | null;
+  next_occurrence: string | null;
+  last_generated_date: string | null;
+  generated_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SeriesException {
+  id: string;
+  series_id: string;
+  exception_date: string;
+  exception_type: "skip" | "reschedule";
+  reschedule_to: string | null;
+  reason: string | null;
+  created_at: string;
 }
 
 export interface Subtask {
   text: string;
   done: boolean;
+}
+
+export interface TaskComment {
+  id: string;
+  task_id: string;
+  author: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TaskAttachment {
+  id: string;
+  task_id: string;
+  file_name: string;
+  file_size: number;
+  content_type: string | null;
+  storage_path: string;
+  uploaded_by: string | null;
+  created_at: string;
 }
 
 export interface Risk {
