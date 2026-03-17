@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { sendTaskAssignmentEmail } from "@/lib/email";
 
 export async function PATCH(
   request: NextRequest,
@@ -26,6 +27,32 @@ export async function PATCH(
   }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Send email notification on save if notify_assignee is checked
+  if (body.notify_assignee && data?.owner) {
+    const { data: member } = await supabase
+      .from("pm_members")
+      .select("email, display_name")
+      .eq("slug", data.owner)
+      .limit(1)
+      .single();
+
+    if (member?.email) {
+      let projectName: string | null = null;
+      if (data.project_id) {
+        const { data: proj } = await supabase.from("pm_projects").select("name").eq("id", data.project_id).single();
+        projectName = proj?.name || null;
+      }
+      sendTaskAssignmentEmail({
+        to: member.email,
+        taskName: data.name,
+        projectName,
+        dueDate: data.due_date,
+        description: data.description,
+      }).catch((err) => console.error("[Email] Error:", err));
+    }
+  }
+
   return NextResponse.json(data);
 }
 

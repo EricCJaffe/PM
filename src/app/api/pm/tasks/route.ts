@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { sendTaskAssignmentEmail } from "@/lib/email";
 
 function slugify(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
@@ -63,10 +64,34 @@ export async function POST(request: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // TODO: Send email notification to owner/assignee when notify_assignee is true
-  // This will be wired up when the email service (e.g. Resend, SendGrid) is configured
+  // Send email notification to owner/assignee
   if (notify_assignee && (owner || assigned_to)) {
-    console.log(`[Notification] Task "${name}" — email notification requested for ${owner || assigned_to}`);
+    const targetSlug = owner || assigned_to;
+    // Look up member email by slug
+    const { data: member } = await supabase
+      .from("pm_members")
+      .select("email, display_name")
+      .eq("slug", targetSlug)
+      .limit(1)
+      .single();
+
+    if (member?.email) {
+      // Get project name for the email
+      let projectName: string | null = null;
+      if (project_id) {
+        const { data: proj } = await supabase.from("pm_projects").select("name").eq("id", project_id).single();
+        projectName = proj?.name || null;
+      }
+
+      // Fire and forget — don't block the response
+      sendTaskAssignmentEmail({
+        to: member.email,
+        taskName: name,
+        projectName,
+        dueDate: due_date,
+        description,
+      }).catch((err) => console.error("[Email] Error:", err));
+    }
   }
 
   return NextResponse.json(data);

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabase, createServiceClient } from "@/lib/supabase/server";
+import { sendInviteEmail } from "@/lib/email";
 
 async function requireAdmin() {
   const supabase = await createServerSupabase();
@@ -52,9 +53,12 @@ export async function POST(request: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // TODO: Send invite email via email service (Resend, SendGrid, etc.)
-  // When configured, this will send a signup link to the user
-  console.log(`[Invite] User invite created for ${email} with role ${system_role}`);
+  // Send invite email
+  sendInviteEmail({
+    to: email,
+    displayName: display_name || email.split("@")[0],
+    role: system_role === "admin" ? "Admin" : "User",
+  }).catch((err) => console.error("[Email] Invite error:", err));
 
   return NextResponse.json(data);
 }
