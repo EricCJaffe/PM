@@ -12,6 +12,8 @@
 - [ ] Apply migration 012_recurring_tasks.sql to Supabase
 - [ ] Run FSA site-org backfill: `npx tsx scripts/backfill-fsa-site-org.ts`
 - [ ] Run Reverb Church backfill: `npx tsx scripts/backfill-reverb-church.ts`
+- [ ] Disable self-registration in Supabase Dashboard (Project Settings → Authentication → User Signups → toggle OFF)
+- [ ] Run bootstrap SQL script in Supabase SQL Editor (link Eric Jaffe to auth as admin)
 - [ ] End-to-end test: full auth flow (login → admin console → add user → external user scoping)
 - [ ] Test AI SOP scanner with real documents
 - [ ] Wire up email service (Resend/SendGrid) for task notifications and user invites
