@@ -7,16 +7,16 @@ function slugify(s: string) {
 }
 
 export async function POST(request: NextRequest) {
-  const { project_id, phase_id, name, status, owner, assigned_to, due_date, description, notify_assignee } = await request.json();
+  const { project_id, phase_id, name, status, owner, assigned_to, due_date, description, notify_assignee, org_id } = await request.json();
   if (!name) return NextResponse.json({ error: "name is required" }, { status: 400 });
 
   const supabase = createServiceClient();
   const baseSlug = slugify(name);
   let slug = baseSlug;
-  let orgId: string | null = null;
+  let orgId: string | null = org_id ?? null;
 
   if (project_id) {
-    // Project-linked task
+    // Project-linked task — derive org_id from project
     const { data: project, error: projErr } = await supabase
       .from("pm_projects")
       .select("org_id")

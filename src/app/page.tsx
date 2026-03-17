@@ -29,6 +29,12 @@ interface MemberOption {
   display_name: string;
 }
 
+interface UserProfile {
+  display_name: string;
+  email: string;
+  system_role: string;
+}
+
 const BOARD_COLUMNS: { status: PMStatus; label: string; color: string }[] = [
   { status: "not-started", label: "To Do", color: "border-pm-muted/30" },
   { status: "in-progress", label: "In Progress", color: "border-yellow-500/40" },
@@ -39,6 +45,7 @@ const BOARD_COLUMNS: { status: PMStatus; label: string; color: string }[] = [
 export default function HomePage() {
   const [tasks, setTasks] = useState<DashTask[]>([]);
   const [members, setMembers] = useState<MemberOption[]>([]);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [selectedMember, setSelectedMember] = useState("");
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "active" | "completed">("active");
@@ -49,28 +56,38 @@ export default function HomePage() {
   // New task modal
   const [showNewTask, setShowNewTask] = useState(false);
 
-  // Load members
+  // Load current user profile and members
   useEffect(() => {
-    fetch("/api/pm/organizations")
-      .then((r) => r.json())
-      .then((orgs) => {
-        if (!Array.isArray(orgs) || orgs.length === 0) { setLoading(false); return; }
-        setSiteOrgId(orgs[0].id);
-        return fetch(`/api/pm/members/assignable?org_id=${orgs[0].id}`)
-          .then((r) => r.json())
-          .then((data) => {
-            if (Array.isArray(data)) {
-              const m = data.map((d: { slug: string; display_name: string }) => ({
-                slug: d.slug,
-                display_name: d.display_name,
-              }));
-              setMembers(m);
-              if (m.length > 0) setSelectedMember(m[0].slug);
+    Promise.all([
+      fetch("/api/pm/auth/profile").then((r) => r.json()),
+      fetch("/api/pm/organizations").then((r) => r.json()),
+    ]).then(([profile, orgs]) => {
+      if (profile && !profile.error) setCurrentUser(profile);
+      if (!Array.isArray(orgs) || orgs.length === 0) { setLoading(false); return; }
+      setSiteOrgId(orgs[0].id);
+      return fetch(`/api/pm/members/assignable?org_id=${orgs[0].id}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (Array.isArray(data)) {
+            const m = data.map((d: { slug: string; display_name: string }) => ({
+              slug: d.slug,
+              display_name: d.display_name,
+            }));
+            setMembers(m);
+            // Auto-select the logged-in user's member by matching email
+            if (profile && !profile.error) {
+              const emailSlug = profile.email?.split("@")[0]?.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+              const match = m.find((member: MemberOption) =>
+                member.slug === emailSlug ||
+                member.display_name.toLowerCase() === profile.display_name?.toLowerCase()
+              );
+              setSelectedMember(match ? match.slug : m[0]?.slug || "");
+            } else if (m.length > 0) {
+              setSelectedMember(m[0].slug);
             }
-          });
-      })
-      .catch(() => {})
-      .finally(() => {});
+          }
+        });
+    }).catch(() => {}).finally(() => {});
   }, []);
 
   const loadTasks = useCallback(() => {
@@ -242,19 +259,10 @@ export default function HomePage() {
         <div>
           <h1 className="text-3xl font-bold text-pm-text">Dashboard</h1>
           <p className="text-pm-muted mt-1">
-            {selectedMember ? `Welcome back, ${memberName(selectedMember)}` : "Your task overview"}
+            {currentUser ? `Welcome back, ${currentUser.display_name}` : "Your task overview"}
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <select
-            value={selectedMember}
-            onChange={(e) => setSelectedMember(e.target.value)}
-            className="bg-pm-card border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text focus:outline-none focus:border-blue-500"
-          >
-            {members.map((m) => (
-              <option key={m.slug} value={m.slug}>{m.display_name}</option>
-            ))}
-          </select>
           <button
             onClick={() => setShowNewTask(true)}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
