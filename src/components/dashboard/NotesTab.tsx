@@ -45,6 +45,10 @@ export function NotesTab({ org }: { org: Organization }) {
     pinned: false,
   });
 
+  // AI summary state
+  const [summarizing, setSummarizing] = useState(false);
+  const [summary, setSummary] = useState<string | null>(null);
+
   // Attachment state
   const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<Record<string, ClientNoteAttachment[]>>({});
@@ -190,6 +194,26 @@ export function NotesTab({ org }: { org: Organization }) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  const handleSummarize = async () => {
+    setSummarizing(true);
+    setSummary(null);
+    try {
+      const noteIds = filtered.map((n) => n.id);
+      const res = await fetch("/api/pm/notes/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ org_id: org.id, note_ids: noteIds.length < notes.length ? noteIds : undefined }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setSummary(data.summary);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Summarization failed");
+    } finally {
+      setSummarizing(false);
+    }
+  };
+
   if (loading) return <div className="text-pm-muted py-8">Loading notes...</div>;
 
   return (
@@ -199,12 +223,23 @@ export function NotesTab({ org }: { org: Organization }) {
           <h3 className="font-semibold text-pm-text">Notes</h3>
           <p className="text-sm text-pm-muted">{notes.length} note{notes.length !== 1 ? "s" : ""}</p>
         </div>
-        <button
-          onClick={() => showForm ? resetForm() : setShowForm(true)}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
-        >
-          {showForm ? "Cancel" : "+ New Note"}
-        </button>
+        <div className="flex items-center gap-2">
+          {notes.length > 0 && (
+            <button
+              onClick={handleSummarize}
+              disabled={summarizing}
+              className="px-4 py-2 border border-pm-accent text-pm-accent hover:bg-pm-accent hover:text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+            >
+              {summarizing ? "Summarizing..." : "AI Summary"}
+            </button>
+          )}
+          <button
+            onClick={() => showForm ? resetForm() : setShowForm(true)}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            {showForm ? "Cancel" : "+ New Note"}
+          </button>
+        </div>
       </div>
 
       {/* Type filter */}
@@ -234,6 +269,22 @@ export function NotesTab({ org }: { org: Organization }) {
           </button>
         ))}
       </div>
+
+      {/* AI Summary panel */}
+      {summary && (
+        <div className="card border-pm-accent/30">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-pm-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" /></svg>
+              <span className="text-sm font-semibold text-pm-accent">AI Summary</span>
+            </div>
+            <button onClick={() => setSummary(null)} className="text-pm-muted hover:text-pm-text text-xs">&times; Close</button>
+          </div>
+          <div className="prose prose-sm prose-invert max-w-none text-pm-text text-sm whitespace-pre-wrap leading-relaxed">
+            {summary}
+          </div>
+        </div>
+      )}
 
       {/* Note form */}
       {showForm && (

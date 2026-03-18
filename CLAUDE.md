@@ -167,6 +167,7 @@ vault/[org-slug]/[project-slug]/
 | `/api/pm/notes` | GET, POST | List / create client notes |
 | `/api/pm/notes/[id]` | PATCH, DELETE | Update / delete note |
 | `/api/pm/notes/[id]/attachments` | GET, POST, DELETE | Note file attachments |
+| `/api/pm/notes/summarize` | POST | AI-summarize client notes (GPT-4o) |
 | `/api/pm/kb` | GET, POST | List / create KB articles |
 | `/api/pm/kb/[id]` | GET, PATCH, DELETE | View / update / delete KB article |
 
