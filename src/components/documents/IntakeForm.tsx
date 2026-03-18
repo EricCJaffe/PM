@@ -13,15 +13,29 @@ interface IntakeFormProps {
   orgId?: string;
 }
 
+interface UserProfile {
+  display_name: string;
+  job_title?: string;
+}
+
 export function IntakeForm({ fields, values, onChange, onAiAssist, aiLoading }: IntakeFormProps) {
   const [orgs, setOrgs] = useState<Organization[]>([]);
   const [siteMembers, setSiteMembers] = useState<Member[]>([]);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   // Fetch organizations
   useEffect(() => {
     fetch("/api/pm/organizations")
       .then((r) => r.json())
       .then((d) => { if (Array.isArray(d)) setOrgs(d); })
+      .catch(() => {});
+  }, []);
+
+  // Fetch current user profile (for provider_title auto-fill)
+  useEffect(() => {
+    fetch("/api/pm/auth/profile")
+      .then((r) => r.json())
+      .then((d) => { if (d && !d.error) setUserProfile(d); })
       .catch(() => {});
   }, []);
 
@@ -93,7 +107,18 @@ export function IntakeForm({ fields, values, onChange, onAiAssist, aiLoading }: 
                 <FieldInput
                   field={field}
                   value={values[field.field_key] ?? field.default_value ?? ""}
-                  onChange={(v) => setValue(field.field_key, v)}
+                  onChange={(v) => {
+                    if (field.field_key === "prepared_by") {
+                      // Auto-fill provider_title from user profile when selecting yourself
+                      const updates: Record<string, string> = { prepared_by: v };
+                      if (userProfile && v === userProfile.display_name && userProfile.job_title) {
+                        updates.provider_title = userProfile.job_title;
+                      }
+                      setValues(updates);
+                    } else {
+                      setValue(field.field_key, v);
+                    }
+                  }}
                   onAiAssist={onAiAssist ? () => onAiAssist(field.field_key) : undefined}
                   aiLoading={aiLoading === field.field_key}
                   siteMembers={field.field_key === "prepared_by" ? siteMembers : undefined}

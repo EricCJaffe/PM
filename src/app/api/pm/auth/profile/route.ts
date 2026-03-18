@@ -57,6 +57,12 @@ export async function PATCH(request: NextRequest) {
   if (typeof body.display_name === "string" && body.display_name.trim()) {
     updates.display_name = body.display_name.trim();
   }
+  if (typeof body.job_title === "string") {
+    updates.job_title = body.job_title.trim();
+  }
+  if (typeof body.phone === "string") {
+    updates.phone = body.phone.trim();
+  }
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });

@@ -35,9 +35,19 @@ export function DocumentPreview({ compiledHtml, documentTitle }: DocumentPreview
   }
 
   function handlePrintPdf() {
-    const iframe = iframeRef.current;
-    if (iframe?.contentWindow) {
-      iframe.contentWindow.print();
+    // Open a new window with ONLY the document content to avoid printing the app shell
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      printWindow.document.write(compiledHtml);
+      printWindow.document.close();
+      // Wait for content to render before triggering print
+      printWindow.onload = () => {
+        printWindow.print();
+      };
+      // Fallback for browsers that don't fire onload for document.write
+      setTimeout(() => {
+        printWindow.print();
+      }, 500);
     }
     setMenuOpen(false);
   }
