@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getOpenAI } from "@/lib/openai";
+import { assembleKBContext } from "@/lib/kb";
 
 // POST /api/pm/proposals/[id]/generate — AI-generate proposal content
 export async function POST(
@@ -41,6 +42,7 @@ export async function POST(
     }
 
     const openai = getOpenAI();
+    const kbContext = await assembleKBContext(proposal.org_id);
 
     const systemPrompt = `You are a professional business document generator. Generate a polished, professional proposal document in markdown format.
 
@@ -55,7 +57,7 @@ Client information:
 
 Replace all template variables ({{variable_name}}) with the provided form data values. If a variable has no corresponding form data, use a reasonable placeholder like "[TBD]".
 
-Output clean, professional markdown. Do not include any commentary or explanations outside the document itself.`;
+Output clean, professional markdown. Do not include any commentary or explanations outside the document itself.${kbContext}`;
 
     const formDataStr = Object.entries(proposal.form_data || {})
       .map(([key, value]) => `${key}: ${value}`)

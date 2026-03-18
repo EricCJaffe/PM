@@ -11,6 +11,7 @@ import { ImplementationTab } from "./ImplementationTab";
 import { KPIsTab } from "./KPIsTab";
 import { DocsTab } from "./DocsTab";
 import { UsersTab } from "./UsersTab";
+import { KBTab } from "./KBTab";
 
 const tabs = [
   { id: "overview", label: "Overview" },
@@ -23,6 +24,7 @@ const tabs = [
   { id: "implementation", label: "Implementation Plan" },
   { id: "kpis", label: "KPIs" },
   { id: "docs", label: "Docs & SOPs" },
+  { id: "kb", label: "Knowledge Base" },
 ];
 
 function matchesProject<T extends { project_id?: string | null }>(item: T, projectId: string | null): boolean {
@@ -124,6 +126,7 @@ export function DashboardTabs({
       {active === "implementation" && <ImplementationTab allPhases={filteredPhases} />}
       {active === "kpis" && <KPIsTab org={org} kpis={filteredKpis} projects={projects} selectedProjectId={selectedProjectId} />}
       {active === "docs" && <DocsTab org={org} documents={filteredDocs} projects={projects} selectedProjectId={selectedProjectId} />}
+      {active === "kb" && <KBTab org={org} scope="org" />}
     </>
   );
 }

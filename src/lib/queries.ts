@@ -1,5 +1,5 @@
 import { createServiceClient } from "./supabase/server";
-import type { Project, ProjectWithStats, Phase, PhaseWithTasks, Task, Risk, PMFile, ProjectTemplate, Organization, Member, AssignableMember, ProcessMap, Opportunity, KPI, PMDocument, ShareToken, Proposal, ProposalTemplate as ProposalTemplateType, ClientNote, ClientNoteAttachment, PipelineStatus, DocumentType, DocumentIntakeField, GeneratedDocument, DocumentSection } from "@/types/pm";
+import type { Project, ProjectWithStats, Phase, PhaseWithTasks, Task, Risk, PMFile, ProjectTemplate, Organization, Member, AssignableMember, ProcessMap, Opportunity, KPI, PMDocument, ShareToken, Proposal, ProposalTemplate as ProposalTemplateType, ClientNote, ClientNoteAttachment, PipelineStatus, DocumentType, DocumentIntakeField, GeneratedDocument, DocumentSection, KBArticle } from "@/types/pm";
 
 // ─── Organizations ───────────────────────────────────────────────────
 
@@ -542,4 +542,53 @@ export async function getDocumentSections(documentId: string): Promise<DocumentS
     .eq("document_id", documentId)
     .order("sort_order");
   return (data ?? []) as DocumentSection[];
+}
+
+// ─── Knowledge Base ─────────────────────────────────────────────────
+
+/** Get KB articles scoped to an org (includes global articles) */
+export async function getKBArticles(orgId?: string | null, projectId?: string | null): Promise<KBArticle[]> {
+  const supabase = createServiceClient();
+  let query = supabase.from("pm_kb_articles").select("*");
+
+  if (projectId) {
+    // Project scope: project articles + org articles + global
+    query = query.or(`project_id.eq.${projectId},and(project_id.is.null,org_id.eq.${orgId}),org_id.is.null`);
+  } else if (orgId) {
+    // Org scope: org articles + global (no project-specific)
+    query = query.or(`and(org_id.eq.${orgId},project_id.is.null),org_id.is.null`);
+  } else {
+    // Global only
+    query = query.is("org_id", null);
+  }
+
+  const { data } = await query
+    .order("is_pinned", { ascending: false })
+    .order("updated_at", { ascending: false });
+  return (data ?? []) as KBArticle[];
+}
+
+/** Get global KB articles only */
+export async function getGlobalKBArticles(): Promise<KBArticle[]> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_kb_articles")
+    .select("*")
+    .is("org_id", null)
+    .order("is_pinned", { ascending: false })
+    .order("updated_at", { ascending: false });
+  return (data ?? []) as KBArticle[];
+}
+
+/** Get org-scoped KB articles (excludes global) */
+export async function getOrgKBArticles(orgId: string): Promise<KBArticle[]> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_kb_articles")
+    .select("*")
+    .eq("org_id", orgId)
+    .is("project_id", null)
+    .order("is_pinned", { ascending: false })
+    .order("updated_at", { ascending: false });
+  return (data ?? []) as KBArticle[];
 }

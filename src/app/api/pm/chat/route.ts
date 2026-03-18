@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type OpenAI from "openai";
 import { getOpenAI } from "@/lib/openai";
 import { createServiceClient } from "@/lib/supabase/server";
+import { assembleKBContext } from "@/lib/kb";
 
 const SYSTEM_PROMPT = `You are an AI project management assistant for BusinessOS with full read/write access to the project database.
 
@@ -394,6 +395,9 @@ export async function POST(request: NextRequest) {
       supabase.from("pm_risks").select("*").eq("project_id", project_id),
     ]);
 
+    // Assemble KB context for AI
+    const kbContext = await assembleKBContext(project?.org_id, project_id);
+
     const context = `
 Project: ${project?.name ?? project_slug} (${project?.status ?? "unknown"})
 Owner: ${project?.owner ?? "unassigned"}
@@ -416,7 +420,7 @@ ${risks?.map((r: { title: string; probability: string; impact: string; status: s
         role: m.role as "user" | "assistant",
         content: m.content,
       })),
-      { role: "user", content: `[Project Context]\n${context}\n\n[User Message]\n${message}` },
+      { role: "user", content: `[Project Context]\n${context}${kbContext}\n\n[User Message]\n${message}` },
     ];
 
     const openai = getOpenAI();

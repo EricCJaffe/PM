@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getOpenAI } from "@/lib/openai";
+import { assembleKBContext } from "@/lib/kb";
 
 // POST /api/pm/docgen/[id]/generate — AI-generate document sections
 export async function POST(
@@ -70,10 +71,12 @@ export async function POST(
       .map((s: Record<string, unknown>) => `  - section_key: "${s.section_key}", title: "${s.title}"`)
       .join("\n");
 
+    const kbContext = await assembleKBContext(doc.org_id as string | null, doc.project_id as string | null);
+
     const systemPrompt = `You are a professional document writer creating a ${docType?.name ?? "document"}.
 Write polished, professional content suitable for client-facing business documents.
 Use clear, concise business language. Format with HTML tags (p, ul, ol, li, table, tr, th, td, strong, em).
-Do NOT include the section title as an h2 — just the body content.`;
+Do NOT include the section title as an h2 — just the body content.${kbContext}`;
 
     const userPrompt = `Generate content for the following sections of a "${docType?.name ?? "Document"}" based on the intake data below.
 
