@@ -1,29 +1,31 @@
 # Integrations
 
-## Xodo Sign (eversign) — Digital Signatures
+## DocuSeal — Digital Signatures
 
-**Purpose:** Send generated documents (SOW, proposals) for digital signature via Xodo Sign (formerly eversign).
+**Purpose:** Send generated documents (SOW, proposals) for digital signature via DocuSeal.
 
-**API Docs:** https://eversign.com/api/documentation
+**API Docs:** https://www.docuseal.com/docs/api
 
 ### Setup
-1. Get your API key from Xodo Sign Developer Settings
-2. Set env vars:
-   - `EVERSIGN_ACCESS_KEY` — your API key
-   - `EVERSIGN_BUSINESS_ID` — business ID (default `1`)
-   - `EVERSIGN_SANDBOX=1` — set for testing (non-binding documents)
-3. Configure webhook in Xodo Sign Developer Settings:
+1. Create an account at https://www.docuseal.com (or self-host)
+2. Get your API key from Settings > API
+3. Set env vars:
+   - `DOCUSEAL_API_KEY` — your API key
+   - `DOCUSEAL_API_URL` — only needed for self-hosted (default: `https://api.docuseal.com`)
+   - `DOCUSEAL_WEBHOOK_SECRET` — shared secret for webhook verification
+4. Configure webhook in DocuSeal Settings > Webhooks:
    - URL: `https://pm.foundationstoneadvisors.com/api/pm/webhooks/esign`
-   - Events: all document events
+   - Secret header: `X-Docuseal-Secret` = your `DOCUSEAL_WEBHOOK_SECRET` value
+   - Events: `form.completed`, `form.declined`, `submission.completed`, `submission.expired`
 
 ### How It Works
 1. User creates & compiles a document (SOW) in the Document Editor
-2. Clicks **eSign** button → document is sent to Xodo Sign via API
-3. Xodo emails the client (and optionally provider) with signing link
+2. Clicks **eSign** button → compiled HTML is sent to DocuSeal via `POST /submissions/html`
+3. DocuSeal converts HTML to PDF, adds signature fields, emails the client
 4. Webhook updates document status as signers interact:
-   - `document_signed` → individual signer completed
-   - `document_completed` → all signers done → status becomes "signed"
-   - `document_declined` → signer rejected → status reverts to "draft"
+   - `form.completed` → individual signer completed
+   - `submission.completed` → all signers done → status becomes "signed"
+   - `form.declined` → signer rejected → status reverts to "draft"
 5. Status is also polled via GET `/api/pm/docgen/[id]/esign`
 
 ### API Routes
@@ -31,11 +33,11 @@
 |---|---|---|
 | `/api/pm/docgen/[id]/esign` | POST | Send document for eSignature |
 | `/api/pm/docgen/[id]/esign` | GET | Check/refresh eSign status |
-| `/api/pm/docgen/[id]/esign` | DELETE | Cancel pending eSign request |
-| `/api/pm/webhooks/esign` | POST | Xodo Sign webhook receiver |
+| `/api/pm/docgen/[id]/esign` | DELETE | Cancel (archive) pending eSign request |
+| `/api/pm/webhooks/esign` | POST | DocuSeal webhook receiver |
 
 ### Files
-- `src/lib/esign.ts` — Xodo Sign API client (create, get, cancel, download, webhook validation)
+- `src/lib/esign.ts` — DocuSeal API client (createSubmissionFromHtml, getSubmission, archiveSubmission, getSubmissionDocuments, webhook validation)
 - `src/app/api/pm/docgen/[id]/esign/route.ts` — eSign API endpoints
 - `src/app/api/pm/webhooks/esign/route.ts` — Webhook receiver
 - `supabase/migrations/019_esign_integration.sql` — eSign tracking columns
@@ -43,13 +45,17 @@
 ### Database Columns (generated_documents)
 | Column | Type | Purpose |
 |---|---|---|
-| `esign_provider` | text | Provider name (`xodo`) |
-| `esign_document_hash` | text | Xodo document hash for API lookups |
+| `esign_provider` | text | Provider name (`docuseal`) |
+| `esign_document_hash` | text | DocuSeal submitter ID for API lookups |
 | `esign_status` | text | `waiting` / `signed` / `declined` / `cancelled` / `expired` |
 | `esign_sent_at` | timestamptz | When sent for signature |
 | `esign_completed_at` | timestamptz | When all signers completed |
 | `esign_signers` | jsonb | Array of signer status snapshots |
-| `esign_metadata` | jsonb | Extra provider data (expiry, etc.) |
+| `esign_metadata` | jsonb | Submitter IDs, embed URLs, etc. |
+
+### Pricing
+- Cloud: $0.20 per document completion, or $20/mo plan (100 docs)
+- Self-hosted: Free (Docker on Railway ~$5-10/mo)
 
 ---
 

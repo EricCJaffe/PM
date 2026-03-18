@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { createDocument, getDocument, cancelDocument } from "@/lib/esign";
+import {
+  createSubmissionFromHtml,
+  getSubmission,
+  archiveSubmission,
+} from "@/lib/esign";
 
-// POST /api/pm/docgen/[id]/esign — Send document for eSignature via Xodo Sign
+// POST /api/pm/docgen/[id]/esign — Send document for eSignature via DocuSeal
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -53,51 +57,49 @@ export async function POST(
     const body = await request.json().catch(() => ({}));
     const providerEmail = body.provider_email;
 
-    // Build signer list
-    const signers = [
-      { id: 1, name: clientName, email: clientEmail, order: 1 },
+    // Build submitter list
+    const submitters = [
+      { name: clientName, email: clientEmail, role: "Client" },
     ];
-
-    // If provider email is given, add as second signer
     if (providerEmail) {
-      signers.push({ id: 2, name: providerName, email: providerEmail, order: 2 });
+      submitters.push({ name: providerName, email: providerEmail, role: "Provider" });
     }
-
-    // Convert compiled HTML to base64 for Xodo Sign
-    const htmlBase64 = Buffer.from(doc.compiled_html as string).toString("base64");
 
     const dt = (doc as Record<string, unknown>).document_types as { name: string } | null;
     const docTypeName = dt?.name || "Document";
 
-    // Send to Xodo Sign
-    const result = await createDocument({
-      title: `${doc.title} — ${docTypeName}`,
+    // Send to DocuSeal — creates submission directly from HTML
+    const result = await createSubmissionFromHtml({
+      html: doc.compiled_html as string,
+      name: `${doc.title} — ${docTypeName}`,
+      submitters,
+      order: submitters.length > 1 ? "preserved" : undefined,
+      send_email: true,
       message: `Please review and sign this ${docTypeName}. If you have any questions, please contact ${providerName}.`,
-      fileBase64: htmlBase64,
-      fileName: `${doc.title.replace(/[^a-zA-Z0-9-_ ]/g, "")}.html`,
-      signers,
-      useSignerOrder: signers.length > 1,
-      reminders: true,
     });
 
+    // DocuSeal returns an array of submitter objects; extract submission_id from the first
+    const submissionId = result[0]?.id;
+
     // Update document with eSign tracking data
+    // We store the submission ID (first submitter ID) as the document hash for lookups
     const { error: updateErr } = await supabase
       .from("generated_documents")
       .update({
-        esign_provider: "xodo",
-        esign_document_hash: result.document_hash,
+        esign_provider: "docuseal",
+        esign_document_hash: String(submissionId),
         esign_status: "waiting",
         esign_sent_at: new Date().toISOString(),
-        esign_signers: result.signers.map((s) => ({
+        esign_signers: result.map((s) => ({
           id: s.id,
           name: s.name,
           email: s.email,
-          status: s.status || "waiting_for_signature",
+          status: s.status || "pending",
           signed: false,
         })),
         esign_metadata: {
-          created: result.created,
-          expires: result.expires,
+          submitter_ids: result.map((s) => s.id),
+          embed_srcs: result.map((s) => ({ email: s.email, embed_src: s.embed_src })),
         },
         status: "sent",
         sent_at: new Date().toISOString(),
@@ -113,16 +115,16 @@ export async function POST(
       document_id: id,
       action: "esign_sent",
       details: {
-        provider: "xodo",
-        document_hash: result.document_hash,
-        signers: result.signers.map((s) => ({ name: s.name, email: s.email })),
+        provider: "docuseal",
+        submission_id: submissionId,
+        signers: result.map((s) => ({ name: s.name, email: s.email })),
       },
     });
 
     return NextResponse.json({
       success: true,
-      document_hash: result.document_hash,
-      signers: result.signers.map((s) => ({ name: s.name, email: s.email, status: s.status })),
+      submission_id: submissionId,
+      signers: result.map((s) => ({ name: s.name, email: s.email, status: s.status })),
     });
   } catch (err) {
     console.error("eSign error:", err);
@@ -133,7 +135,7 @@ export async function POST(
   }
 }
 
-// GET /api/pm/docgen/[id]/esign — Check eSign status
+// GET /api/pm/docgen/[id]/esign — Check eSign status from DocuSeal
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -144,7 +146,7 @@ export async function GET(
 
     const { data: doc, error: docErr } = await supabase
       .from("generated_documents")
-      .select("esign_provider, esign_document_hash, esign_status, esign_sent_at, esign_completed_at, esign_signers")
+      .select("esign_provider, esign_document_hash, esign_status, esign_sent_at, esign_completed_at, esign_signers, esign_metadata")
       .eq("id", id)
       .single();
 
@@ -156,41 +158,51 @@ export async function GET(
       return NextResponse.json({ esign_status: null, message: "Not sent for signature" });
     }
 
-    // Fetch live status from Xodo
+    // Fetch live status from DocuSeal
+    const meta = doc.esign_metadata as Record<string, unknown> | null;
+    const submitterIds = (meta?.submitter_ids || []) as number[];
+
+    // Use the first submitter ID to get the full submission
+    if (submitterIds.length === 0) {
+      return NextResponse.json({
+        esign_status: doc.esign_status,
+        esign_sent_at: doc.esign_sent_at,
+        esign_completed_at: doc.esign_completed_at,
+        signers: doc.esign_signers,
+        cached: true,
+      });
+    }
+
     try {
-      const liveDoc = await getDocument(doc.esign_document_hash);
+      const submission = await getSubmission(submitterIds[0]);
 
-      // Map Xodo status
-      let esignStatus = "waiting";
-      if (liveDoc.is_completed) esignStatus = "signed";
-      else if (liveDoc.is_cancelled) esignStatus = "cancelled";
-
-      const signerUpdates = liveDoc.signers.map((s) => ({
+      // Map DocuSeal statuses to our normalized statuses
+      const signerUpdates = submission.submitters.map((s) => ({
         id: s.id,
         name: s.name,
         email: s.email,
-        status: s.declined ? "declined" : s.signed ? "signed" : "waiting_for_signature",
-        signed: !!s.signed,
-        signed_at: s.signed_timestamp ? new Date(s.signed_timestamp * 1000).toISOString() : null,
+        status: s.status === "completed" ? "signed" : s.status,
+        signed: s.status === "completed",
+        signed_at: s.completed_at,
       }));
 
-      // Check if any signer declined
-      if (liveDoc.signers.some((s) => s.declined)) {
-        esignStatus = "declined";
-      }
+      let esignStatus = "waiting";
+      if (submission.status === "completed") esignStatus = "signed";
+      else if (submission.status === "declined") esignStatus = "declined";
+      else if (submission.status === "expired") esignStatus = "expired";
+      else if (submission.submitters.some((s) => s.status === "declined")) esignStatus = "declined";
 
-      // Update our DB with latest status
       const updates: Record<string, unknown> = {
         esign_status: esignStatus,
         esign_signers: signerUpdates,
       };
 
       if (esignStatus === "signed" && !doc.esign_completed_at) {
-        updates.esign_completed_at = new Date(liveDoc.completed * 1000).toISOString();
-        updates.signed_at = new Date(liveDoc.completed * 1000).toISOString();
+        updates.esign_completed_at = submission.completed_at;
+        updates.signed_at = submission.completed_at;
         updates.status = "signed";
       } else if (esignStatus === "declined") {
-        updates.status = "draft"; // Reset to draft if declined
+        updates.status = "draft";
       }
 
       await supabase.from("generated_documents").update(updates).eq("id", id);
@@ -200,9 +212,11 @@ export async function GET(
         esign_sent_at: doc.esign_sent_at,
         esign_completed_at: updates.esign_completed_at || doc.esign_completed_at,
         signers: signerUpdates,
+        documents: submission.documents,
+        audit_log_url: submission.audit_log_url,
       });
     } catch {
-      // If Xodo API fails, return cached data
+      // If DocuSeal API fails, return cached data
       return NextResponse.json({
         esign_status: doc.esign_status,
         esign_sent_at: doc.esign_sent_at,
@@ -219,7 +233,7 @@ export async function GET(
   }
 }
 
-// DELETE /api/pm/docgen/[id]/esign — Cancel eSign request
+// DELETE /api/pm/docgen/[id]/esign — Cancel (archive) eSign request
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -230,7 +244,7 @@ export async function DELETE(
 
     const { data: doc, error: docErr } = await supabase
       .from("generated_documents")
-      .select("esign_document_hash, esign_status")
+      .select("esign_document_hash, esign_status, esign_metadata")
       .eq("id", id)
       .single();
 
@@ -246,8 +260,12 @@ export async function DELETE(
       return NextResponse.json({ error: "Cannot cancel a signed document" }, { status: 400 });
     }
 
-    // Cancel in Xodo
-    await cancelDocument(doc.esign_document_hash);
+    // Archive in DocuSeal using first submitter ID
+    const meta = doc.esign_metadata as Record<string, unknown> | null;
+    const submitterIds = (meta?.submitter_ids || []) as number[];
+    if (submitterIds.length > 0) {
+      await archiveSubmission(submitterIds[0]);
+    }
 
     // Update local status
     await supabase
@@ -261,7 +279,7 @@ export async function DELETE(
     await supabase.from("document_activity").insert({
       document_id: id,
       action: "esign_cancelled",
-      details: { document_hash: doc.esign_document_hash },
+      details: { submission_id: doc.esign_document_hash },
     });
 
     return NextResponse.json({ success: true });

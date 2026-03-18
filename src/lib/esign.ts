@@ -1,219 +1,219 @@
 /**
- * Xodo Sign (eversign) API client for sending documents for digital signature.
+ * DocuSeal API client for sending documents for digital signature.
  *
  * Env vars required:
- *   EVERSIGN_ACCESS_KEY  — API access key from Xodo Sign developer settings
- *   EVERSIGN_BUSINESS_ID — Business ID (usually "1" for primary business)
+ *   DOCUSEAL_API_KEY  — API key from DocuSeal settings
  *
  * Optional:
- *   EVERSIGN_SANDBOX     — Set to "1" to create sandbox (non-binding) documents
+ *   DOCUSEAL_API_URL  — Base URL (default: https://api.docuseal.com, use your own for self-hosted)
  */
 
-const BASE_URL = "https://api.eversign.com/api";
-
 function getConfig() {
-  const accessKey = process.env.EVERSIGN_ACCESS_KEY;
-  const businessId = process.env.EVERSIGN_BUSINESS_ID || "1";
-  const sandbox = process.env.EVERSIGN_SANDBOX === "1" ? 1 : 0;
+  const apiKey = process.env.DOCUSEAL_API_KEY;
+  const apiUrl = process.env.DOCUSEAL_API_URL || "https://api.docuseal.com";
 
-  if (!accessKey) {
-    throw new Error("EVERSIGN_ACCESS_KEY environment variable is required");
+  if (!apiKey) {
+    throw new Error("DOCUSEAL_API_KEY environment variable is required");
   }
 
-  return { accessKey, businessId, sandbox };
+  return { apiKey, apiUrl };
 }
 
-function buildUrl(path: string): string {
-  const { accessKey, businessId } = getConfig();
-  return `${BASE_URL}/${path}?access_key=${accessKey}&business_id=${businessId}`;
+function headers(): Record<string, string> {
+  const { apiKey } = getConfig();
+  return {
+    "X-Auth-Token": apiKey,
+    "Content-Type": "application/json",
+  };
 }
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-export interface EsignSigner {
-  id: number;
+export interface EsignSubmitter {
   name: string;
   email: string;
-  order?: number;
+  role?: string;
+  phone?: string;
+  values?: Record<string, string>;
+  send_email?: boolean;
+}
+
+export interface EsignCreateFromHtmlRequest {
+  html: string;
+  name: string;
+  submitters: EsignSubmitter[];
+  order?: "preserved" | "random";
+  send_email?: boolean;
   message?: string;
+  expire_at?: string;
 }
 
-export interface EsignCreateRequest {
-  title: string;
-  message: string;
-  fileBase64: string;
-  fileName: string;
-  signers: EsignSigner[];
-  useSignerOrder?: boolean;
-  reminders?: boolean;
+export interface EsignSubmitterResponse {
+  id: number;
+  uuid: string;
+  email: string;
+  slug: string;
+  name: string;
+  status: "pending" | "completed" | "declined" | "expired";
+  sent_at: string | null;
+  opened_at: string | null;
+  completed_at: string | null;
+  declined_at: string | null;
+  embed_src: string;
 }
 
-export interface EsignDocumentResponse {
-  document_hash: string;
-  title: string;
-  is_completed: number;
-  is_draft: number;
-  is_cancelled: number;
-  is_deleted: number;
-  created: number;
-  completed: number;
-  expires: number;
-  signers: Array<{
-    id: number;
-    name: string;
-    email: string;
-    signed: number;
-    signed_timestamp: number;
-    status: string;
-    declined: number;
-  }>;
+export interface EsignSubmissionResponse {
+  id: number;
+  submitters: EsignSubmitterResponse[];
+  template: { id: number; name: string };
+  status: "pending" | "completed" | "declined" | "expired";
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  source: string;
+  audit_log_url: string;
+  documents: Array<{ name: string; url: string }>;
 }
 
 export interface EsignWebhookPayload {
-  event_time: number;
-  event_type: string;
-  event_hash: string;
-  meta: {
-    related_document_hash: string;
-    related_user_id: string;
-    related_business_id: string;
-  };
-  signer?: {
-    id: string;
-    name: string;
+  event_type: "submission.created" | "submission.completed" | "submission.expired" | "form.started" | "form.viewed" | "form.completed" | "form.declined";
+  timestamp: string;
+  data: {
+    id: number;
+    submission_id: number;
     email: string;
-    role: string;
-    order: string;
+    name: string;
+    status: string;
+    sent_at: string | null;
+    completed_at: string | null;
+    declined_at: string | null;
+    values: Array<{ field: string; value: string }>;
+    documents: Array<{ name: string; url: string }>;
+    audit_log_url: string;
+    submission: {
+      id: number;
+      submitters: Array<{
+        id: number;
+        name: string;
+        email: string;
+        status: string;
+        completed_at: string | null;
+      }>;
+    };
   };
 }
 
 // ─── API Methods ────────────────────────────────────────────────────────────
 
 /**
- * Create and send a document for signature via Xodo Sign.
- * The document is sent as base64-encoded content (HTML or PDF).
- * If no signature fields are specified, Xodo auto-appends a signature page.
+ * Create a submission from raw HTML and send for signature.
+ * Uses POST /submissions/html (Pro feature).
+ * DocuSeal converts the HTML to PDF and adds a signature page.
  */
-export async function createDocument(req: EsignCreateRequest): Promise<EsignDocumentResponse> {
-  const { sandbox } = getConfig();
+export async function createSubmissionFromHtml(
+  req: EsignCreateFromHtmlRequest
+): Promise<EsignSubmitterResponse[]> {
+  const { apiUrl } = getConfig();
 
   const body = {
-    sandbox,
-    title: req.title,
-    message: req.message,
-    is_draft: 0,
-    use_signer_order: req.useSignerOrder ? 1 : 0,
-    reminders: req.reminders !== false ? 1 : 0,
-    files: [
-      {
-        name: req.fileName,
-        file_base64: req.fileBase64,
-      },
-    ],
-    signers: req.signers.map((s) => ({
-      id: s.id,
+    html: req.html,
+    name: req.name,
+    send_email: req.send_email !== false,
+    order: req.order || "preserved",
+    submitters: req.submitters.map((s) => ({
       name: s.name,
       email: s.email,
-      order: s.order ?? s.id,
-      message: s.message ?? "",
+      role: s.role || "Signer",
+      send_email: s.send_email !== false,
+      values: s.values || {},
     })),
-    // No fields array = Xodo auto-appends signature page per signer
+    ...(req.message && { message: { body: req.message } }),
+    ...(req.expire_at && { expire_at: req.expire_at }),
   };
 
-  const res = await fetch(buildUrl("document"), {
+  const res = await fetch(`${apiUrl}/submissions/html`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: headers(),
     body: JSON.stringify(body),
   });
 
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`Xodo Sign API error (${res.status}): ${err}`);
+    throw new Error(`DocuSeal API error (${res.status}): ${err}`);
+  }
+
+  return (await res.json()) as EsignSubmitterResponse[];
+}
+
+/**
+ * Get a submission by ID with full details.
+ */
+export async function getSubmission(submissionId: number): Promise<EsignSubmissionResponse> {
+  const { apiUrl } = getConfig();
+
+  const res = await fetch(`${apiUrl}/submissions/${submissionId}`, {
+    method: "GET",
+    headers: headers(),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`DocuSeal API error (${res.status}): ${err}`);
+  }
+
+  return (await res.json()) as EsignSubmissionResponse;
+}
+
+/**
+ * Archive (cancel) a submission.
+ */
+export async function archiveSubmission(submissionId: number): Promise<void> {
+  const { apiUrl } = getConfig();
+
+  const res = await fetch(`${apiUrl}/submissions/${submissionId}`, {
+    method: "DELETE",
+    headers: headers(),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`DocuSeal API error (${res.status}): ${err}`);
+  }
+}
+
+/**
+ * Get the signed documents (PDFs) for a completed submission.
+ */
+export async function getSubmissionDocuments(
+  submissionId: number,
+  merge = true
+): Promise<Array<{ name: string; url: string }>> {
+  const { apiUrl } = getConfig();
+
+  const url = `${apiUrl}/submissions/${submissionId}/documents${merge ? "?merge=true" : ""}`;
+  const res = await fetch(url, {
+    method: "GET",
+    headers: headers(),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to get submission documents (${res.status})`);
   }
 
   const data = await res.json();
-
-  if (data.error) {
-    throw new Error(`Xodo Sign error: ${JSON.stringify(data.error)}`);
-  }
-
-  return data as EsignDocumentResponse;
+  return data.documents || data;
 }
 
 /**
- * Get the current status of a document from Xodo Sign.
+ * Validate a DocuSeal webhook request using the shared secret header.
+ * DocuSeal sends the secret as a custom header you configure.
  */
-export async function getDocument(documentHash: string): Promise<EsignDocumentResponse> {
-  const res = await fetch(
-    buildUrl("document") + `&document_hash=${documentHash}`,
-    { method: "GET" }
-  );
+export function validateWebhookSecret(
+  requestHeaders: Headers
+): boolean {
+  const secret = process.env.DOCUSEAL_WEBHOOK_SECRET;
+  if (!secret) return true; // No secret configured = skip validation
 
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Xodo Sign API error (${res.status}): ${err}`);
-  }
-
-  return (await res.json()) as EsignDocumentResponse;
-}
-
-/**
- * Cancel a document that is pending signature.
- */
-export async function cancelDocument(documentHash: string): Promise<void> {
-  const res = await fetch(
-    buildUrl("document") + `&document_hash=${documentHash}&cancel=1`,
-    { method: "DELETE" }
-  );
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Xodo Sign API error (${res.status}): ${err}`);
-  }
-}
-
-/**
- * Download the final signed PDF from Xodo Sign.
- * Returns the PDF as an ArrayBuffer.
- */
-export async function downloadSignedPdf(documentHash: string): Promise<ArrayBuffer> {
-  const res = await fetch(
-    buildUrl("download_final_document") + `&document_hash=${documentHash}`,
-    { method: "GET" }
-  );
-
-  if (!res.ok) {
-    throw new Error(`Failed to download signed PDF (${res.status})`);
-  }
-
-  return res.arrayBuffer();
-}
-
-/**
- * Validate a webhook event_hash using HMAC-SHA256.
- * hash = HMAC-SHA256(event_time + event_type, access_key)
- */
-export async function validateWebhookHash(
-  eventTime: number,
-  eventType: string,
-  eventHash: string
-): Promise<boolean> {
-  const { accessKey } = getConfig();
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(accessKey),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-  const signature = await crypto.subtle.sign(
-    "HMAC",
-    key,
-    encoder.encode(`${eventTime}${eventType}`)
-  );
-  const expected = Array.from(new Uint8Array(signature))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  return expected === eventHash;
+  const headerValue = requestHeaders.get("X-Docuseal-Secret");
+  return headerValue === secret;
 }

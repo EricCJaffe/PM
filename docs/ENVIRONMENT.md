@@ -14,9 +14,9 @@
 | `RESEND_API_KEY` | `.env.local` / Vercel | Resend API key for email notifications (**server only**) |
 | `GITHUB_TOKEN` | `.env.local` | GitHub PAT for vault export (**server only**) |
 | `GITHUB_VAULT_REPO` | `.env.local` | Target repo for vault export (e.g. `EricCJaffe/businessos-vault`) |
-| `EVERSIGN_ACCESS_KEY` | `.env.local` | Xodo Sign (eversign) API key for digital signatures (**server only**) |
-| `EVERSIGN_BUSINESS_ID` | `.env.local` | Xodo Sign business ID (default: `1`) |
-| `EVERSIGN_SANDBOX` | `.env.local` | Set to `1` for non-binding sandbox documents |
+| `DOCUSEAL_API_KEY` | `.env.local` | DocuSeal API key for digital signatures (**server only**) |
+| `DOCUSEAL_API_URL` | `.env.local` | DocuSeal API URL (default: `https://api.docuseal.com`, set for self-hosted) |
+| `DOCUSEAL_WEBHOOK_SECRET` | `.env.local` | Shared secret for webhook validation (**server only**) |
 
 ## Supabase Auth — Callback URLs
 
@@ -59,6 +59,6 @@ Microsoft sign-in is configured as an OAuth provider through Supabase using the 
 - Gracefully degrades — if `RESEND_API_KEY` is not set, emails are skipped with a console log
 
 ## Security
-- Never put `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`, `RESEND_API_KEY`, `GITHUB_TOKEN`, or `EVERSIGN_ACCESS_KEY` in `NEXT_PUBLIC_*` variables
+- Never put `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`, `RESEND_API_KEY`, `GITHUB_TOKEN`, or `DOCUSEAL_API_KEY` in `NEXT_PUBLIC_*` variables
 - `.env.local` is in `.gitignore` — never commit it
 - See `.env.local.example` for the template
