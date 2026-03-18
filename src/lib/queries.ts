@@ -1,5 +1,5 @@
 import { createServiceClient } from "./supabase/server";
-import type { Project, ProjectWithStats, Phase, PhaseWithTasks, Task, Risk, PMFile, ProjectTemplate, Organization, Member, AssignableMember, ProcessMap, Opportunity, KPI, PMDocument, ShareToken, Proposal, ProposalTemplate as ProposalTemplateType, ClientNote, ClientNoteAttachment, PipelineStatus } from "@/types/pm";
+import type { Project, ProjectWithStats, Phase, PhaseWithTasks, Task, Risk, PMFile, ProjectTemplate, Organization, Member, AssignableMember, ProcessMap, Opportunity, KPI, PMDocument, ShareToken, Proposal, ProposalTemplate as ProposalTemplateType, ClientNote, ClientNoteAttachment, PipelineStatus, DocumentType, DocumentIntakeField, GeneratedDocument, DocumentSection } from "@/types/pm";
 
 // ─── Organizations ───────────────────────────────────────────────────
 
@@ -463,4 +463,83 @@ export async function getClientNoteAttachments(noteId: string): Promise<ClientNo
     .eq("note_id", noteId)
     .order("created_at");
   return (data ?? []) as ClientNoteAttachment[];
+}
+
+// ─── Document Generation ────────────────────────────────────────────
+
+export async function getDocumentTypes(): Promise<DocumentType[]> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("document_types")
+    .select("*")
+    .eq("is_active", true)
+    .order("name");
+  return (data ?? []) as DocumentType[];
+}
+
+export async function getDocumentTypeBySlug(slug: string): Promise<DocumentType | null> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("document_types")
+    .select("*")
+    .eq("slug", slug)
+    .single();
+  return data as DocumentType | null;
+}
+
+export async function getDocumentIntakeFields(documentTypeId: string): Promise<DocumentIntakeField[]> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("document_intake_fields")
+    .select("*")
+    .eq("document_type_id", documentTypeId)
+    .order("sort_order");
+  return (data ?? []) as DocumentIntakeField[];
+}
+
+export async function getGeneratedDocuments(orgId?: string): Promise<GeneratedDocument[]> {
+  const supabase = createServiceClient();
+  let query = supabase
+    .from("generated_documents")
+    .select("*, document_types(name, slug)")
+    .order("updated_at", { ascending: false });
+  if (orgId) query = query.eq("org_id", orgId);
+  const { data } = await query;
+  // Flatten joined fields
+  return ((data ?? []) as Record<string, unknown>[]).map((d) => {
+    const dt = d.document_types as { name: string; slug: string } | null;
+    return {
+      ...d,
+      document_type_name: dt?.name ?? "",
+      document_type_slug: dt?.slug ?? "",
+      document_types: undefined,
+    } as unknown as GeneratedDocument;
+  });
+}
+
+export async function getGeneratedDocumentById(id: string): Promise<GeneratedDocument | null> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("generated_documents")
+    .select("*, document_types(name, slug)")
+    .eq("id", id)
+    .single();
+  if (!data) return null;
+  const dt = (data as Record<string, unknown>).document_types as { name: string; slug: string } | null;
+  return {
+    ...data,
+    document_type_name: dt?.name ?? "",
+    document_type_slug: dt?.slug ?? "",
+    document_types: undefined,
+  } as unknown as GeneratedDocument;
+}
+
+export async function getDocumentSections(documentId: string): Promise<DocumentSection[]> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("document_sections")
+    .select("*")
+    .eq("document_id", documentId)
+    .order("sort_order");
+  return (data ?? []) as DocumentSection[];
 }
