@@ -101,7 +101,7 @@ BEGIN
   -- ── Pricing & Payment ──
   INSERT INTO document_intake_fields (document_type_id, field_key, label, field_type, section, sort_order, is_required, ai_hint, options)
   VALUES (_type_id, 'pricing_model', 'Pricing Model', 'select', 'Pricing & Payment', 40, true, 'Use to determine the pricing section structure and payment terms.',
-    '["Fixed Price","Time & Materials","Retainer (Monthly)","Milestone-Based","Hybrid"]'::jsonb);
+    '["Fixed Price","Time & Materials","Retainer (Monthly)","Monthly Recurring","Milestone-Based","Hybrid"]'::jsonb);
 
   INSERT INTO document_intake_fields (document_type_id, field_key, label, field_type, section, sort_order, is_required, placeholder, ai_hint)
   VALUES (_type_id, 'total_price', 'Total Price', 'currency', 'Pricing & Payment', 41, false, '50000', 'Format as currency in the pricing table.');
