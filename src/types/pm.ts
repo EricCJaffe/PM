@@ -516,6 +516,33 @@ export interface DocumentActivity {
   created_at: string;
 }
 
+// ─── Knowledge Base Types ────────────────────────────────────────────
+
+export type KBCategory =
+  | "company-profile"
+  | "client-profile"
+  | "strategy"
+  | "playbook"
+  | "lessons-learned"
+  | "industry"
+  | "relationship"
+  | "general";
+
+export interface KBArticle {
+  id: string;
+  org_id: string | null;
+  project_id: string | null;
+  slug: string;
+  title: string;
+  category: KBCategory;
+  content: string;
+  tags: string[];
+  is_pinned: boolean;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // ─── Chat / AI Types ─────────────────────────────────────────────────
 
 export interface ChatMessage {

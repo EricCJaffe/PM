@@ -50,6 +50,24 @@
 - [ ] Pipeline Kanban board view (drag cards between pipeline stages)
 - [ ] AI-assisted note summarization
 
+## Recently Completed
+- [x] Knowledge Base system — AI institutional memory with three-tier context
+  - Migration 020: pm_kb_articles table with global/org/project scope tiers, RLS, auto-updated_at
+  - Categories: company-profile, client-profile, strategy, playbook, lessons-learned, industry, relationship, general
+  - assembleKBContext() in src/lib/kb.ts cascades global → org → project context
+  - Wired into all 8 AI endpoints: chat, rollup, blockers, hub, template gen, proposal gen, SOP scan, docgen
+  - KB tab on client dashboard (org-scoped articles + global articles visible)
+  - Global KB page at /kb (company-wide knowledge, linked from nav)
+  - API routes: /api/pm/kb (GET, POST), /api/pm/kb/[id] (GET, PATCH, DELETE)
+  - Pinned articles get priority in AI context; 8K char budget prevents token bloat
+- [x] Fix document upload 500 error (Buffer conversion for Node.js runtime)
+- [x] Add Phase button on Task view (matches Board view functionality)
+  - Exported PhaseModal from PhaseBoard, reused in EditableTaskTable
+  - Button appears next to "+ Add Task" in the task list header
+- [x] Auto-inherit organization when creating project from client dashboard
+  - New project page reads `?org=` query parameter and pre-selects the organization
+  - Client dashboard already passes `?org={org.id}` — now it's consumed
+
 ## Backlog
 - [ ] AI daily standup generation (`/daily/YYYY-MM-DD.md`)
 - [ ] Risk radar — AI scan of escalating risks

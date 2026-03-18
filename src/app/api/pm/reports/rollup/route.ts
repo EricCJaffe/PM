@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getOpenAI } from "@/lib/openai";
 import { createServiceClient } from "@/lib/supabase/server";
 import { writeVaultFile } from "@/lib/vault";
+import { assembleKBContext } from "@/lib/kb";
 
 export async function POST(request: NextRequest) {
   try {
@@ -50,12 +51,14 @@ Open Risks:
 ${risks?.filter((r: { status: string }) => r.status === "open").map((r: { title: string; probability: string; impact: string }) => `- ${r.title} [${r.probability}/${r.impact}]`).join("\n") ?? "None"}
 `;
 
+    const kbContext = await assembleKBContext(project?.org_id, project_id);
+
     const response = await getOpenAI().chat.completions.create({
       model: "gpt-4o",
       max_tokens: 4096,
       messages: [
         { role: "system", content: "You are a project management AI. Generate a concise weekly status rollup report in markdown format. Include: Executive Summary, Progress by Phase, Key Accomplishments, Blockers & Risks, Next Week Priorities." },
-        { role: "user", content: `Generate a weekly rollup for:\n${context}` },
+        { role: "user", content: `Generate a weekly rollup for:\n${context}${kbContext}` },
       ],
     });
 

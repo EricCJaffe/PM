@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getOpenAI } from "@/lib/openai";
+import { assembleKBContext } from "@/lib/kb";
 
 export async function POST(request: NextRequest) {
   const { document_id, org_id, project_id } = await request.json();
@@ -46,6 +47,8 @@ export async function POST(request: NextRequest) {
     textContent = textContent.substring(0, maxChars) + "\n\n[...truncated]";
   }
 
+  const kbContext = await assembleKBContext(org_id, project_id);
+
   const openai = getOpenAI();
   const completion = await openai.chat.completions.create({
     model: "gpt-4o",
@@ -75,7 +78,7 @@ Focus on:
       },
       {
         role: "user",
-        content: `Analyze this SOP/document titled "${doc.title}" (category: ${doc.category}) for automation opportunities:\n\n${textContent}`
+        content: `Analyze this SOP/document titled "${doc.title}" (category: ${doc.category}) for automation opportunities:\n\n${textContent}${kbContext}`
       }
     ],
     response_format: { type: "json_object" },

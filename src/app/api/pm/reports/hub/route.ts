@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getOpenAI } from "@/lib/openai";
 import { createServiceClient } from "@/lib/supabase/server";
 import { writeVaultFile } from "@/lib/vault";
+import { assembleKBContext } from "@/lib/kb";
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,6 +41,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Hub reports use global KB context (company-wide)
+    const kbContext = await assembleKBContext();
+
     const response = await getOpenAI().chat.completions.create({
       model: "gpt-4o",
       max_tokens: 4096,
@@ -47,7 +51,7 @@ export async function POST(request: NextRequest) {
         { role: "system", content: "You are a project management AI. Generate a cross-project hub report in markdown. Include: Portfolio Overview, Project-by-Project Summary, Cross-Project Risks, Resource Conflicts, Executive Recommendations." },
         {
           role: "user",
-          content: `Generate hub report for ${projects.length} active projects:\n\n${projectSummaries.join("\n\n")}`,
+          content: `Generate hub report for ${projects.length} active projects:\n\n${projectSummaries.join("\n\n")}${kbContext}`,
         },
       ],
     });

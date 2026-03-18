@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getOpenAI } from "@/lib/openai";
 import { createServiceClient } from "@/lib/supabase/server";
 import { writeVaultFile } from "@/lib/vault";
+import { assembleKBContext } from "@/lib/kb";
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,6 +35,14 @@ export async function POST(request: NextRequest) {
       .eq("project_id", project_id)
       .eq("status", "open");
 
+    // Get project for org context
+    const { data: project } = await supabase
+      .from("pm_projects")
+      .select("org_id")
+      .eq("id", project_id)
+      .single();
+    const kbContext = await assembleKBContext(project?.org_id, project_id);
+
     const context = `
 Blocked Tasks (${blockedTasks?.length ?? 0}):
 ${blockedTasks?.map((t: { name: string; slug: string; owner: string; description: string; depends_on: string[] }) => `- ${t.name} (${t.slug}) — owner: ${t.owner ?? "unassigned"}\n  Description: ${t.description ?? "none"}\n  Depends on: ${t.depends_on?.join(", ") ?? "none"}`).join("\n") ?? "None"}
@@ -50,7 +59,7 @@ ${risks?.map((r: { title: string; probability: string; impact: string; mitigatio
       max_tokens: 4096,
       messages: [
         { role: "system", content: "You are a project management AI. Generate a blocker scan report in markdown. Include: Summary, Blocked Items (with recommended actions), Pending Dependencies, Risk Escalations, Recommended Next Steps." },
-        { role: "user", content: `Generate blocker scan:\n${context}` },
+        { role: "user", content: `Generate blocker scan:\n${context}${kbContext}` },
       ],
     });
 

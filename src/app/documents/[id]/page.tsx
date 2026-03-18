@@ -25,6 +25,10 @@ export default function DocumentEditorPage() {
   const [compiling, setCompiling] = useState(false);
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [esignStatus, setEsignStatus] = useState<string | null>(null);
+  const [esignSigners, setEsignSigners] = useState<Array<{ name: string; email: string; status: string; signed: boolean }>>([]);
+  const [esignSending, setEsignSending] = useState(false);
+  const [esignError, setEsignError] = useState("");
 
   // Load document, fields, sections
   useEffect(() => {
@@ -131,6 +135,68 @@ export default function DocumentEditorPage() {
     setSending(false);
   }
 
+  // Load eSign status
+  useEffect(() => {
+    if (!id || !doc) return;
+    fetch(`/api/pm/docgen/${id}/esign`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.esign_status) {
+          setEsignStatus(data.esign_status);
+          if (data.signers) setEsignSigners(data.signers);
+        }
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, doc?.status]);
+
+  // Send for eSignature
+  async function handleEsign() {
+    if (!id) return;
+    const clientEmail = intakeValues.client_contact_email;
+    if (!clientEmail) {
+      setEsignError("Client contact email is required. Add it in the Intake Form.");
+      return;
+    }
+    if (!compiledHtml) {
+      setEsignError("Compile the document first (Sections > Compile & Preview).");
+      return;
+    }
+    if (!confirm(`Send this document to ${intakeValues.client_contact_name || clientEmail} for digital signature via Xodo Sign?`)) return;
+    setEsignSending(true);
+    setEsignError("");
+    try {
+      const res = await fetch(`/api/pm/docgen/${id}/esign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setEsignStatus("waiting");
+      setEsignSigners(data.signers || []);
+      setDoc((prev) => prev ? { ...prev, status: "sent" as DocumentStatus } : prev);
+    } catch (err) {
+      setEsignError(err instanceof Error ? err.message : "Failed to send for signature");
+    } finally {
+      setEsignSending(false);
+    }
+  }
+
+  // Cancel eSign
+  async function handleCancelEsign() {
+    if (!id || !confirm("Cancel the signature request?")) return;
+    try {
+      const res = await fetch(`/api/pm/docgen/${id}/esign`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setEsignStatus("cancelled");
+      setDoc((prev) => prev ? { ...prev, status: "draft" as DocumentStatus } : prev);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to cancel");
+    }
+  }
+
   // Status update
   async function handleStatusChange(status: DocumentStatus) {
     if (!id) return;
@@ -221,8 +287,68 @@ export default function DocumentEditorPage() {
               {sending ? "Sending..." : "Mark as Sent"}
             </button>
           )}
+
+          {/* eSign button */}
+          {esignStatus !== "waiting" && esignStatus !== "signed" && (
+            <button
+              onClick={handleEsign}
+              disabled={esignSending || !compiledHtml}
+              className="px-3 py-1.5 text-sm bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg font-medium"
+              title={!compiledHtml ? "Compile the document first" : "Send for digital signature"}
+            >
+              {esignSending ? "Sending..." : "eSign"}
+            </button>
+          )}
+          {esignStatus === "waiting" && (
+            <button
+              onClick={handleCancelEsign}
+              className="px-3 py-1.5 text-sm border border-amber-500/50 text-amber-400 hover:bg-amber-500/10 rounded-lg font-medium"
+            >
+              Cancel eSign
+            </button>
+          )}
         </div>
       </div>
+
+      {/* eSign status banner */}
+      {esignStatus && esignStatus !== "cancelled" && (
+        <div className={`mb-4 rounded-lg border p-3 ${
+          esignStatus === "signed" ? "bg-emerald-500/10 border-emerald-500/30" :
+          esignStatus === "declined" ? "bg-red-500/10 border-red-500/30" :
+          esignStatus === "waiting" ? "bg-blue-500/10 border-blue-500/30" :
+          "bg-amber-500/10 border-amber-500/30"
+        }`}>
+          <div className="flex items-center gap-2 text-sm font-medium mb-1">
+            <span className={
+              esignStatus === "signed" ? "text-emerald-400" :
+              esignStatus === "declined" ? "text-red-400" :
+              esignStatus === "waiting" ? "text-blue-400" :
+              "text-amber-400"
+            }>
+              {esignStatus === "waiting" && "Awaiting Signature"}
+              {esignStatus === "signed" && "Signed"}
+              {esignStatus === "declined" && "Declined"}
+              {esignStatus === "expired" && "Expired"}
+            </span>
+            <span className="text-pm-muted text-xs">via Xodo Sign</span>
+          </div>
+          {esignSigners.length > 0 && (
+            <div className="flex flex-wrap gap-3 text-xs text-pm-muted">
+              {esignSigners.map((s, i) => (
+                <span key={i} className="flex items-center gap-1">
+                  <span className={`w-2 h-2 rounded-full ${s.signed ? "bg-emerald-400" : s.status === "declined" ? "bg-red-400" : "bg-amber-400"}`} />
+                  {s.name} ({s.email})
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {esignError && (
+        <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">
+          {esignError}
+        </div>
+      )}
 
       {/* Tab bar */}
       <div className="flex gap-1 border-b border-pm-border mb-6">

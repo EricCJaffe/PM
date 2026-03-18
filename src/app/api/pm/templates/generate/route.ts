@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOpenAI } from "@/lib/openai";
+import { assembleKBContext } from "@/lib/kb";
 
 // POST /api/pm/templates/generate — AI-generate template phases and tasks from a description
 export async function POST(request: NextRequest) {
   try {
     const { name, description } = await request.json();
     if (!name) return NextResponse.json({ error: "name is required" }, { status: 400 });
+
+    const kbContext = await assembleKBContext();
 
     const openai = getOpenAI();
     const resp = await openai.chat.completions.create({
@@ -41,7 +44,7 @@ Rules:
         },
         {
           role: "user",
-          content: `Generate a project template for: "${name}"${description ? `\n\nAdditional context: ${description}` : ""}`,
+          content: `Generate a project template for: "${name}"${description ? `\n\nAdditional context: ${description}` : ""}${kbContext}`,
         },
       ],
       response_format: { type: "json_object" },

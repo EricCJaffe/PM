@@ -74,6 +74,39 @@ function LoginForm() {
         </div>
 
         <div className="card">
+          {/* Microsoft SSO */}
+          <button
+            onClick={async () => {
+              setError(null);
+              setLoading(true);
+              const supabase = createClient();
+              const { error } = await supabase.auth.signInWithOAuth({
+                provider: "azure",
+                options: {
+                  scopes: "email profile openid",
+                  redirectTo: `${window.location.origin}/auth/callback?redirect=${redirect}`,
+                },
+              });
+              if (error) { setError(error.message); setLoading(false); }
+            }}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-3 py-2.5 mb-4 bg-[#2f2f2f] hover:bg-[#3b3b3b] disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors border border-pm-border"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 21 21" fill="none">
+              <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+              <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+              <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+              <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+            </svg>
+            {loading ? "Redirecting..." : "Sign in with Microsoft"}
+          </button>
+
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex-1 border-t border-pm-border" />
+            <span className="text-xs text-pm-muted">or use email</span>
+            <div className="flex-1 border-t border-pm-border" />
+          </div>
+
           <div className="flex mb-6 border-b border-pm-border">
             <button
               onClick={() => { setMode("password"); setError(null); setMessage(null); }}

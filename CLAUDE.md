@@ -78,6 +78,7 @@ src/
 │   ├── supabase/           # client.ts, server.ts
 │   ├── openai.ts           # Lazy-init OpenAI client
 │   ├── queries.ts          # All Supabase query functions
+│   ├── kb.ts               # KB context assembly for AI (assembleKBContext)
 │   ├── recurrence.ts       # Recurrence engine (occurrence generation, validation)
 │   └── vault.ts            # Vault storage read/write/generation
 └── types/
@@ -113,6 +114,7 @@ docs/                       # Project documentation
 | `pm_proposal_attachments` | File attachments on proposals |
 | `pm_client_notes` | Client notes (meeting, general, phone-call, follow-up) |
 | `pm_client_note_attachments` | File attachments on client notes |
+| `pm_kb_articles` | Knowledge base articles (global/org/project scope, AI context) |
 
 ## Project Templates
 | Slug | Name | Phases |
@@ -165,6 +167,8 @@ vault/[org-slug]/[project-slug]/
 | `/api/pm/notes` | GET, POST | List / create client notes |
 | `/api/pm/notes/[id]` | PATCH, DELETE | Update / delete note |
 | `/api/pm/notes/[id]/attachments` | GET, POST, DELETE | Note file attachments |
+| `/api/pm/kb` | GET, POST | List / create KB articles |
+| `/api/pm/kb/[id]` | GET, PATCH, DELETE | View / update / delete KB article |
 
 ## Security Rules
 - **Never** put OpenAI API keys, service role keys, or GitHub tokens in `NEXT_PUBLIC_*` vars
