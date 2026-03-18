@@ -1,25 +1,166 @@
 -- =============================================================================
 -- Seed: Document Generation — SOW document type + 27 intake fields
+-- FSA-branded template using Foundation Stone Advisors color palette.
 -- Run this in Supabase SQL Editor after applying migration 017.
 -- Safe to re-run (uses ON CONFLICT upserts and deletes before re-inserting fields).
 -- =============================================================================
 
--- ─── 1. Upsert SOW Document Type ──────────────────────────────────────────────
+-- ─── 1. Upsert SOW Document Type (FSA branded) ─────────────────────────────
 
 INSERT INTO document_types (slug, name, description, category, html_template, css_styles, header_html, footer_html, variables, is_active)
 VALUES (
   'sow',
   'Statement of Work',
-  'Professional Statement of Work with scope, timeline, pricing, and terms. Supports AI-assisted content generation.',
+  'Professional Statement of Work with scope, timeline, pricing, and terms. FSA-branded with AI-assisted content generation.',
   'proposal',
-  -- html_template
-  E'<div class="document">\n  <div class="header-block">\n    <h1>Statement of Work</h1>\n    <p class="subtitle">{{project_name}}</p>\n  </div>\n\n  <table class="meta-table">\n    <tr><td class="label">Client</td><td>{{client_name}}</td></tr>\n    <tr><td class="label">Prepared For</td><td>{{client_contact_name}}{{#if client_contact_title}}, {{client_contact_title}}{{/if}}</td></tr>\n    <tr><td class="label">Prepared By</td><td>{{prepared_by}}</td></tr>\n    <tr><td class="label">Date</td><td>{{document_date}}</td></tr>\n    <tr><td class="label">Valid Until</td><td>{{valid_until}}</td></tr>\n    <tr><td class="label">Version</td><td>{{version}}</td></tr>\n  </table>\n\n  {{#each sections}}\n  <div class="section" id="section-{{section_key}}">\n    <h2>{{title}}</h2>\n    <div class="section-content">{{{content_html}}}</div>\n  </div>\n  {{/each}}\n\n  <div class="signature-block">\n    <div class="sig-row">\n      <div class="sig-col">\n        <p class="sig-label">Client Signature</p>\n        <div class="sig-line"></div>\n        <p class="sig-name">{{client_contact_name}}</p>\n        <p class="sig-title">{{client_contact_title}}</p>\n        <p class="sig-date">Date: _______________</p>\n      </div>\n      <div class="sig-col">\n        <p class="sig-label">Provider Signature</p>\n        <div class="sig-line"></div>\n        <p class="sig-name">{{prepared_by}}</p>\n        <p class="sig-title">{{provider_title}}</p>\n        <p class="sig-date">Date: _______________</p>\n      </div>\n    </div>\n  </div>\n</div>',
-  -- css_styles
-  E'.document { font-family: ''Inter'', ''Helvetica Neue'', Arial, sans-serif; color: #1e293b; line-height: 1.6; max-width: 800px; margin: 0 auto; }\n.header-block { text-align: center; margin-bottom: 32px; border-bottom: 3px solid #3b82f6; padding-bottom: 24px; }\n.header-block h1 { font-size: 28px; font-weight: 700; margin: 0 0 8px 0; color: #0f172a; }\n.header-block .subtitle { font-size: 18px; color: #64748b; margin: 0; }\n.meta-table { width: 100%; border-collapse: collapse; margin-bottom: 32px; }\n.meta-table td { padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }\n.meta-table .label { font-weight: 600; color: #475569; width: 160px; }\n.section { margin-bottom: 28px; }\n.section h2 { font-size: 18px; font-weight: 600; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 12px; }\n.section-content { font-size: 14px; }\n.section-content p { margin: 0 0 8px 0; }\n.section-content ul, .section-content ol { margin: 8px 0; padding-left: 24px; }\n.section-content li { margin-bottom: 4px; }\n.section-content table { width: 100%; border-collapse: collapse; margin: 12px 0; }\n.section-content table th { background: #f1f5f9; font-weight: 600; text-align: left; padding: 8px 12px; border: 1px solid #e2e8f0; }\n.section-content table td { padding: 8px 12px; border: 1px solid #e2e8f0; }\n.signature-block { margin-top: 48px; page-break-inside: avoid; }\n.sig-row { display: flex; gap: 48px; }\n.sig-col { flex: 1; }\n.sig-label { font-weight: 600; font-size: 14px; margin-bottom: 40px; }\n.sig-line { border-bottom: 1px solid #1e293b; margin-bottom: 8px; }\n.sig-name { font-weight: 600; font-size: 14px; margin: 0; }\n.sig-title { font-size: 13px; color: #64748b; margin: 0; }\n.sig-date { font-size: 13px; color: #64748b; margin-top: 8px; }\n@media print { .document { max-width: 100%; } .section { page-break-inside: avoid; } }',
-  -- header_html
-  E'<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8;">\n  <span>{{client_name}} — Statement of Work</span>\n  <span>Confidential</span>\n</div>',
-  -- footer_html
-  E'<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8;">\n  <span>Foundation Stone Advisors</span>\n  <span>Page {{page}} of {{pages}}</span>\n</div>',
+
+  -- html_template (FSA branded cover + body)
+  E'<div class="document">\n'
+  -- Cover page
+  || E'  <div class="cover-page">\n'
+  || E'    <div class="cover-accent"></div>\n'
+  || E'    <div class="cover-body">\n'
+  || E'      <p class="cover-company">Foundation Stone Advisors, LLC</p>\n'
+  || E'      <p class="cover-tagline">Pouring the Foundation for Your Success</p>\n'
+  || E'      <div class="cover-divider"></div>\n'
+  || E'      <h1 class="cover-title">Statement of Work</h1>\n'
+  || E'      <p class="cover-subtitle">{{project_name}}</p>\n'
+  || E'      <div class="cover-meta">\n'
+  || E'        <table class="cover-meta-table">\n'
+  || E'          <tr><td class="cml">Prepared For</td><td>{{client_name}}</td></tr>\n'
+  || E'          <tr><td class="cml">Contact</td><td>{{client_contact_name}}</td></tr>\n'
+  || E'          <tr><td class="cml">Prepared By</td><td>{{prepared_by}}</td></tr>\n'
+  || E'          <tr><td class="cml">Date</td><td>{{document_date}}</td></tr>\n'
+  || E'          <tr><td class="cml">Valid Until</td><td>{{valid_until}}</td></tr>\n'
+  || E'          <tr><td class="cml">Version</td><td>{{version}}</td></tr>\n'
+  || E'        </table>\n'
+  || E'      </div>\n'
+  || E'    </div>\n'
+  || E'  </div>\n\n'
+  -- Body sections
+  || E'  <div class="body-content">\n'
+  || E'    {{#each sections}}\n'
+  || E'    <div class="section" id="section-{{section_key}}">\n'
+  || E'      <div class="section-divider"></div>\n'
+  || E'      <h2>{{title}}</h2>\n'
+  || E'      <div class="section-content">{{{content_html}}}</div>\n'
+  || E'    </div>\n'
+  || E'    {{/each}}\n\n'
+  -- Signature block
+  || E'    <div class="signature-block">\n'
+  || E'      <div class="section-divider"></div>\n'
+  || E'      <h2>Authorization</h2>\n'
+  || E'      <p class="sig-intro">By signing below, both parties agree to the terms outlined in this Statement of Work.</p>\n'
+  || E'      <div class="sig-row">\n'
+  || E'        <div class="sig-col">\n'
+  || E'          <p class="sig-label">Client</p>\n'
+  || E'          <div class="sig-line"></div>\n'
+  || E'          <p class="sig-name">{{client_contact_name}}</p>\n'
+  || E'          <p class="sig-title">{{client_contact_title}}</p>\n'
+  || E'          <p class="sig-date">Date: _______________</p>\n'
+  || E'        </div>\n'
+  || E'        <div class="sig-col">\n'
+  || E'          <p class="sig-label">Foundation Stone Advisors</p>\n'
+  || E'          <div class="sig-line"></div>\n'
+  || E'          <p class="sig-name">{{prepared_by}}</p>\n'
+  || E'          <p class="sig-title">{{provider_title}}</p>\n'
+  || E'          <p class="sig-date">Date: _______________</p>\n'
+  || E'        </div>\n'
+  || E'      </div>\n'
+  || E'    </div>\n'
+  || E'  </div>\n'
+  || E'</div>',
+
+  -- css_styles (FSA brand: NAVY #1B2A4A, SLATE #3D5A80, ACCENT #5B9BD5)
+  E'/* ── FSA Brand Colors ── */\n'
+  || E':root {\n'
+  || E'  --fsa-navy: #1B2A4A;\n'
+  || E'  --fsa-slate: #3D5A80;\n'
+  || E'  --fsa-accent: #5B9BD5;\n'
+  || E'  --fsa-light-bg: #F0F4F8;\n'
+  || E'  --fsa-dark-text: #1A1A2E;\n'
+  || E'  --fsa-light-text: #6B7280;\n'
+  || E'  --fsa-border: #D1D5DB;\n'
+  || E'  --fsa-row-alt: #F8FAFC;\n'
+  || E'  --fsa-highlight: #E8F0FE;\n'
+  || E'  --fsa-green-bg: #F0FDF4;\n'
+  || E'  --fsa-warm-bg: #FFFBEB;\n'
+  || E'}\n\n'
+
+  || E'/* ── Base ── */\n'
+  || E'.document { font-family: Helvetica, ''Helvetica Neue'', Arial, sans-serif; color: var(--fsa-dark-text); line-height: 1.6; max-width: 850px; margin: 0 auto; }\n\n'
+
+  || E'/* ── Cover Page ── */\n'
+  || E'.cover-page { background: var(--fsa-navy); color: #fff; padding: 0; margin: -8px -8px 0 -8px; min-height: 500px; display: flex; flex-direction: column; }\n'
+  || E'.cover-accent { height: 6px; background: linear-gradient(90deg, var(--fsa-accent), var(--fsa-slate)); }\n'
+  || E'.cover-body { padding: 60px 48px 48px; flex: 1; display: flex; flex-direction: column; }\n'
+  || E'.cover-company { font-size: 14px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--fsa-accent); margin: 0 0 4px 0; }\n'
+  || E'.cover-tagline { font-size: 12px; font-style: italic; color: rgba(255,255,255,0.6); margin: 0 0 32px 0; }\n'
+  || E'.cover-divider { width: 60px; height: 3px; background: var(--fsa-accent); margin-bottom: 32px; }\n'
+  || E'.cover-title { font-size: 36px; font-weight: 700; margin: 0 0 12px 0; color: #fff; }\n'
+  || E'.cover-subtitle { font-size: 20px; font-weight: 400; color: rgba(255,255,255,0.85); margin: 0 0 auto 0; }\n'
+  || E'.cover-meta { margin-top: 40px; }\n'
+  || E'.cover-meta-table { border-collapse: collapse; }\n'
+  || E'.cover-meta-table td { padding: 6px 16px 6px 0; font-size: 13px; color: rgba(255,255,255,0.9); border: none; }\n'
+  || E'.cover-meta-table .cml { font-weight: 600; color: var(--fsa-accent); width: 130px; }\n\n'
+
+  || E'/* ── Body Content ── */\n'
+  || E'.body-content { padding: 32px 8px; }\n\n'
+
+  || E'/* ── Section Dividers ── */\n'
+  || E'.section-divider { height: 3px; background: var(--fsa-navy); margin-bottom: 8px; width: 100%; }\n'
+  || E'.section { margin-bottom: 32px; page-break-inside: avoid; }\n'
+  || E'.section h2 { font-size: 18px; font-weight: 700; color: var(--fsa-navy); margin: 0 0 16px 0; padding-bottom: 8px; border-bottom: 1px solid var(--fsa-border); }\n\n'
+
+  || E'/* ── Section Content ── */\n'
+  || E'.section-content { font-size: 14px; color: var(--fsa-dark-text); }\n'
+  || E'.section-content p { margin: 0 0 10px 0; }\n'
+  || E'.section-content ul, .section-content ol { margin: 8px 0 12px; padding-left: 24px; }\n'
+  || E'.section-content li { margin-bottom: 4px; }\n'
+  || E'.section-content strong { color: var(--fsa-navy); }\n\n'
+
+  || E'/* ── Tables in Sections ── */\n'
+  || E'.section-content table { width: 100%; border-collapse: collapse; margin: 12px 0; border: 1px solid var(--fsa-border); }\n'
+  || E'.section-content table th { background: var(--fsa-light-bg); font-weight: 600; text-align: left; padding: 10px 14px; border: 1px solid var(--fsa-border); color: var(--fsa-navy); font-size: 13px; }\n'
+  || E'.section-content table td { padding: 10px 14px; border: 1px solid var(--fsa-border); font-size: 13px; }\n'
+  || E'.section-content table tr:nth-child(even) td { background: var(--fsa-row-alt); }\n\n'
+
+  || E'/* ── Callout Boxes ── */\n'
+  || E'.callout-blue { background: var(--fsa-highlight); border-left: 4px solid var(--fsa-accent); padding: 12px 16px; margin: 12px 0; border-radius: 0 4px 4px 0; }\n'
+  || E'.callout-green { background: var(--fsa-green-bg); border-left: 4px solid #22c55e; padding: 12px 16px; margin: 12px 0; border-radius: 0 4px 4px 0; }\n'
+  || E'.callout-warm { background: var(--fsa-warm-bg); border-left: 4px solid #f59e0b; padding: 12px 16px; margin: 12px 0; border-radius: 0 4px 4px 0; }\n\n'
+
+  || E'/* ── Signature Block ── */\n'
+  || E'.signature-block { margin-top: 40px; page-break-inside: avoid; }\n'
+  || E'.sig-intro { font-size: 13px; color: var(--fsa-light-text); margin-bottom: 32px; }\n'
+  || E'.sig-row { display: flex; gap: 48px; }\n'
+  || E'.sig-col { flex: 1; }\n'
+  || E'.sig-label { font-weight: 700; font-size: 13px; color: var(--fsa-navy); margin-bottom: 48px; }\n'
+  || E'.sig-line { border-bottom: 1px solid var(--fsa-navy); margin-bottom: 8px; }\n'
+  || E'.sig-name { font-weight: 600; font-size: 13px; margin: 0; color: var(--fsa-dark-text); }\n'
+  || E'.sig-title { font-size: 12px; color: var(--fsa-light-text); margin: 2px 0 0 0; }\n'
+  || E'.sig-date { font-size: 12px; color: var(--fsa-light-text); margin-top: 8px; }\n\n'
+
+  || E'/* ── Print ── */\n'
+  || E'@media print {\n'
+  || E'  .document { max-width: 100%; }\n'
+  || E'  .cover-page { min-height: auto; page-break-after: always; -webkit-print-color-adjust: exact; print-color-adjust: exact; }\n'
+  || E'  .section { page-break-inside: avoid; }\n'
+  || E'  .signature-block { page-break-inside: avoid; }\n'
+  || E'}',
+
+  -- header_html (FSA branded page header for body pages)
+  E'<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 2px solid #1B2A4A; font-size: 11px; margin-bottom: 16px;">\n'
+  || E'  <span style="font-weight: 700; color: #1B2A4A; letter-spacing: 1px; text-transform: uppercase; font-size: 10px;">Foundation Stone Advisors</span>\n'
+  || E'  <span style="color: #6B7280; font-style: italic;">{{client_name}} &mdash; Statement of Work</span>\n'
+  || E'</div>',
+
+  -- footer_html (FSA branded page footer)
+  E'<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-top: 2px solid #1B2A4A; font-size: 10px; color: #6B7280; margin-top: 16px;">\n'
+  || E'  <span>Foundation Stone Advisors, LLC &bull; Orange Park, FL &bull; Confidential</span>\n'
+  || E'  <span>Page {{page}} of {{pages}}</span>\n'
+  || E'</div>',
+
   -- variables (default sections)
   '{"sections":[{"section_key":"executive_summary","title":"Executive Summary","sort_order":1},{"section_key":"project_overview","title":"Project Overview","sort_order":2},{"section_key":"scope_of_work","title":"Scope of Work","sort_order":3},{"section_key":"deliverables","title":"Deliverables","sort_order":4},{"section_key":"timeline","title":"Timeline & Milestones","sort_order":5},{"section_key":"pricing","title":"Pricing & Payment Terms","sort_order":6},{"section_key":"assumptions","title":"Assumptions & Dependencies","sort_order":7},{"section_key":"acceptance_criteria","title":"Acceptance Criteria","sort_order":8},{"section_key":"change_management","title":"Change Management","sort_order":9},{"section_key":"terms_conditions","title":"Terms & Conditions","sort_order":10}]}'::jsonb,
   true
@@ -117,7 +258,7 @@ BEGIN
 
   -- ── Provider Details ──
   INSERT INTO document_intake_fields (document_type_id, field_key, label, field_type, section, sort_order, is_required, placeholder, default_value)
-  VALUES (_type_id, 'prepared_by', 'Prepared By', 'text', 'Provider Details', 50, true, 'John Doe', '');
+  VALUES (_type_id, 'prepared_by', 'Prepared By', 'text', 'Provider Details', 50, true, 'Select team member', '');
 
   INSERT INTO document_intake_fields (document_type_id, field_key, label, field_type, section, sort_order, is_required, placeholder)
   VALUES (_type_id, 'provider_title', 'Provider Title', 'text', 'Provider Details', 51, false, 'Managing Consultant');
@@ -141,7 +282,7 @@ BEGIN
 END $$;
 
 -- ─── Done ─────────────────────────────────────────────────────────────────────
--- SOW document type seeded with 27 intake fields across 7 sections:
+-- SOW document type seeded with FSA branding + 27 intake fields across 7 sections:
 --   Client Information (4), Project Details (3), Scope & Deliverables (4),
 --   Timeline (3), Pricing & Payment (5), Provider Details (3),
 --   Document Settings (4)

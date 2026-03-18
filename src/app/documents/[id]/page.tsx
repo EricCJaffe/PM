@@ -318,7 +318,7 @@ export default function DocumentEditorPage() {
       {activeTab === "preview" && (
         <div>
           {compiledHtml ? (
-            <DocumentPreview compiledHtml={compiledHtml} />
+            <DocumentPreview compiledHtml={compiledHtml} documentTitle={doc.title} />
           ) : (
             <div className="text-center py-12 text-pm-muted">
               <p className="mb-4">No preview available. Compile the document from the Sections tab.</p>
