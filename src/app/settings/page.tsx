@@ -152,9 +152,18 @@ export default function SettingsPage() {
         </div>
 
         {error && <p className="text-sm text-red-400">{error}</p>}
-        {saved && <p className="text-sm text-green-400">Profile saved successfully</p>}
 
-        <div className="flex justify-end pt-2">
+        <div className="flex items-center justify-between pt-2">
+          {saved ? (
+            <div className="flex items-center gap-2 text-sm text-emerald-400">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              Profile saved successfully
+            </div>
+          ) : (
+            <div />
+          )}
           <button
             onClick={handleSave}
             disabled={saving || !isDirty}

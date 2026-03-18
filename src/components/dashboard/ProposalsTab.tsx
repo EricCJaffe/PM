@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import type { Organization, Proposal, ProposalTemplate, ProposalStatus } from "@/types/pm";
 
 const STATUS_COLORS: Record<ProposalStatus, string> = {
@@ -12,8 +13,31 @@ const STATUS_COLORS: Record<ProposalStatus, string> = {
   expired: "bg-amber-500/20 text-amber-400",
 };
 
+const DOC_STATUS_COLORS: Record<string, string> = {
+  draft: "bg-slate-500/20 text-slate-300",
+  review: "bg-purple-500/20 text-purple-400",
+  approved: "bg-emerald-500/20 text-emerald-400",
+  sent: "bg-blue-500/20 text-blue-400",
+  signed: "bg-emerald-500/20 text-emerald-400",
+  archived: "bg-amber-500/20 text-amber-400",
+};
+
+interface GeneratedDoc {
+  id: string;
+  title: string;
+  status: string;
+  document_type_name: string;
+  document_type_slug: string;
+  version: number;
+  created_at: string;
+  updated_at: string;
+  sent_at: string | null;
+  compiled_html: string | null;
+}
+
 export function ProposalsTab({ org }: { org: Organization }) {
   const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [generatedDocs, setGeneratedDocs] = useState<GeneratedDoc[]>([]);
   const [templates, setTemplates] = useState<ProposalTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [showBuilder, setShowBuilder] = useState(false);
@@ -23,10 +47,12 @@ export function ProposalsTab({ org }: { org: Organization }) {
     Promise.all([
       fetch(`/api/pm/proposals?org_id=${org.id}`).then((r) => r.json()),
       fetch("/api/pm/proposal-templates").then((r) => r.json()),
+      fetch(`/api/pm/docgen?org_id=${org.id}`).then((r) => r.json()),
     ])
-      .then(([p, t]) => {
+      .then(([p, t, d]) => {
         if (Array.isArray(p)) setProposals(p);
         if (Array.isArray(t)) setTemplates(t);
+        if (Array.isArray(d)) setGeneratedDocs(d);
       })
       .finally(() => setLoading(false));
   }, [org.id]);
@@ -126,6 +152,44 @@ export function ProposalsTab({ org }: { org: Organization }) {
                       Delete
                     </button>
                   )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Generated Documents (SOWs, etc.) */}
+      {generatedDocs.length > 0 && (
+        <div className="space-y-3 mt-8">
+          <div>
+            <h3 className="font-semibold text-pm-text">Documents</h3>
+            <p className="text-sm text-pm-muted">{generatedDocs.length} generated document{generatedDocs.length !== 1 ? "s" : ""}</p>
+          </div>
+          {generatedDocs.map((doc) => (
+            <div key={doc.id} className="card">
+              <div className="flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3">
+                    <span className="font-medium text-pm-text">{doc.title}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${DOC_STATUS_COLORS[doc.status] || DOC_STATUS_COLORS.draft}`}>
+                      {doc.status.charAt(0).toUpperCase() + doc.status.slice(1)}
+                    </span>
+                    <span className="text-xs text-pm-muted">{doc.document_type_name}</span>
+                  </div>
+                  <div className="flex gap-4 mt-1 text-xs text-pm-muted">
+                    <span>v{doc.version}</span>
+                    <span>Created: {new Date(doc.created_at).toLocaleDateString()}</span>
+                    {doc.sent_at && <span>Sent: {new Date(doc.sent_at).toLocaleDateString()}</span>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 ml-4 shrink-0">
+                  <Link
+                    href={`/documents/${doc.id}`}
+                    className="px-3 py-1.5 bg-pm-accent hover:bg-pm-accent-hover text-white rounded-md text-xs font-medium transition-colors"
+                  >
+                    Open
+                  </Link>
                 </div>
               </div>
             </div>
