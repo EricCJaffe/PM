@@ -30,6 +30,10 @@ export interface Organization {
   name: string;
   is_site_org: boolean;
   address: string | null;
+  address_line2: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
   phone: string | null;
   website: string | null;
   notes: string | null;
