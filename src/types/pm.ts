@@ -33,6 +33,11 @@ export interface Organization {
   phone: string | null;
   website: string | null;
   notes: string | null;
+  pipeline_status: PipelineStatus;
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  converted_at: string | null;
   created_at: string;
 }
 
@@ -238,6 +243,86 @@ export interface PMFile {
   title: string;
   frontmatter: Record<string, unknown>;
   last_synced_at: string;
+}
+
+// ─── CRM / Pipeline Types ───────────────────────────────────────────
+
+export type PipelineStatus = "lead" | "prospect" | "proposal_sent" | "negotiation" | "client" | "inactive";
+
+export type ProposalStatus = "draft" | "sent" | "viewed" | "accepted" | "rejected" | "expired";
+
+export type NoteType = "meeting" | "general" | "phone-call" | "follow-up";
+
+export interface ProposalTemplateField {
+  name: string;
+  label: string;
+  type: "text" | "textarea" | "date" | "number" | "select";
+  required: boolean;
+  placeholder: string;
+  options?: string[];
+}
+
+export interface ProposalTemplate {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  boilerplate: string | null;
+  variable_fields: ProposalTemplateField[];
+  output_format: "html" | "markdown";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Proposal {
+  id: string;
+  org_id: string;
+  template_slug: string | null;
+  title: string;
+  status: ProposalStatus;
+  form_data: Record<string, string>;
+  generated_content: string | null;
+  share_token: string;
+  sent_at: string | null;
+  viewed_at: string | null;
+  responded_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProposalAttachment {
+  id: string;
+  proposal_id: string;
+  file_name: string;
+  file_size: number;
+  content_type: string | null;
+  storage_path: string;
+  uploaded_by: string | null;
+  created_at: string;
+}
+
+export interface ClientNote {
+  id: string;
+  org_id: string;
+  title: string;
+  body: string | null;
+  note_type: NoteType;
+  author: string | null;
+  pinned: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClientNoteAttachment {
+  id: string;
+  note_id: string;
+  file_name: string;
+  file_size: number;
+  content_type: string | null;
+  storage_path: string;
+  uploaded_by: string | null;
+  created_at: string;
 }
 
 // ─── Client Dashboard Types ─────────────────────────────────────────
