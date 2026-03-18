@@ -10,6 +10,10 @@ interface Client {
   slug: string;
   name: string;
   address: string | null;
+  address_line2: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
   phone: string | null;
   website: string | null;
   notes: string | null;
@@ -59,6 +63,10 @@ export default function ClientsPage() {
     name: "",
     slug: "",
     address: "",
+    address_line2: "",
+    city: "",
+    state: "",
+    zip: "",
     phone: "",
     website: "",
     notes: "",
@@ -113,7 +121,7 @@ export default function ClientsPage() {
   };
 
   const resetForm = () => {
-    setForm({ name: "", slug: "", address: "", phone: "", website: "", notes: "", pipeline_status: "lead", contact_name: "", contact_email: "", contact_phone: "" });
+    setForm({ name: "", slug: "", address: "", address_line2: "", city: "", state: "", zip: "", phone: "", website: "", notes: "", pipeline_status: "lead", contact_name: "", contact_email: "", contact_phone: "" });
     setEditingId(null);
     setShowForm(false);
   };
@@ -123,6 +131,10 @@ export default function ClientsPage() {
       name: client.name,
       slug: client.slug,
       address: client.address || "",
+      address_line2: client.address_line2 || "",
+      city: client.city || "",
+      state: client.state || "",
+      zip: client.zip || "",
       phone: client.phone || "",
       website: client.website || "",
       notes: client.notes || "",
@@ -288,15 +300,61 @@ export default function ClientsPage() {
                 placeholder="https://example.com"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-pm-muted mb-1">Address</label>
+            {/* Address fields */}
+            <div className="md:col-span-2 pt-2 border-t border-pm-border">
+              <div className="text-xs font-medium text-pm-muted mb-3 uppercase tracking-wider">Address</div>
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-pm-muted mb-1">Address Line 1</label>
               <input
                 type="text"
                 value={form.address}
                 onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
                 className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
-                placeholder="123 Main St, City, State 12345"
+                placeholder="123 Main St"
               />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-pm-muted mb-1">Address Line 2</label>
+              <input
+                type="text"
+                value={form.address_line2}
+                onChange={(e) => setForm((f) => ({ ...f, address_line2: e.target.value }))}
+                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
+                placeholder="Suite 200, Building A"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-pm-muted mb-1">City</label>
+              <input
+                type="text"
+                value={form.city}
+                onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
+                placeholder="San Francisco"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-pm-muted mb-1">State</label>
+                <input
+                  type="text"
+                  value={form.state}
+                  onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))}
+                  className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
+                  placeholder="CA"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-pm-muted mb-1">ZIP</label>
+                <input
+                  type="text"
+                  value={form.zip}
+                  onChange={(e) => setForm((f) => ({ ...f, zip: e.target.value }))}
+                  className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
+                  placeholder="94105"
+                />
+              </div>
             </div>
 
             {/* Contact fields */}
@@ -393,6 +451,12 @@ export default function ClientsPage() {
                       <span>{client.contact_email || client.phone}</span>
                     )}
                     {client.website && <span>{client.website}</span>}
+                    {(client.city || client.state) && (
+                      <span className="flex items-center gap-1">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>
+                        {[client.city, client.state].filter(Boolean).join(", ")}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 ml-4 shrink-0">

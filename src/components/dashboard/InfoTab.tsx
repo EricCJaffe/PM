@@ -29,6 +29,10 @@ export function InfoTab({
     phone: org.phone || "",
     website: org.website || "",
     address: org.address || "",
+    address_line2: org.address_line2 || "",
+    city: org.city || "",
+    state: org.state || "",
+    zip: org.zip || "",
     notes: org.notes || "",
   });
 
@@ -149,13 +153,56 @@ export function InfoTab({
                 />
               </div>
               <div>
-                <label className="block text-xs text-pm-muted mb-1">Address</label>
+                <label className="block text-xs text-pm-muted mb-1">Address Line 1</label>
                 <input
                   type="text"
                   value={form.address}
                   onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
                   className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text"
+                  placeholder="123 Main St"
                 />
+              </div>
+              <div>
+                <label className="block text-xs text-pm-muted mb-1">Address Line 2</label>
+                <input
+                  type="text"
+                  value={form.address_line2}
+                  onChange={(e) => setForm((f) => ({ ...f, address_line2: e.target.value }))}
+                  className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text"
+                  placeholder="Suite 200"
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-xs text-pm-muted mb-1">City</label>
+                  <input
+                    type="text"
+                    value={form.city}
+                    onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+                    className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text"
+                    placeholder="San Francisco"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-pm-muted mb-1">State</label>
+                  <input
+                    type="text"
+                    value={form.state}
+                    onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))}
+                    className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text"
+                    placeholder="CA"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-pm-muted mb-1">ZIP</label>
+                  <input
+                    type="text"
+                    value={form.zip}
+                    onChange={(e) => setForm((f) => ({ ...f, zip: e.target.value }))}
+                    className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text"
+                    placeholder="94105"
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-xs text-pm-muted mb-1">Notes</label>
@@ -178,8 +225,10 @@ export function InfoTab({
               <InfoRow label="Phone" value={org.phone} />
               <InfoRow label="Website" value={org.website} link />
               <InfoRow label="Address" value={org.address} />
+              {org.address_line2 && <InfoRow label="" value={org.address_line2} />}
+              <InfoRow label="City" value={[org.city, org.state, org.zip].filter(Boolean).join(", ") || null} />
               <InfoRow label="Notes" value={org.notes} />
-              {!org.phone && !org.website && !org.address && (
+              {!org.phone && !org.website && !org.address && !org.city && (
                 <p className="text-sm text-pm-muted italic">No company details yet. Click Edit to add.</p>
               )}
             </div>

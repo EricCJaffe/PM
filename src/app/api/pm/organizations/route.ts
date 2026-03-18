@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(tableCheck, { status: 503 });
     }
 
-    const { name, slug, address, phone, website, notes, pipeline_status, contact_name, contact_email, contact_phone } = await request.json();
+    const { name, slug, address, address_line2, city, state, zip, phone, website, notes, pipeline_status, contact_name, contact_email, contact_phone } = await request.json();
 
     if (!name || !slug) {
       return NextResponse.json({ error: "name and slug are required" }, { status: 400 });
@@ -56,7 +56,9 @@ export async function POST(request: NextRequest) {
       .from("pm_organizations")
       .insert({
         name, slug,
-        address: address || null, phone: phone || null, website: website || null, notes: notes || null,
+        address: address || null, address_line2: address_line2 || null,
+        city: city || null, state: state || null, zip: zip || null,
+        phone: phone || null, website: website || null, notes: notes || null,
         pipeline_status: pipeline_status || "lead",
         contact_name: contact_name || null, contact_email: contact_email || null, contact_phone: contact_phone || null,
       })
@@ -87,7 +89,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json(tableCheck, { status: 503 });
     }
 
-    const { id, name, slug, address, phone, website, notes, pipeline_status, contact_name, contact_email, contact_phone } = await request.json();
+    const { id, name, slug, address, address_line2, city, state, zip, phone, website, notes, pipeline_status, contact_name, contact_email, contact_phone } = await request.json();
 
     if (!id) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
@@ -98,6 +100,10 @@ export async function PUT(request: NextRequest) {
     if (name !== undefined) updates.name = name;
     if (slug !== undefined) updates.slug = slug;
     if (address !== undefined) updates.address = address || null;
+    if (address_line2 !== undefined) updates.address_line2 = address_line2 || null;
+    if (city !== undefined) updates.city = city || null;
+    if (state !== undefined) updates.state = state || null;
+    if (zip !== undefined) updates.zip = zip || null;
     if (phone !== undefined) updates.phone = phone || null;
     if (website !== undefined) updates.website = website || null;
     if (notes !== undefined) updates.notes = notes || null;
