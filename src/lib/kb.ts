@@ -37,12 +37,18 @@ export async function assembleKBContext(
     conditions.push(`project_id.eq.${projectId}`);
   }
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("pm_kb_articles")
     .select("title, category, content, org_id, project_id, is_pinned, tags")
     .or(conditions.join(","))
     .order("is_pinned", { ascending: false })
     .order("updated_at", { ascending: false });
+
+  // Gracefully handle missing table (migration not yet applied)
+  if (error) {
+    console.warn("KB context assembly skipped:", error.message);
+    return "";
+  }
 
   const articles = (data ?? []) as Pick<KBArticle, "title" | "category" | "content" | "org_id" | "project_id" | "is_pinned" | "tags">[];
 
