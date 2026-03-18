@@ -101,7 +101,7 @@ docs/                       # Project documentation
 | `pm_project_templates` | Template definitions with phase JSONB |
 | `pm_projects` | Projects linked to org + template |
 | `pm_phases` | Phases within projects (ordered, grouped) |
-| `pm_tasks` | Tasks within phases (status, owner, deps, subtasks) |
+| `pm_tasks` | Tasks within phases or standalone (status, owner, org_id, deps, subtasks) |
 | `pm_risks` | Risk register (probability, impact, mitigation) |
 | `pm_daily_logs` | AI-generated or manual daily standups |
 | `pm_files` | Index of all vault markdown files |
@@ -115,6 +115,7 @@ docs/                       # Project documentation
 | `pm_client_notes` | Client notes (meeting, general, phone-call, follow-up) |
 | `pm_client_note_attachments` | File attachments on client notes |
 | `pm_kb_articles` | Knowledge base articles (global/org/project scope, AI context) |
+| `pm_api_keys` | API keys for external integrations (hashed, scoped permissions) |
 
 ## Project Templates
 | Slug | Name | Phases |
@@ -170,6 +171,10 @@ vault/[org-slug]/[project-slug]/
 | `/api/pm/notes/summarize` | POST | AI-summarize client notes (GPT-4o) |
 | `/api/pm/kb` | GET, POST | List / create KB articles |
 | `/api/pm/kb/[id]` | GET, PATCH, DELETE | View / update / delete KB article |
+| `/api/pm/api-keys` | GET, POST, DELETE | List / create / revoke API keys |
+| `/api/pm/ext/context` | GET | AI agent context dump (orgs, projects, members) |
+| `/api/pm/ext/tasks` | GET, POST, PATCH | AI agent task CRUD (API key auth) |
+| `/api/pm/ext/notes` | GET, POST | AI agent note read/create (API key auth) |
 
 ## Security Rules
 - **Never** put OpenAI API keys, service role keys, or GitHub tokens in `NEXT_PUBLIC_*` vars

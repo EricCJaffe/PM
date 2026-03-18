@@ -15,6 +15,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // API key auth — allow Bearer pm_key_... for /api/pm/ext/ routes
+  // Key validation happens in the route handlers themselves
+  if (pathname.startsWith("/api/pm/ext/")) {
+    const authHeader = request.headers.get("authorization");
+    if (authHeader?.startsWith("Bearer pm_key_")) {
+      return NextResponse.next();
+    }
+  }
+
   // Create a response we can modify (for cookie refresh)
   let response = NextResponse.next({
     request: { headers: request.headers },

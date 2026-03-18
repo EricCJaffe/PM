@@ -53,6 +53,17 @@
 - [ ] Email compose modal for sending proposals to client contacts
 
 ## Recently Completed
+- [x] Client-level tasks + task mobility + external AI agent API
+  - Migration 022: org_id on tasks (add if missing), pm_api_keys table
+  - Tasks can now be personal (no org, no project), client-level (org_id set, no project), or project-level
+  - Full task mobility: PATCH org_id/project_id to move tasks between personal/client/project
+  - New "Tasks" tab on client dashboard — create, edit, complete, move tasks
+  - API key auth system: pm_api_keys table with SHA-256 hashed keys, scoped permissions, org restrictions
+  - Middleware bypass for /api/pm/ext/* routes with Bearer pm_key_... auth
+  - External AI endpoints: GET/POST/PATCH /api/pm/ext/tasks, GET/POST /api/pm/ext/notes, GET /api/pm/ext/context
+  - API key management UI on Settings page (admin only) — create, revoke, show-once reveal
+  - AI Agent Spec doc (docs/AI-AGENT-SPEC.md) with full API reference + system prompt template
+  - /api/pm/tasks/my enriched with org_name, org_slug, supports org_id filter
 - [x] Pipeline Kanban board — drag-and-drop clients between pipeline stages
   - New PipelineKanban component using @dnd-kit with droppable columns
   - 6 columns: Lead, Prospect, Proposal Sent, Negotiation, Client, Inactive

@@ -12,10 +12,12 @@ import { KPIsTab } from "./KPIsTab";
 import { DocsTab } from "./DocsTab";
 import { UsersTab } from "./UsersTab";
 import { KBTab } from "./KBTab";
+import { ClientTasksTab } from "./ClientTasksTab";
 
 const tabs = [
   { id: "overview", label: "Overview" },
   { id: "info", label: "Info" },
+  { id: "tasks", label: "Tasks" },
   { id: "proposals", label: "Proposals" },
   { id: "notes", label: "Notes" },
   { id: "users", label: "Users" },
@@ -109,6 +111,7 @@ export function DashboardTabs({
       </div>
 
       {active === "info" && <InfoTab org={org} projects={projects} />}
+      {active === "tasks" && <ClientTasksTab org={org} />}
       {active === "proposals" && <ProposalsTab org={org} />}
       {active === "notes" && <NotesTab org={org} />}
       {active === "users" && <UsersTab org={org} />}

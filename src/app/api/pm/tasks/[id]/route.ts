@@ -8,12 +8,39 @@ export async function PATCH(
 ) {
   const { id } = await params;
   const body = await request.json();
-  const allowed = ["name", "status", "owner", "assigned_to", "due_date", "description", "phase_id", "sort_order", "subtasks", "notify_assignee", "is_exception", "series_id", "series_occurrence_date", "original_date"];
+  const allowed = ["name", "status", "owner", "assigned_to", "due_date", "description", "phase_id", "sort_order", "subtasks", "notify_assignee", "is_exception", "series_id", "series_occurrence_date", "original_date", "org_id", "project_id"];
   const updates: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in body) updates[key] = body[key];
   }
   const supabase = createServiceClient();
+
+  // Task mobility: moving between personal / client / project
+  if ("project_id" in body) {
+    if (body.project_id) {
+      // Moving to a project — derive org_id from the project
+      const { data: proj } = await supabase.from("pm_projects").select("org_id").eq("id", body.project_id).single();
+      if (proj) {
+        updates.org_id = proj.org_id;
+        updates.project_id = body.project_id;
+      }
+    } else {
+      // Moving to client-level (org_id set) or personal (org_id null)
+      updates.project_id = null;
+      updates.phase_id = null;
+      if (!body.org_id && !("org_id" in body)) {
+        updates.org_id = null; // personal task
+      }
+    }
+  }
+  if ("org_id" in body && !body.project_id) {
+    updates.org_id = body.org_id || null;
+    if (!body.org_id) {
+      updates.project_id = null;
+      updates.phase_id = null;
+    }
+  }
+
   let { data, error } = await supabase.from("pm_tasks").update(updates).eq("id", id).select().single();
 
   // If update failed due to missing columns (migrations not applied), retry without them
