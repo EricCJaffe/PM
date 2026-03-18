@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { ShareButton } from "@/components/dashboard/ShareButton";
+import { getUserOrgFilter } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,12 @@ export default async function ClientDetailPage({
   const { slug } = await params;
   const org = await getOrganizationBySlug(slug);
   if (!org) notFound();
+
+  // Access check: external users can only view their assigned org
+  const orgFilter = await getUserOrgFilter();
+  if (orgFilter !== null && !orgFilter.includes(org.id)) {
+    notFound();
+  }
 
   const [projects, processMaps, opportunities, kpis, documents] = await Promise.all([
     getProjects(org.id),

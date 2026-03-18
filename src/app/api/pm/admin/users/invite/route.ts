@@ -83,16 +83,20 @@ export async function POST(request: NextRequest) {
   }
 
   // 3. Determine which orgs to add the user to
-  let assignOrgIds: string[] = org_ids ?? [];
+  let assignOrgIds: string[] = [];
 
-  // If no orgs specified, default to the site org (Foundation Stone Advisors)
-  if (assignOrgIds.length === 0) {
-    const { data: siteOrg } = await service
+  if (validRole === "admin" || validRole === "user") {
+    // Internal users (FSA staff): auto-access to ALL orgs
+    const { data: allOrgs } = await service
       .from("pm_organizations")
-      .select("id")
-      .eq("is_site_org", true)
-      .single();
-    if (siteOrg) assignOrgIds = [siteOrg.id];
+      .select("id");
+    assignOrgIds = (allOrgs ?? []).map((o: { id: string }) => o.id);
+  } else {
+    // External users: only the specified org(s)
+    assignOrgIds = org_ids ?? [];
+    if (assignOrgIds.length === 0) {
+      // No org specified — that's OK, admin can assign later
+    }
   }
 
   // 4. Create pm_user_org_access and pm_members records for each org
@@ -107,7 +111,6 @@ export async function POST(request: NextRequest) {
     }, { onConflict: "user_id,org_id" });
 
     // Add pm_members record (for task assignment pickers)
-    // Check if slug already exists in this org
     const { data: existingMember } = await service
       .from("pm_members")
       .select("id")
@@ -142,7 +145,7 @@ export async function POST(request: NextRequest) {
   sendInviteEmail({
     to: email,
     displayName: display_name,
-    role: validRole === "admin" ? "Admin" : validRole === "external" ? "External" : "User",
+    role: validRole === "admin" ? "Admin" : validRole === "external" ? "Client User" : "Staff",
     invitedBy: admin.id !== "no-auth" ? "An administrator" : undefined,
   }).catch((err) => console.error("[Email] Invite error:", err));
 

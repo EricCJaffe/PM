@@ -1,5 +1,5 @@
 import { createServiceClient } from "./supabase/server";
-import type { Project, ProjectWithStats, Phase, PhaseWithTasks, Task, Risk, PMFile, ProjectTemplate, Organization, Member, AssignableMember, ProcessMap, Opportunity, KPI, PMDocument, ShareToken } from "@/types/pm";
+import type { Project, ProjectWithStats, Phase, PhaseWithTasks, Task, Risk, PMFile, ProjectTemplate, Organization, Member, AssignableMember, ProcessMap, Opportunity, KPI, PMDocument, ShareToken, Proposal, ProposalTemplate as ProposalTemplateType, ClientNote, ClientNoteAttachment, PipelineStatus } from "@/types/pm";
 
 // ─── Organizations ───────────────────────────────────────────────────
 
@@ -360,4 +360,107 @@ export async function getShareTokenData(token: string) {
   if (!tokenData) return null;
   if (tokenData.expires_at && new Date(tokenData.expires_at) < new Date()) return null;
   return tokenData as ShareToken;
+}
+
+// ─── CRM / Pipeline ────────────────────────────────────────────────
+
+export async function getOrganizationsByPipeline(): Promise<Record<PipelineStatus, Organization[]>> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_organizations")
+    .select("*")
+    .order("name");
+  const orgs = (data ?? []) as Organization[];
+  const grouped: Record<PipelineStatus, Organization[]> = {
+    lead: [], prospect: [], proposal_sent: [], negotiation: [], client: [], inactive: [],
+  };
+  for (const org of orgs) {
+    const status = org.pipeline_status || "lead";
+    if (grouped[status]) grouped[status].push(org);
+  }
+  return grouped;
+}
+
+// ─── Proposals ──────────────────────────────────────────────────────
+
+export async function getProposals(orgId: string): Promise<Proposal[]> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_proposals")
+    .select("*")
+    .eq("org_id", orgId)
+    .order("created_at", { ascending: false });
+  return (data ?? []) as Proposal[];
+}
+
+export async function getProposalById(id: string): Promise<Proposal | null> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_proposals")
+    .select("*")
+    .eq("id", id)
+    .single();
+  return data as Proposal | null;
+}
+
+export async function getProposalByShareToken(token: string): Promise<Proposal | null> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_proposals")
+    .select("*")
+    .eq("share_token", token)
+    .single();
+  return data as Proposal | null;
+}
+
+export async function getProposalTemplates(): Promise<ProposalTemplateType[]> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_proposal_templates")
+    .select("*")
+    .order("name");
+  return (data ?? []) as ProposalTemplateType[];
+}
+
+export async function getProposalTemplateBySlug(slug: string): Promise<ProposalTemplateType | null> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_proposal_templates")
+    .select("*")
+    .eq("slug", slug)
+    .single();
+  return data as ProposalTemplateType | null;
+}
+
+// ─── Client Notes ───────────────────────────────────────────────────
+
+export async function getClientNotes(orgId: string): Promise<ClientNote[]> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_client_notes")
+    .select("*")
+    .eq("org_id", orgId)
+    .order("pinned", { ascending: false })
+    .order("created_at", { ascending: false });
+  return (data ?? []) as ClientNote[];
+}
+
+export async function getClientNoteById(id: string): Promise<ClientNote | null> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_client_notes")
+    .select("*")
+    .eq("id", id)
+    .single();
+  return data as ClientNote | null;
+}
+
+export async function getClientNoteAttachments(noteId: string): Promise<ClientNoteAttachment[]> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_client_note_attachments")
+    .select("*")
+    .eq("note_id", noteId)
+    .order("created_at");
+  return (data ?? []) as ClientNoteAttachment[];
 }

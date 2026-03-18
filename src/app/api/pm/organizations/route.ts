@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { checkTablesExist } from "@/lib/db-check";
+import { getUserOrgFilter } from "@/lib/auth";
 
 const REQUIRED_TABLES = ["pm_organizations"];
 
-// GET /api/pm/organizations — list all orgs
+// GET /api/pm/organizations — list orgs (filtered by user access)
 export async function GET() {
   const tableCheck = await checkTablesExist(REQUIRED_TABLES);
   if (tableCheck) {
@@ -12,10 +13,23 @@ export async function GET() {
   }
 
   const supabase = createServiceClient();
-  const { data, error } = await supabase
-    .from("pm_organizations")
-    .select("*")
-    .order("name");
+
+  // Filter orgs based on user access
+  // Internal users (admin/user): null = no filter, see all orgs
+  // External users: array of org IDs they can access
+  const orgFilter = await getUserOrgFilter();
+
+  let query = supabase.from("pm_organizations").select("*");
+
+  if (orgFilter !== null) {
+    if (orgFilter.length === 0) {
+      // No access at all — return empty
+      return NextResponse.json([]);
+    }
+    query = query.in("id", orgFilter);
+  }
+
+  const { data, error } = await query.order("name");
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

@@ -36,10 +36,13 @@ export default function AdminUsersPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteName, setInviteName] = useState("");
   const [inviteRole, setInviteRole] = useState("user");
-  const [inviteOrgIds, setInviteOrgIds] = useState<string[]>([]);
+  const [inviteOrgId, setInviteOrgId] = useState(""); // Single org for external users
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
+
+  const siteOrg = orgs.find((o) => o.is_site_org);
+  const clientOrgs = orgs.filter((o) => !o.is_site_org);
 
   async function loadUsers() {
     const res = await fetch("/api/pm/admin/users");
@@ -56,11 +59,6 @@ export default function AdminUsersPage() {
     setUsers(data.users);
     setOrgAccess(data.org_access);
     setOrgs(data.organizations);
-    // Default invite org selection to the site org
-    const siteOrg = data.organizations.find((o: Org) => o.is_site_org);
-    if (siteOrg && inviteOrgIds.length === 0) {
-      setInviteOrgIds([siteOrg.id]);
-    }
     setLoading(false);
   }
 
@@ -72,6 +70,17 @@ export default function AdminUsersPage() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ system_role }),
+    });
+    await loadUsers();
+    setSaving(null);
+  }
+
+  async function updateExternalOrg(userId: string, orgId: string) {
+    setSaving(userId);
+    await fetch(`/api/pm/admin/users/${userId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ assigned_org_id: orgId || null }),
     });
     await loadUsers();
     setSaving(null);
@@ -92,6 +101,10 @@ export default function AdminUsersPage() {
   async function inviteUser(e: React.FormEvent) {
     e.preventDefault();
     if (!inviteEmail.trim() || !inviteName.trim()) return;
+    if (inviteRole === "external" && !inviteOrgId) {
+      setInviteError("Please select a client for this external user.");
+      return;
+    }
     setInviting(true);
     setInviteError(null);
     setInviteSuccess(null);
@@ -103,7 +116,9 @@ export default function AdminUsersPage() {
           email: inviteEmail.trim(),
           display_name: inviteName.trim(),
           system_role: inviteRole,
-          org_ids: inviteOrgIds,
+          // Internal users: no org_ids needed (auto all-access)
+          // External users: single org assignment
+          org_ids: inviteRole === "external" ? [inviteOrgId] : [],
         }),
       });
       const data = await res.json();
@@ -112,9 +127,7 @@ export default function AdminUsersPage() {
       setInviteEmail("");
       setInviteName("");
       setInviteRole("user");
-      // Reset org selection to site org
-      const siteOrg = orgs.find((o) => o.is_site_org);
-      setInviteOrgIds(siteOrg ? [siteOrg.id] : []);
+      setInviteOrgId("");
       await loadUsers();
     } catch (err) {
       setInviteError(err instanceof Error ? err.message : "Failed to invite user");
@@ -123,25 +136,23 @@ export default function AdminUsersPage() {
     }
   }
 
-  function toggleOrgId(orgId: string) {
-    setInviteOrgIds((prev) =>
-      prev.includes(orgId) ? prev.filter((id) => id !== orgId) : [...prev, orgId]
-    );
-  }
-
-  function getUserOrgRole(userId: string, orgId: string) {
-    return orgAccess.find((a) => a.user_id === userId && a.org_id === orgId)?.role || "";
-  }
-
-  async function updateOrgAccess(userId: string, orgId: string, role: string) {
-    setSaving(userId);
-    await fetch(`/api/pm/admin/users/${userId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ org_access: { org_id: orgId, role } }),
+  function getUserAssignedOrg(userId: string): string {
+    // For external users, find their non-site-org assignment
+    const access = orgAccess.filter((a) => a.user_id === userId);
+    const nonSiteAccess = access.find((a) => {
+      const org = orgs.find((o) => o.id === a.org_id);
+      return org && !org.is_site_org;
     });
-    await loadUsers();
-    setSaving(null);
+    return nonSiteAccess?.org_id || "";
+  }
+
+  function getAccessLabel(user: UserProfile): string {
+    if (user.system_role === "admin" || user.system_role === "user") {
+      return "All Clients";
+    }
+    const orgId = getUserAssignedOrg(user.id);
+    const org = orgs.find((o) => o.id === orgId);
+    return org ? org.name : "No Client Assigned";
   }
 
   if (loading) {
@@ -206,12 +217,12 @@ export default function AdminUsersPage() {
           </div>
 
           <div>
-            <label className="text-xs text-pm-muted block mb-1">System Role</label>
+            <label className="text-xs text-pm-muted block mb-1">User Type</label>
             <div className="flex gap-3">
               {[
-                { value: "admin", label: "Admin", desc: "Full access + admin console" },
-                { value: "user", label: "User", desc: "Full access, no admin console" },
-                { value: "external", label: "External", desc: "Only assigned orgs" },
+                { value: "admin", label: "Admin", desc: "FSA staff — full access + admin console" },
+                { value: "user", label: "Staff", desc: "FSA staff — full access to all clients" },
+                { value: "external", label: "Client User", desc: "Access to one assigned client only" },
               ].map((r) => (
                 <label
                   key={r.value}
@@ -236,25 +247,29 @@ export default function AdminUsersPage() {
             </div>
           </div>
 
-          <div>
-            <label className="text-xs text-pm-muted block mb-2">Organization Access</label>
-            <div className="space-y-1">
-              {orgs.map((org) => (
-                <label key={org.id} className="flex items-center gap-2 text-sm text-pm-text cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={inviteOrgIds.includes(org.id)}
-                    onChange={() => toggleOrgId(org.id)}
-                    className="rounded border-pm-border"
-                  />
-                  {org.name}
-                  {org.is_site_org && (
-                    <span className="text-[10px] bg-pm-accent/10 text-pm-accent px-1.5 py-0.5 rounded">Site Org</span>
-                  )}
-                </label>
-              ))}
+          {/* Show org picker only for external users */}
+          {inviteRole === "external" && (
+            <div>
+              <label className="text-xs text-pm-muted block mb-1">Assign to Client *</label>
+              <select
+                value={inviteOrgId}
+                onChange={(e) => setInviteOrgId(e.target.value)}
+                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text focus:outline-none focus:border-blue-500"
+              >
+                <option value="">Select a client...</option>
+                {clientOrgs.map((org) => (
+                  <option key={org.id} value={org.id}>{org.name}</option>
+                ))}
+              </select>
             </div>
-          </div>
+          )}
+
+          {/* Info message for internal users */}
+          {inviteRole !== "external" && (
+            <div className="bg-pm-accent/5 border border-pm-accent/20 rounded-lg px-3 py-2 text-xs text-pm-muted">
+              {inviteRole === "admin" ? "Admins" : "Staff"} members are part of Foundation Stone Advisors and automatically have access to all client data.
+            </div>
+          )}
 
           {inviteError && <p className="text-sm text-red-400">{inviteError}</p>}
           {inviteSuccess && <p className="text-sm text-pm-complete">{inviteSuccess}</p>}
@@ -278,12 +293,7 @@ export default function AdminUsersPage() {
               <th className="px-4 py-3 font-medium">User</th>
               <th className="px-4 py-3 font-medium">Email</th>
               <th className="px-4 py-3 font-medium">Role</th>
-              {orgs.map((org) => (
-                <th key={org.id} className="px-4 py-3 font-medium whitespace-nowrap">
-                  {org.name}
-                  {org.is_site_org && <span className="text-[10px] text-pm-accent ml-1">*</span>}
-                </th>
-              ))}
+              <th className="px-4 py-3 font-medium">Access</th>
               <th className="px-4 py-3 font-medium w-20"></th>
             </tr>
           </thead>
@@ -307,25 +317,27 @@ export default function AdminUsersPage() {
                     className="bg-pm-bg border border-pm-border rounded px-2 py-1 text-pm-text text-xs"
                   >
                     <option value="admin">Admin</option>
-                    <option value="user">User</option>
-                    <option value="external">External</option>
+                    <option value="user">Staff</option>
+                    <option value="external">Client User</option>
                   </select>
                 </td>
-                {orgs.map((org) => (
-                  <td key={org.id} className="px-4 py-3">
+                <td className="px-4 py-3">
+                  {u.system_role === "external" ? (
                     <select
-                      value={getUserOrgRole(u.id, org.id)}
-                      onChange={(e) => updateOrgAccess(u.id, org.id, e.target.value || "remove")}
+                      value={getUserAssignedOrg(u.id)}
+                      onChange={(e) => updateExternalOrg(u.id, e.target.value)}
                       disabled={saving === u.id}
                       className="bg-pm-bg border border-pm-border rounded px-2 py-1 text-pm-text text-xs"
                     >
-                      <option value="">No Access</option>
-                      <option value="admin">Admin</option>
-                      <option value="member">Member</option>
-                      <option value="viewer">Viewer</option>
+                      <option value="">No Client</option>
+                      {clientOrgs.map((org) => (
+                        <option key={org.id} value={org.id}>{org.name}</option>
+                      ))}
                     </select>
-                  </td>
-                ))}
+                  ) : (
+                    <span className="text-xs text-pm-complete font-medium">All Clients</span>
+                  )}
+                </td>
                 <td className="px-4 py-3">
                   <button
                     onClick={() => deleteUser(u)}
