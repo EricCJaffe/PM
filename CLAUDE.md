@@ -108,6 +108,11 @@ docs/                       # Project documentation
 | `pm_task_attachments` | File attachments on tasks |
 | `pm_task_series` | Recurring task templates (recurrence rules, schedule tracking) |
 | `pm_series_exceptions` | Skipped/rescheduled dates for recurring series |
+| `pm_proposals` | Client proposals/quotations (status, form_data, generated_content, share_token) |
+| `pm_proposal_templates` | Proposal templates (SOW, etc.) with variable_fields JSONB |
+| `pm_proposal_attachments` | File attachments on proposals |
+| `pm_client_notes` | Client notes (meeting, general, phone-call, follow-up) |
+| `pm_client_note_attachments` | File attachments on client notes |
 
 ## Project Templates
 | Slug | Name | Phases |
@@ -150,6 +155,16 @@ vault/[org-slug]/[project-slug]/
 | `/api/pm/series/[id]` | GET, PATCH, DELETE | View / update / delete a series |
 | `/api/pm/series/[id]/exceptions` | POST, DELETE | Add / remove skip/reschedule exceptions |
 | `/api/pm/series/generate` | POST | Generate task instances for due series |
+| `/api/pm/organizations/pipeline` | GET | List orgs grouped by pipeline stage |
+| `/api/pm/proposals` | GET, POST | List / create proposals |
+| `/api/pm/proposals/[id]` | GET, PATCH, DELETE | View / update / delete proposal |
+| `/api/pm/proposals/[id]/generate` | POST | AI-generate proposal content |
+| `/api/pm/proposals/[id]/send` | POST | Mark proposal as sent |
+| `/api/pm/proposals/share/[token]` | GET, POST | Public proposal view + accept/decline |
+| `/api/pm/proposal-templates` | GET, POST | List / create proposal templates |
+| `/api/pm/notes` | GET, POST | List / create client notes |
+| `/api/pm/notes/[id]` | PATCH, DELETE | Update / delete note |
+| `/api/pm/notes/[id]/attachments` | GET, POST, DELETE | Note file attachments |
 
 ## Security Rules
 - **Never** put OpenAI API keys, service role keys, or GitHub tokens in `NEXT_PUBLIC_*` vars

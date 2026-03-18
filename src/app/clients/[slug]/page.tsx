@@ -5,6 +5,29 @@ import Link from "next/link";
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { ShareButton } from "@/components/dashboard/ShareButton";
 import { getUserOrgFilter } from "@/lib/auth";
+import type { PipelineStatus } from "@/types/pm";
+
+const PIPELINE_COLORS: Record<string, string> = {
+  lead: "bg-slate-500/20 text-slate-300",
+  prospect: "bg-blue-500/20 text-blue-400",
+  proposal_sent: "bg-purple-500/20 text-purple-400",
+  negotiation: "bg-amber-500/20 text-amber-400",
+  client: "bg-emerald-500/20 text-emerald-400",
+  inactive: "bg-red-500/20 text-red-400",
+};
+
+const PIPELINE_LABELS: Record<string, string> = {
+  lead: "Lead", prospect: "Prospect", proposal_sent: "Proposal Sent",
+  negotiation: "Negotiation", client: "Client", inactive: "Inactive",
+};
+
+function PipelineStatusBadge({ status }: { status: PipelineStatus }) {
+  return (
+    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${PIPELINE_COLORS[status] || PIPELINE_COLORS.lead}`}>
+      {PIPELINE_LABELS[status] || status}
+    </span>
+  );
+}
 
 export const dynamic = "force-dynamic";
 
@@ -57,9 +80,7 @@ export default async function ClientDetailPage({
           </Link>
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-bold text-pm-text">{org.name}</h1>
-            <span className="px-2 py-0.5 bg-pm-complete/20 text-pm-complete text-xs rounded-full font-medium">
-              {projects.some((p) => p.status === "active") ? "Active" : "Inactive"}
-            </span>
+            <PipelineStatusBadge status={org.pipeline_status} />
           </div>
         </div>
         <ShareButton org={org} />

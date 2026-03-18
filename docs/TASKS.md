@@ -46,21 +46,10 @@
 - [ ] Set up Vercel Cron for daily recurring task generation (/api/pm/series/generate)
 
 ## New Features — Planned
-- [ ] CRM system: prospect/client lifecycle, contact management, company info, prospect→client conversion
-  - Company records with name, address, website, phone + primary contact (name, email, phone)
-  - Prospect → Client status workflow
-  - Client detail view with tabs: Info, Forms/Proposals, Projects, Notes
-  - Integrates with existing project system (clients who convert get project capabilities)
-- [ ] Proposal/quotation builder: template-based document generation with AI formatting
-  - Templates (starting with Statement of Work) with fixed boilerplate + variable fields
-  - Form UI to capture variable parts of each template
-  - AI transforms template + form data + client info into formatted quotation
-  - Email sending to client contacts
-  - File management: all generated proposals saved and browsable per client
-- [ ] Notes system: client notes with file attachments
-  - Personal and shared notes per client/prospect
-  - Meeting notes, general notes, file uploads
-  - Viewable from client detail tab
+- [ ] Email compose modal for sending proposals to client contacts
+- [ ] PDF generation for proposals (server-side HTML→PDF)
+- [ ] Pipeline Kanban board view (drag cards between pipeline stages)
+- [ ] AI-assisted note summarization
 
 ## Backlog
 - [ ] AI daily standup generation (`/daily/YYYY-MM-DD.md`)
@@ -74,6 +63,15 @@
 - [ ] Asana import: connect via Asana API for live import (requires PAT)
 
 ## Completed
+- [x] CRM system with pipeline management, proposals, and client notes
+  - Migration 015: pipeline_status + contact fields on pm_organizations, pm_proposals, pm_proposal_templates, pm_proposal_attachments, pm_client_notes, pm_client_note_attachments tables with RLS + indexes
+  - Clients page: pipeline status badges (Lead/Prospect/Proposal Sent/Negotiation/Client/Inactive), contact fields, filter pills
+  - Client dashboard: 3 new tabs — Info (company details, primary contact, pipeline stage controls, activity summary), Proposals (list + builder), Notes (CRUD with type filters and pinning)
+  - Proposal builder: template selection → form wizard with auto-populated client info → AI generation via GPT-4o → preview → save as draft or mark sent
+  - API routes: /proposals (CRUD), /proposals/[id]/generate (AI), /proposals/[id]/send, /proposals/share/[token] (public view with accept/decline), /proposal-templates, /notes (CRUD), /notes/[id]/attachments, /organizations/pipeline
+  - Public proposal share page: /proposals/view/[token] with branded layout and accept/decline buttons
+  - Query functions: getOrganizationsByPipeline(), getProposals(), getProposalById(), getProposalByShareToken(), getProposalTemplates(), getClientNotes()
+  - Default SOW template seeded with 9 variable fields
 - [x] Dashboard UX fixes: member picker removal, task creation org_id fix, user settings page
   - Removed member-switcher dropdown from dashboard — auto-detects logged-in user via auth profile
   - Fixed org_id null constraint error when creating standalone tasks from dashboard (API now accepts org_id param)

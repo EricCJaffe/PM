@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(tableCheck, { status: 503 });
     }
 
-    const { name, slug, address, phone, website, notes } = await request.json();
+    const { name, slug, address, phone, website, notes, pipeline_status, contact_name, contact_email, contact_phone } = await request.json();
 
     if (!name || !slug) {
       return NextResponse.json({ error: "name and slug are required" }, { status: 400 });
@@ -54,7 +54,12 @@ export async function POST(request: NextRequest) {
     const supabase = createServiceClient();
     const { data, error } = await supabase
       .from("pm_organizations")
-      .insert({ name, slug, address: address || null, phone: phone || null, website: website || null, notes: notes || null })
+      .insert({
+        name, slug,
+        address: address || null, phone: phone || null, website: website || null, notes: notes || null,
+        pipeline_status: pipeline_status || "lead",
+        contact_name: contact_name || null, contact_email: contact_email || null, contact_phone: contact_phone || null,
+      })
       .select()
       .single();
 
@@ -82,7 +87,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json(tableCheck, { status: 503 });
     }
 
-    const { id, name, slug, address, phone, website, notes } = await request.json();
+    const { id, name, slug, address, phone, website, notes, pipeline_status, contact_name, contact_email, contact_phone } = await request.json();
 
     if (!id) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
@@ -96,6 +101,10 @@ export async function PUT(request: NextRequest) {
     if (phone !== undefined) updates.phone = phone || null;
     if (website !== undefined) updates.website = website || null;
     if (notes !== undefined) updates.notes = notes || null;
+    if (pipeline_status !== undefined) updates.pipeline_status = pipeline_status;
+    if (contact_name !== undefined) updates.contact_name = contact_name || null;
+    if (contact_email !== undefined) updates.contact_email = contact_email || null;
+    if (contact_phone !== undefined) updates.contact_phone = contact_phone || null;
 
     const { data, error } = await supabase
       .from("pm_organizations")

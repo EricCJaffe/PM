@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { SetupBanner } from "@/components/SetupBanner";
+import type { PipelineStatus } from "@/types/pm";
 
 interface Client {
   id: string;
@@ -12,6 +13,11 @@ interface Client {
   phone: string | null;
   website: string | null;
   notes: string | null;
+  pipeline_status: PipelineStatus;
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  converted_at: string | null;
   created_at: string;
 }
 
@@ -21,10 +27,29 @@ interface TableError {
   migrations: string[];
 }
 
+const PIPELINE_STAGES: { value: PipelineStatus; label: string; color: string }[] = [
+  { value: "lead", label: "Lead", color: "bg-slate-500/20 text-slate-300" },
+  { value: "prospect", label: "Prospect", color: "bg-blue-500/20 text-blue-400" },
+  { value: "proposal_sent", label: "Proposal Sent", color: "bg-purple-500/20 text-purple-400" },
+  { value: "negotiation", label: "Negotiation", color: "bg-amber-500/20 text-amber-400" },
+  { value: "client", label: "Client", color: "bg-emerald-500/20 text-emerald-400" },
+  { value: "inactive", label: "Inactive", color: "bg-red-500/20 text-red-400" },
+];
+
+function PipelineBadge({ status }: { status: PipelineStatus }) {
+  const stage = PIPELINE_STAGES.find((s) => s.value === status) ?? PIPELINE_STAGES[0];
+  return (
+    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${stage.color}`}>
+      {stage.label}
+    </span>
+  );
+}
+
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [tableError, setTableError] = useState<TableError | null>(null);
+  const [pipelineFilter, setPipelineFilter] = useState<PipelineStatus | "all">("all");
 
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -37,6 +62,10 @@ export default function ClientsPage() {
     phone: "",
     website: "",
     notes: "",
+    pipeline_status: "lead" as PipelineStatus,
+    contact_name: "",
+    contact_email: "",
+    contact_phone: "",
   });
 
   // Delete confirmation
@@ -58,6 +87,20 @@ export default function ClientsPage() {
 
   useEffect(() => { loadClients(); }, []);
 
+  const filteredClients = useMemo(() => {
+    if (pipelineFilter === "all") return clients;
+    return clients.filter((c) => c.pipeline_status === pipelineFilter);
+  }, [clients, pipelineFilter]);
+
+  // Pipeline counts for filter pills
+  const pipelineCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: clients.length };
+    for (const stage of PIPELINE_STAGES) {
+      counts[stage.value] = clients.filter((c) => c.pipeline_status === stage.value).length;
+    }
+    return counts;
+  }, [clients]);
+
   const updateSlug = (val: string) => {
     setForm((f) => ({
       ...f,
@@ -70,7 +113,7 @@ export default function ClientsPage() {
   };
 
   const resetForm = () => {
-    setForm({ name: "", slug: "", address: "", phone: "", website: "", notes: "" });
+    setForm({ name: "", slug: "", address: "", phone: "", website: "", notes: "", pipeline_status: "lead", contact_name: "", contact_email: "", contact_phone: "" });
     setEditingId(null);
     setShowForm(false);
   };
@@ -83,6 +126,10 @@ export default function ClientsPage() {
       phone: client.phone || "",
       website: client.website || "",
       notes: client.notes || "",
+      pipeline_status: client.pipeline_status || "lead",
+      contact_name: client.contact_name || "",
+      contact_email: client.contact_email || "",
+      contact_phone: client.contact_phone || "",
     });
     setEditingId(client.id);
     setShowForm(true);
@@ -143,10 +190,10 @@ export default function ClientsPage() {
 
   return (
     <div className="max-w-5xl mx-auto p-6">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold text-pm-text">Clients</h1>
-          <p className="text-pm-muted mt-1">Manage your clients and their users</p>
+          <p className="text-pm-muted mt-1">Manage your pipeline and client relationships</p>
         </div>
         <button
           onClick={() => {
@@ -161,6 +208,35 @@ export default function ClientsPage() {
           {showForm ? "Cancel" : "+ New Client"}
         </button>
       </div>
+
+      {/* Pipeline filter pills */}
+      {clients.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-6">
+          <button
+            onClick={() => setPipelineFilter("all")}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+              pipelineFilter === "all"
+                ? "bg-pm-accent text-white"
+                : "bg-pm-card border border-pm-border text-pm-muted hover:text-pm-text"
+            }`}
+          >
+            All ({pipelineCounts.all})
+          </button>
+          {PIPELINE_STAGES.map((stage) => (
+            <button
+              key={stage.value}
+              onClick={() => setPipelineFilter(stage.value)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                pipelineFilter === stage.value
+                  ? "bg-pm-accent text-white"
+                  : "bg-pm-card border border-pm-border text-pm-muted hover:text-pm-text"
+              }`}
+            >
+              {stage.label} ({pipelineCounts[stage.value] || 0})
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Add / Edit form */}
       {showForm && (
@@ -179,6 +255,18 @@ export default function ClientsPage() {
                 className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
                 placeholder="e.g. Acme Corp"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-pm-muted mb-1">Pipeline Status</label>
+              <select
+                value={form.pipeline_status}
+                onChange={(e) => setForm((f) => ({ ...f, pipeline_status: e.target.value as PipelineStatus }))}
+                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
+              >
+                {PIPELINE_STAGES.map((s) => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-pm-muted mb-1">Phone</label>
@@ -200,7 +288,7 @@ export default function ClientsPage() {
                 placeholder="https://example.com"
               />
             </div>
-            <div className="md:col-span-2">
+            <div>
               <label className="block text-sm font-medium text-pm-muted mb-1">Address</label>
               <input
                 type="text"
@@ -210,6 +298,42 @@ export default function ClientsPage() {
                 placeholder="123 Main St, City, State 12345"
               />
             </div>
+
+            {/* Contact fields */}
+            <div className="md:col-span-2 pt-2 border-t border-pm-border">
+              <div className="text-xs font-medium text-pm-muted mb-3 uppercase tracking-wider">Primary Contact</div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-pm-muted mb-1">Contact Name</label>
+              <input
+                type="text"
+                value={form.contact_name}
+                onChange={(e) => setForm((f) => ({ ...f, contact_name: e.target.value }))}
+                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
+                placeholder="Jane Smith"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-pm-muted mb-1">Contact Email</label>
+              <input
+                type="email"
+                value={form.contact_email}
+                onChange={(e) => setForm((f) => ({ ...f, contact_email: e.target.value }))}
+                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
+                placeholder="jane@acme.com"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-pm-muted mb-1">Contact Phone</label>
+              <input
+                type="tel"
+                value={form.contact_phone}
+                onChange={(e) => setForm((f) => ({ ...f, contact_phone: e.target.value }))}
+                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
+                placeholder="(555) 987-6543"
+              />
+            </div>
+
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-pm-muted mb-1">Notes</label>
               <textarea
@@ -243,24 +367,32 @@ export default function ClientsPage() {
       {/* Client list */}
       {loading ? (
         <p className="text-pm-muted">Loading...</p>
-      ) : clients.length === 0 ? (
+      ) : filteredClients.length === 0 ? (
         <div className="text-center py-16 text-pm-muted">
-          <p className="text-lg mb-2">No clients yet</p>
-          <p className="text-sm">Create your first client to get started.</p>
+          <p className="text-lg mb-2">{pipelineFilter === "all" ? "No clients yet" : "No clients in this stage"}</p>
+          <p className="text-sm">{pipelineFilter === "all" ? "Create your first client to get started." : "Try a different filter or add new clients."}</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {clients.map((client) => (
+          {filteredClients.map((client) => (
             <div key={client.id} className="card">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3">
                     <div className="font-semibold text-pm-text text-lg">{client.name}</div>
+                    <PipelineBadge status={client.pipeline_status} />
                   </div>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-pm-muted">
-                    {client.phone && <span>{client.phone}</span>}
+                    {client.contact_name && (
+                      <span className="flex items-center gap-1">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                        {client.contact_name}
+                      </span>
+                    )}
+                    {(client.contact_email || client.phone) && (
+                      <span>{client.contact_email || client.phone}</span>
+                    )}
                     {client.website && <span>{client.website}</span>}
-                    {client.address && <span>{client.address}</span>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 ml-4 shrink-0">
