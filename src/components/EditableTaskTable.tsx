@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import type { Task, PhaseWithTasks } from "@/types/pm";
 import { StatusBadge } from "./StatusBadge";
 import { TaskDetailModal } from "./TaskDetailModal";
+import { PhaseModal } from "./PhaseBoard";
 import {
   DndContext,
   closestCenter,
@@ -186,6 +187,7 @@ export function EditableTaskTable({
   const [modal, setModal] = useState<{ task?: Task; phaseId?: string } | null>(null);
   const [tasks, setTasks] = useState(initialTasks);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [addPhase, setAddPhase] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -307,6 +309,12 @@ export function EditableTaskTable({
         <span className="text-sm text-pm-muted">{tasks.length} tasks across {phases.length} phases</span>
         <div className="flex gap-2">
           <button
+            onClick={() => setAddPhase(true)}
+            className="px-3 py-1.5 bg-pm-card border border-dashed border-pm-border hover:border-pm-muted text-pm-text text-sm rounded-lg font-medium transition-colors"
+          >
+            + Add Phase
+          </button>
+          <button
             onClick={() => setModal({ phaseId: "" })}
             className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg font-medium"
           >
@@ -316,7 +324,7 @@ export function EditableTaskTable({
       </div>
 
       {tasks.length === 0 && phases.length === 0 ? (
-        <p className="text-pm-muted text-center py-8">No phases or tasks yet. Add a phase from the Board tab, then add tasks here.</p>
+        <p className="text-pm-muted text-center py-8">No phases or tasks yet. Add a phase to get started.</p>
       ) : (
         <DndContext
           sensors={sensors}
@@ -380,6 +388,11 @@ export function EditableTaskTable({
           onDelete={() => router.refresh()}
           onClose={() => { setModal(null); router.refresh(); }}
         />
+      )}
+
+      {/* Add Phase modal (same as Board view) */}
+      {addPhase && (
+        <PhaseModal projectId={projectId} orgId={orgId} onClose={() => { setAddPhase(false); router.refresh(); }} />
       )}
     </div>
   );

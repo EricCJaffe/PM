@@ -50,6 +50,14 @@
 - [ ] Pipeline Kanban board view (drag cards between pipeline stages)
 - [ ] AI-assisted note summarization
 
+## Recently Completed
+- [x] Add Phase button on Task view (matches Board view functionality)
+  - Exported PhaseModal from PhaseBoard, reused in EditableTaskTable
+  - Button appears next to "+ Add Task" in the task list header
+- [x] Auto-inherit organization when creating project from client dashboard
+  - New project page reads `?org=` query parameter and pre-selects the organization
+  - Client dashboard already passes `?org={org.id}` — now it's consumed
+
 ## Backlog
 - [ ] AI daily standup generation (`/daily/YYYY-MM-DD.md`)
 - [ ] Risk radar — AI scan of escalating risks

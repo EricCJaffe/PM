@@ -12,7 +12,7 @@ const PHASE_STATUSES = ["not-started", "in-progress", "complete", "blocked", "pe
 
 // ─── Phase Modal ──────────────────────────────────────────────────────────────
 
-function PhaseModal({
+export function PhaseModal({
   projectId,
   orgId,
   phase,

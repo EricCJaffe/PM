@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { SetupBanner } from "@/components/SetupBanner";
 
 interface TableError {
@@ -32,7 +32,17 @@ interface TemplateOption {
 }
 
 export default function NewProjectPage() {
+  return (
+    <Suspense fallback={<div className="max-w-2xl mx-auto p-6"><p className="text-pm-muted">Loading...</p></div>}>
+      <NewProjectForm />
+    </Suspense>
+  );
+}
+
+function NewProjectForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const preselectedOrgId = searchParams.get("org") || "";
   const [loading, setLoading] = useState(false);
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [members, setMembers] = useState<AssignableMember[]>([]);
@@ -49,7 +59,7 @@ export default function NewProjectPage() {
     description: "",
     owner: "",
     template_slug: "saas-rollout",
-    org_id: "",
+    org_id: preselectedOrgId,
     start_date: "",
     target_date: "",
     budget: "",
