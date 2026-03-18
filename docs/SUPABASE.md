@@ -176,3 +176,84 @@ All PM tables have RLS enabled (migration 014). Access model:
 - **Via task_id → project_id → org_id**: pm_task_comments, pm_task_attachments
 - **Via series_id → org_id**: pm_series_exceptions
 - **Special**: pm_user_profiles (own row + admin), pm_user_org_access (own rows + admin), pm_project_templates (global read, admin write)
+
+## Document Generation Tables (Migration 017)
+
+### document_types
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | PK |
+| slug | TEXT | Unique, e.g. "sow" |
+| name | TEXT | e.g. "Statement of Work" |
+| description | TEXT | Optional |
+| category | TEXT | proposal, contract, report, internal |
+| html_template | TEXT | Handlebars HTML template |
+| css_styles | TEXT | Scoped CSS for PDF rendering |
+| header_html | TEXT | Repeated header |
+| footer_html | TEXT | Repeated footer |
+| variables | JSONB | Default variable values (e.g. section definitions) |
+| is_active | BOOLEAN | Default true |
+| created_at, updated_at | TIMESTAMPTZ | Auto |
+
+### document_intake_fields
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | PK |
+| document_type_id | UUID | FK → document_types |
+| field_key | TEXT | e.g. "client_name" |
+| label | TEXT | e.g. "Client / Company Name" |
+| field_type | TEXT | text, textarea, number, date, select, multi-select, currency, toggle |
+| options | JSONB | For select/multi-select |
+| default_value | TEXT | Optional |
+| placeholder | TEXT | Optional |
+| help_text | TEXT | Optional |
+| validation | JSONB | { required, min, max, pattern } |
+| section | TEXT | Grouping label |
+| sort_order | INT | Field ordering |
+| is_required | BOOLEAN | Default false |
+| ai_hint | TEXT | Prompt hint for AI assist |
+| created_at | TIMESTAMPTZ | Auto |
+| UNIQUE | | (document_type_id, field_key) |
+
+### generated_documents
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | PK |
+| document_type_id | UUID | FK → document_types |
+| org_id | UUID | FK → pm_organizations (nullable) |
+| project_id | UUID | FK → pm_projects (nullable) |
+| title | TEXT | Document title |
+| status | TEXT | draft, review, approved, sent, signed, archived |
+| intake_data | JSONB | Filled-in form values |
+| compiled_html | TEXT | Final merged HTML |
+| pdf_storage_path | TEXT | Supabase Storage path |
+| version | INT | Default 1 |
+| created_by | UUID | FK → auth.users |
+| sent_at, signed_at | TIMESTAMPTZ | Nullable |
+| created_at, updated_at | TIMESTAMPTZ | Auto |
+
+### document_sections
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | PK |
+| document_id | UUID | FK → generated_documents (CASCADE) |
+| section_key | TEXT | e.g. "scope_of_work" |
+| title | TEXT | Section heading |
+| content_html | TEXT | HTML content |
+| sort_order | INT | Section ordering |
+| is_locked | BOOLEAN | Prevents AI overwrite |
+| ai_generated | BOOLEAN | Default false |
+| created_at, updated_at | TIMESTAMPTZ | Auto |
+
+### document_activity
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | PK |
+| document_id | UUID | FK → generated_documents (CASCADE) |
+| actor_id | UUID | FK → auth.users (nullable) |
+| action | TEXT | created, edited, generated, approved, sent, signed, comment |
+| details | JSONB | Optional metadata |
+| created_at | TIMESTAMPTZ | Auto |
+
+### Storage
+- Bucket: `documents` (private, for PDF storage)

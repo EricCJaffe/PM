@@ -47,7 +47,6 @@
 
 ## New Features — Planned
 - [ ] Email compose modal for sending proposals to client contacts
-- [ ] PDF generation for proposals (server-side HTML→PDF)
 - [ ] Pipeline Kanban board view (drag cards between pipeline stages)
 - [ ] AI-assisted note summarization
 
@@ -63,6 +62,22 @@
 - [ ] Asana import: connect via Asana API for live import (requires PAT)
 
 ## Completed
+- [x] Document Generation module with SOW template, AI-assisted content, and preview/PDF
+  - Migration 017: document_types, document_intake_fields, generated_documents, document_sections, document_activity tables with indexes + triggers
+  - Seed script (seed-docgen.ts): SOW document type with HTML/CSS template, 27 intake fields across 7 sections, 10 default document sections
+  - Documents page (/documents): list with status filters, search, create/edit/delete
+  - New Document flow (/documents/new): document type selection → title → create
+  - Document editor (/documents/[id]): 3-tab UI (Intake Form → Sections → Preview)
+  - Intake Form: dynamic field rendering from DB, org auto-fill, field types (text/textarea/select/date/currency/toggle)
+  - AI Generate: GPT-4o generates all section content from intake data + field hints, respects locked sections
+  - Section Editor: per-section HTML editing with lock/unlock (prevents AI overwrite)
+  - Preview: compiled HTML rendered in iframe with Print/Save PDF via window.print()
+  - Send: mark document as sent with activity logging
+  - Status workflow: draft → review → approved → sent → signed → archived
+  - Activity logging on all mutations (create, edit, generate, send)
+  - API routes: /api/pm/docgen (CRUD), /docgen/[id]/generate (AI), /docgen/[id]/pdf (compile), /docgen/[id]/send, /docgen/[id]/sections, /document-types (CRUD), /document-types/[slug]/fields
+  - Components: IntakeForm, SectionEditor, DocumentPreview, DocStatusBadge
+  - "Documents" added to main navigation
 - [x] CRM system with pipeline management, proposals, and client notes
   - Migration 015: pipeline_status + contact fields on pm_organizations, pm_proposals, pm_proposal_templates, pm_proposal_attachments, pm_client_notes, pm_client_note_attachments tables with RLS + indexes
   - Clients page: pipeline status badges (Lead/Prospect/Proposal Sent/Negotiation/Client/Inactive), contact fields, filter pills

@@ -434,6 +434,88 @@ export interface PhaseWithTasks extends Phase {
   tasks: Task[];
 }
 
+// ─── Document Generation Types ───────────────────────────────────────
+
+export type DocumentStatus = "draft" | "review" | "approved" | "sent" | "signed" | "archived";
+
+export interface DocumentType {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  category: string;
+  html_template: string;
+  css_styles: string;
+  header_html: string;
+  footer_html: string;
+  variables: Record<string, unknown>;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DocumentIntakeField {
+  id: string;
+  document_type_id: string;
+  field_key: string;
+  label: string;
+  field_type: "text" | "textarea" | "number" | "date" | "select" | "multi-select" | "currency" | "toggle";
+  options: string[] | null;
+  default_value: string | null;
+  placeholder: string | null;
+  help_text: string | null;
+  validation: Record<string, unknown> | null;
+  section: string;
+  sort_order: number;
+  is_required: boolean;
+  ai_hint: string | null;
+  created_at: string;
+}
+
+export interface GeneratedDocument {
+  id: string;
+  document_type_id: string;
+  org_id: string | null;
+  project_id: string | null;
+  title: string;
+  status: DocumentStatus;
+  intake_data: Record<string, string>;
+  compiled_html: string | null;
+  pdf_storage_path: string | null;
+  version: number;
+  created_by: string | null;
+  sent_at: string | null;
+  signed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  // Joined fields
+  document_type_name?: string;
+  document_type_slug?: string;
+  org_name?: string;
+}
+
+export interface DocumentSection {
+  id: string;
+  document_id: string;
+  section_key: string;
+  title: string;
+  content_html: string;
+  sort_order: number;
+  is_locked: boolean;
+  ai_generated: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DocumentActivity {
+  id: string;
+  document_id: string;
+  actor_id: string | null;
+  action: string;
+  details: Record<string, unknown> | null;
+  created_at: string;
+}
+
 // ─── Chat / AI Types ─────────────────────────────────────────────────
 
 export interface ChatMessage {

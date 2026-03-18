@@ -109,3 +109,58 @@ Push vault files to GitHub repo.
 
 **Body:** `{ org_slug, project_slug? }`
 **Requires:** `GITHUB_TOKEN` and `GITHUB_VAULT_REPO` env vars
+
+---
+
+## Document Generation
+
+### `GET /api/pm/document-types`
+List active document types.
+**Response:** `DocumentType[]`
+
+### `POST /api/pm/document-types`
+Create or update a document type (upsert by slug).
+**Body:** `{ slug, name, description?, category?, html_template?, css_styles?, header_html?, footer_html?, variables?, is_active? }`
+
+### `GET /api/pm/document-types/[slug]/fields`
+Get intake fields for a document type.
+**Response:** `DocumentIntakeField[]`
+
+### `GET /api/pm/docgen?org_id=&status=`
+List generated documents, optionally filtered by org and/or status.
+**Response:** `GeneratedDocument[]` (with document_type_name, document_type_slug joined)
+
+### `POST /api/pm/docgen`
+Create a new generated document (draft).
+**Body:** `{ document_type_id, title, org_id?, project_id?, intake_data? }`
+**Response:** `GeneratedDocument` (201)
+**Side effects:** Creates default sections from document type variables, logs activity.
+
+### `GET /api/pm/docgen/[id]`
+Get a single document with template info.
+
+### `PATCH /api/pm/docgen/[id]`
+Update document fields.
+**Body:** `{ title?, status?, intake_data?, compiled_html?, pdf_storage_path?, org_id?, project_id? }`
+
+### `DELETE /api/pm/docgen/[id]`
+Delete a generated document.
+
+### `GET /api/pm/docgen/[id]/sections`
+List sections for a document.
+
+### `PATCH /api/pm/docgen/[id]/sections`
+Bulk update sections.
+**Body:** `{ sections: [{ id?, section_key?, title?, content_html?, sort_order?, is_locked? }] }`
+
+### `POST /api/pm/docgen/[id]/generate`
+AI-generate section content using GPT-4o.
+**Body:** `{ section_keys?: string[] }` (optional: generate specific sections only; omit for all unlocked)
+**Respects:** `is_locked` flag — locked sections are never overwritten.
+
+### `POST /api/pm/docgen/[id]/pdf`
+Compile final HTML from template + sections + intake data. Stores `compiled_html` on the document.
+**Response:** `{ compiled_html: string }`
+
+### `POST /api/pm/docgen/[id]/send`
+Mark document as sent (sets status="sent", sent_at=now).
