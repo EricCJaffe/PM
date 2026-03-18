@@ -35,6 +35,24 @@ If this Supabase project is shared with another site, both sites' callback URLs 
 2. Under "Redirect URLs", add the URLs above
 3. Set "Site URL" to your primary production URL
 
+## Microsoft (Azure AD) SSO
+
+Microsoft sign-in is configured as an OAuth provider through Supabase using the `azure` provider.
+
+**Setup steps:**
+1. Register an app in **Microsoft Entra ID** (Azure AD):
+   - Go to Azure Portal → Entra ID → App registrations → New registration
+   - Name: `BusinessOS PM`
+   - Redirect URI (Web): `https://<your-supabase-ref>.supabase.co/auth/v1/callback`
+   - Under **Certificates & secrets**, create a new client secret
+   - Under **API permissions**, ensure `openid`, `email`, `profile` are granted
+2. In **Supabase Dashboard** → Authentication → Providers → Azure:
+   - Enable the Azure provider
+   - Paste your **Application (client) ID**
+   - Paste your **Client secret**
+   - Set the **Azure Tenant URL** (e.g. `https://login.microsoftonline.com/<tenant-id>`)
+3. Ensure callback URLs are configured (see above)
+
 ## Email (Resend)
 - Sends from: `admin@foundationstoneadvisors.com`
 - Used for: task assignment notifications, user invites
