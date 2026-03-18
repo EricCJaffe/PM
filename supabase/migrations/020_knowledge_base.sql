@@ -23,10 +23,16 @@ CREATE TABLE IF NOT EXISTS pm_kb_articles (
   is_pinned BOOLEAN DEFAULT false,
   updated_by TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now(),
-  -- Scope rules: NULL org_id = global, org_id set = org-scoped, project_id set = project-scoped
-  UNIQUE(COALESCE(org_id, '00000000-0000-0000-0000-000000000000'), COALESCE(project_id, '00000000-0000-0000-0000-000000000000'), slug)
+  updated_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Unique slug per scope (COALESCE handles NULLs for global articles)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pm_kb_articles_slug_scope
+  ON pm_kb_articles (
+    COALESCE(org_id, '00000000-0000-0000-0000-000000000000'),
+    COALESCE(project_id, '00000000-0000-0000-0000-000000000000'),
+    slug
+  );
 
 CREATE INDEX IF NOT EXISTS idx_pm_kb_articles_org ON pm_kb_articles(org_id);
 CREATE INDEX IF NOT EXISTS idx_pm_kb_articles_project ON pm_kb_articles(project_id);
