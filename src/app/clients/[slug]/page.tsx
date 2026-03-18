@@ -83,7 +83,15 @@ export default async function ClientDetailPage({
             <PipelineStatusBadge status={org.pipeline_status} />
           </div>
         </div>
-        <ShareButton org={org} />
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/projects/new?org=${org.id}`}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            + New Project
+          </Link>
+          <ShareButton org={org} />
+        </div>
       </div>
 
       {/* Stats Cards */}
