@@ -35,11 +35,12 @@ export async function POST(request: NextRequest) {
     slug = `${baseSlug}-${attempt + 1}`;
   }
 
-  // Upload file to Supabase Storage
+  // Upload file to Supabase Storage (convert to Buffer for Node.js runtime)
   const storagePath = `documents/${orgId}/${slug}-${file.name}`;
+  const buffer = Buffer.from(await file.arrayBuffer());
   const { error: uploadError } = await supabase.storage
     .from("vault")
-    .upload(storagePath, file, { upsert: true });
+    .upload(storagePath, buffer, { contentType: file.type, upsert: true });
   if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 500 });
 
   const { data, error } = await supabase.from("pm_documents").insert({
