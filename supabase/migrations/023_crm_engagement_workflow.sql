@@ -9,17 +9,21 @@ ALTER TABLE pm_organizations
   ADD COLUMN IF NOT EXISTS client_status TEXT NOT NULL DEFAULT 'prospect'
   CHECK (client_status IN ('prospect', 'client', 'inactive'));
 
--- Update pipeline_status to the 7-stage deal model
--- First drop the old CHECK constraint, then add the new one
+-- Migrate existing pipeline_status data BEFORE changing constraint
+-- Map old values to new 7-stage model
+UPDATE pm_organizations SET pipeline_status = 'closed_won' WHERE pipeline_status = 'client';
+UPDATE pm_organizations SET pipeline_status = 'closed_lost' WHERE pipeline_status = 'inactive';
+UPDATE pm_organizations SET pipeline_status = 'lead' WHERE pipeline_status = 'prospect';
+
+-- Also set client_status based on what they were
+UPDATE pm_organizations SET client_status = 'client' WHERE pipeline_status = 'closed_won';
+UPDATE pm_organizations SET client_status = 'inactive' WHERE pipeline_status = 'closed_lost';
+
+-- Now safe to update pipeline_status CHECK to the 7-stage deal model
 ALTER TABLE pm_organizations DROP CONSTRAINT IF EXISTS pm_organizations_pipeline_status_check;
 ALTER TABLE pm_organizations
   ADD CONSTRAINT pm_organizations_pipeline_status_check
   CHECK (pipeline_status IN ('lead', 'qualified', 'discovery_complete', 'proposal_sent', 'negotiation', 'closed_won', 'closed_lost'));
-
--- Migrate existing data: prospect → lead, client → closed_won, inactive → closed_lost
-UPDATE pm_organizations SET pipeline_status = 'lead' WHERE pipeline_status = 'prospect';
-UPDATE pm_organizations SET pipeline_status = 'closed_won', client_status = 'client' WHERE pipeline_status = 'client';
-UPDATE pm_organizations SET pipeline_status = 'closed_lost', client_status = 'inactive' WHERE pipeline_status = 'inactive';
 
 -- ─── 2. Engagements table ───────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS pm_engagements (
