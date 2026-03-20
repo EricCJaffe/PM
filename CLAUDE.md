@@ -238,3 +238,15 @@ Before ending a session with meaningful changes:
 1. Ensure `docs/TASKS.md` reflects completed and newly discovered work
 2. Commit all changes with clear messages (include doc updates in same commit)
 3. Push to the working branch
+
+---
+
+## Team Coordination Layer
+Read these every session after this file:
+- AGENTS.md — four operating modes (Preflight, Build, Stuck, Closeout)
+- docs/TEAM.md — ownership map and coordination rules
+- docs/ACTIVE_WORK.md — live work status across the team
+- docs/HANDOFF.md — session closeout notes
+- docs/PROMPT_LIBRARY.md — proven patterns for this codebase
+- docs/TROUBLESHOOTING.md — known failure modes
+- docs/PRODUCT_ROADMAP.md — where this product is going
