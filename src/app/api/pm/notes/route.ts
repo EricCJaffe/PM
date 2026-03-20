@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
 // POST /api/pm/notes — create a note
 export async function POST(request: NextRequest) {
   try {
-    const { org_id, title, body, note_type, author, pinned } = await request.json();
+    const { org_id, title, body, note_type, author, pinned, visibility } = await request.json();
 
     if (!org_id || !title) {
       return NextResponse.json({ error: "org_id and title are required" }, { status: 400 });
@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
         title,
         body: body || null,
         note_type: note_type || "general",
+        visibility: visibility || "internal",
         author: author || null,
         pinned: pinned || false,
       })

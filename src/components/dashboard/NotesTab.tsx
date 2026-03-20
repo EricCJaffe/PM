@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import type { Organization, ClientNote, ClientNoteAttachment, NoteType } from "@/types/pm";
+import type { Organization, ClientNote, ClientNoteAttachment, NoteType, NoteVisibility } from "@/types/pm";
 
 const NOTE_TYPES: { value: NoteType; label: string }[] = [
   { value: "general", label: "General" },
@@ -35,6 +35,7 @@ export function NotesTab({ org }: { org: Organization }) {
   const [notes, setNotes] = useState<ClientNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<NoteType | "all">("all");
+  const [filterVisibility, setFilterVisibility] = useState<NoteVisibility | "all">("all");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -42,6 +43,7 @@ export function NotesTab({ org }: { org: Organization }) {
     title: "",
     body: "",
     note_type: "general" as NoteType,
+    visibility: "internal" as NoteVisibility,
     pinned: false,
   });
 
@@ -62,10 +64,14 @@ export function NotesTab({ org }: { org: Organization }) {
       .finally(() => setLoading(false));
   }, [org.id]);
 
-  const filtered = filterType === "all" ? notes : notes.filter((n) => n.note_type === filterType);
+  const filtered = notes.filter((n) => {
+    if (filterType !== "all" && n.note_type !== filterType) return false;
+    if (filterVisibility !== "all" && n.visibility !== filterVisibility) return false;
+    return true;
+  });
 
   const resetForm = () => {
-    setForm({ title: "", body: "", note_type: "general", pinned: false });
+    setForm({ title: "", body: "", note_type: "general", visibility: "internal", pinned: false });
     setEditingId(null);
     setShowForm(false);
   };
@@ -75,6 +81,7 @@ export function NotesTab({ org }: { org: Organization }) {
       title: note.title,
       body: note.body || "",
       note_type: note.note_type,
+      visibility: note.visibility || "internal",
       pinned: note.pinned,
     });
     setEditingId(note.id);
@@ -242,32 +249,51 @@ export function NotesTab({ org }: { org: Organization }) {
         </div>
       </div>
 
-      {/* Type filter */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => setFilterType("all")}
-          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-            filterType === "all"
-              ? "bg-pm-accent text-white"
-              : "bg-pm-card border border-pm-border text-pm-muted hover:text-pm-text"
-          }`}
-        >
-          All
-        </button>
-        {NOTE_TYPES.map((nt) => (
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-4">
+        {/* Type filter */}
+        <div className="flex gap-2">
           <button
-            key={nt.value}
-            onClick={() => setFilterType(nt.value)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-              filterType === nt.value
+            onClick={() => setFilterType("all")}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+              filterType === "all"
                 ? "bg-pm-accent text-white"
                 : "bg-pm-card border border-pm-border text-pm-muted hover:text-pm-text"
             }`}
           >
-            <NoteTypeIcon type={nt.value} className="w-3.5 h-3.5" />
-            {nt.label}
+            All
           </button>
-        ))}
+          {NOTE_TYPES.map((nt) => (
+            <button
+              key={nt.value}
+              onClick={() => setFilterType(nt.value)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                filterType === nt.value
+                  ? "bg-pm-accent text-white"
+                  : "bg-pm-card border border-pm-border text-pm-muted hover:text-pm-text"
+              }`}
+            >
+              <NoteTypeIcon type={nt.value} className="w-3.5 h-3.5" />
+              {nt.label}
+            </button>
+          ))}
+        </div>
+        {/* Visibility filter */}
+        <div className="flex gap-2 border-l border-pm-border pl-4">
+          {(["all", "internal", "client"] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setFilterVisibility(v)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                filterVisibility === v
+                  ? v === "internal" ? "bg-amber-600 text-white" : v === "client" ? "bg-green-600 text-white" : "bg-pm-accent text-white"
+                  : "bg-pm-card border border-pm-border text-pm-muted hover:text-pm-text"
+              }`}
+            >
+              {v === "all" ? "All Visibility" : v === "internal" ? "Internal Only" : "Client Visible"}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* AI Summary panel */}
@@ -292,8 +318,8 @@ export function NotesTab({ org }: { org: Organization }) {
           <div className="text-sm font-semibold text-pm-text">
             {editingId ? "Edit Note" : "New Note"}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-3">
               <label className="block text-sm font-medium text-pm-muted mb-1">Title *</label>
               <input
                 type="text"
@@ -316,7 +342,18 @@ export function NotesTab({ org }: { org: Organization }) {
                 ))}
               </select>
             </div>
-            <div className="md:col-span-2">
+            <div>
+              <label className="block text-sm font-medium text-pm-muted mb-1">Visibility</label>
+              <select
+                value={form.visibility}
+                onChange={(e) => setForm((f) => ({ ...f, visibility: e.target.value as NoteVisibility }))}
+                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
+              >
+                <option value="internal">Internal Only</option>
+                <option value="client">Client Visible</option>
+              </select>
+            </div>
+            <div className="md:col-span-3">
               <label className="block text-sm font-medium text-pm-muted mb-1">Content</label>
               <textarea
                 value={form.body}
@@ -379,6 +416,13 @@ export function NotesTab({ org }: { org: Organization }) {
                       <span className="font-medium text-pm-text">{note.title}</span>
                       <span className="text-xs text-pm-muted px-2 py-0.5 bg-pm-surface rounded">
                         {NOTE_TYPES.find((t) => t.value === note.note_type)?.label || note.note_type}
+                      </span>
+                      <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+                        note.visibility === "client"
+                          ? "bg-green-600/20 text-green-400"
+                          : "bg-amber-600/20 text-amber-400"
+                      }`}>
+                        {note.visibility === "client" ? "Client Visible" : "Internal"}
                       </span>
                     </div>
                     {note.body && (

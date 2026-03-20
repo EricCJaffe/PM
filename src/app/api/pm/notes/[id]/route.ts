@@ -16,6 +16,7 @@ export async function PATCH(
     if (body.body !== undefined) updates.body = body.body || null;
     if (body.note_type !== undefined) updates.note_type = body.note_type;
     if (body.pinned !== undefined) updates.pinned = body.pinned;
+    if (body.visibility !== undefined) updates.visibility = body.visibility;
     updates.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase
