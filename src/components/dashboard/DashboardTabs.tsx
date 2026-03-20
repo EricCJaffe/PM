@@ -14,6 +14,7 @@ import { DocsTab } from "./DocsTab";
 import { UsersTab } from "./UsersTab";
 import { KBTab } from "./KBTab";
 import { ClientTasksTab } from "./ClientTasksTab";
+import { ToolsTab } from "./ToolsTab";
 
 const tabs = [
   { id: "engagements", label: "Engagements" },
@@ -29,6 +30,7 @@ const tabs = [
   { id: "kpis", label: "KPIs" },
   { id: "docs", label: "Docs & SOPs" },
   { id: "kb", label: "Knowledge Base" },
+  { id: "tools", label: "Tools" },
 ];
 
 function matchesProject<T extends { project_id?: string | null }>(item: T, projectId: string | null): boolean {
@@ -86,6 +88,7 @@ export function DashboardTabs({
           {tabs.map((tab) => (
             <button
               key={tab.id}
+              data-tab-id={tab.id}
               onClick={() => setActive(tab.id)}
               className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors border-b-2 -mb-px ${
                 active === tab.id
@@ -133,6 +136,7 @@ export function DashboardTabs({
       {active === "kpis" && <KPIsTab org={org} kpis={filteredKpis} projects={projects} selectedProjectId={selectedProjectId} />}
       {active === "docs" && <DocsTab org={org} documents={filteredDocs} projects={projects} selectedProjectId={selectedProjectId} />}
       {active === "kb" && <KBTab org={org} scope="org" />}
+      {active === "tools" && <ToolsTab org={org} />}
     </>
   );
 }

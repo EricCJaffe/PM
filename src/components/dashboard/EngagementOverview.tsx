@@ -405,6 +405,16 @@ export function EngagementOverview({ org }: { org: Organization }) {
                     Mark Lost
                   </button>
                 )}
+                <button
+                  onClick={() => {
+                    // Switch to Tools tab via parent DashboardTabs
+                    const toolsBtn = document.querySelector<HTMLButtonElement>('[data-tab-id="tools"]');
+                    if (toolsBtn) toolsBtn.click();
+                  }}
+                  className="px-3 py-1.5 border border-pm-accent/40 text-pm-accent hover:bg-pm-accent/10 rounded-lg text-xs font-medium transition-colors"
+                >
+                  Run Site Audit
+                </button>
                 {nextStage && (
                   <button
                     onClick={() => advanceStage(nextStage)}

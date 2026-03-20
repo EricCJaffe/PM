@@ -562,6 +562,73 @@ export interface DocumentActivity {
   created_at: string;
 }
 
+// ─── Site Audit Types ───────────────────────────────────────────────
+
+export type AuditVertical = "church" | "agency" | "nonprofit" | "general";
+export type AuditStatus = "pending" | "running" | "complete" | "failed";
+export type AuditGrade = "A" | "B" | "C" | "D" | "F";
+
+export interface AuditScores {
+  seo: AuditGrade;
+  entity: AuditGrade;
+  ai_discoverability: AuditGrade;
+  conversion: AuditGrade;
+  content: AuditGrade;
+  a2a_readiness: AuditGrade;
+}
+
+export interface AuditGapItem {
+  issue: string;
+  severity: "critical" | "major" | "minor";
+  recommendation: string;
+}
+
+export interface AuditRecommendation {
+  title: string;
+  priority: "high" | "medium" | "low";
+  effort: "quick" | "moderate" | "significant";
+  impact: "high" | "medium" | "low";
+  description: string;
+}
+
+export interface AuditQuickWin {
+  title: string;
+  description: string;
+}
+
+export interface AuditPageFound {
+  url: string;
+  title: string;
+  status_code: number;
+}
+
+export interface AuditPageToBuild {
+  slug: string;
+  title: string;
+  reason: string;
+}
+
+export interface SiteAudit {
+  id: string;
+  org_id: string;
+  engagement_id: string | null;
+  url: string;
+  vertical: AuditVertical;
+  status: AuditStatus;
+  scores: AuditScores | null;
+  gaps: Record<string, AuditGapItem[]> | null;
+  recommendations: AuditRecommendation[] | null;
+  quick_wins: AuditQuickWin[] | null;
+  pages_found: AuditPageFound[] | null;
+  pages_to_build: AuditPageToBuild[] | null;
+  extra_context: string | null;
+  audit_summary: string | null;
+  document_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // ─── Knowledge Base Types ────────────────────────────────────────────
 
 export type KBCategory =
