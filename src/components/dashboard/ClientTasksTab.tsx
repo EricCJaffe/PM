@@ -79,6 +79,12 @@ export function ClientTasksTab({ org }: { org: Organization }) {
   const clientTasks = useMemo(() => filtered.filter((t) => !t.project_id), [filtered]);
   const projectTasks = useMemo(() => filtered.filter((t) => t.project_id), [filtered]);
 
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: tasks.length };
+    for (const s of STATUS_OPTIONS) counts[s] = tasks.filter((t) => t.status === s).length;
+    return counts;
+  }, [tasks]);
+
   const resetForm = () => {
     setForm({ name: "", description: "", status: "not-started", assigned_to: "", due_date: "" });
     setEditingId(null);
@@ -271,12 +277,6 @@ export function ClientTasksTab({ org }: { org: Organization }) {
   }
 
   if (loading) return <div className="text-pm-muted py-8">Loading tasks...</div>;
-
-  const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: tasks.length };
-    for (const s of STATUS_OPTIONS) counts[s] = tasks.filter((t) => t.status === s).length;
-    return counts;
-  }, [tasks]);
 
   return (
     <div className="space-y-6">
