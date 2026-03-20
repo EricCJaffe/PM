@@ -1,20 +1,22 @@
 # Tasks
 
-## Migrations — Apply to Supabase (in order)
+## Migrations — All Applied
 - [x] Apply migration 005_auth_user_roles.sql to Supabase
-- [ ] Apply migration 006_org_contact_fields.sql to Supabase
-- [ ] Apply migration 007_fix_tasks_org_fk.sql to Supabase
-- [ ] Apply migration 008_site_org_flag.sql to Supabase (required before FSA backfill)
-- [ ] Apply migration 009_task_sort_order.sql to Supabase
-- [ ] Apply migration 010_task_comments_attachments.sql to Supabase
-- [ ] Apply migration 011_personal_projects_and_notifications.sql to Supabase
-- [ ] Apply migration 012_recurring_tasks.sql to Supabase
-- [ ] Apply migration 013_auth_system_upgrade.sql to Supabase (FK fix, role constraints, user_id on members)
+- [x] Apply migration 006_org_contact_fields.sql to Supabase
+- [x] Apply migration 007_fix_tasks_org_fk.sql to Supabase
+- [x] Apply migration 008_site_org_flag.sql to Supabase
+- [x] Apply migration 009_task_sort_order.sql to Supabase
+- [x] Apply migration 010_task_comments_attachments.sql to Supabase
+- [x] Apply migration 011_personal_projects_and_notifications.sql to Supabase
+- [x] Apply migration 012_recurring_tasks.sql to Supabase
+- [x] Apply migration 013_auth_system_upgrade.sql to Supabase
+- [x] Apply migration 014_rls_policies.sql to Supabase
+- [x] Apply migration 021_vault_storage_bucket.sql to Supabase
 
-## Backfill Scripts — Run in order (after all migrations)
-1. [ ] Run FSA site-org backfill: `npx tsx scripts/backfill-fsa-site-org.ts` — Creates "Foundation Stone Advisors" as site-level org with Eric Jaffe as owner
-2. [ ] Run bootstrap admin user: `npx tsx scripts/bootstrap-admin-user.ts` — Links Eric Jaffe's Supabase auth user to PM system as admin, grants access to all orgs
-3. [ ] Run Reverb Church backfill: `npx tsx scripts/backfill-reverb-church.ts` — Creates sample ministry-discovery project (optional, good for testing)
+## Backfill Scripts — Completed
+1. [x] Run FSA site-org backfill: `npx tsx scripts/backfill-fsa-site-org.ts`
+2. [x] Run bootstrap admin user: `npx tsx scripts/bootstrap-admin-user.ts`
+3. [x] Run Reverb Church backfill: `npx tsx scripts/backfill-reverb-church.ts`
 
 ## Prepare for Additional Users
 - [ ] Disable self-registration in Supabase Dashboard (Project Settings → Authentication → User Signups → toggle OFF)
@@ -33,7 +35,6 @@
   - pm_user_profiles: users see own + admins see all; self-update allowed
   - pm_project_templates: read-only for all authenticated users, admin-only write
   - Service role (API routes) bypasses RLS automatically
-- [ ] Apply migration 014_rls_policies.sql to Supabase
 - [x] Add org-scoped filtering to API routes for external users (projects, tasks, orgs)
   - Simplified security model: FSA staff (admin/user) = all-client access, External = single assigned client
   - Organizations API now calls getUserOrgFilter() to scope results for external users
@@ -42,15 +43,58 @@
   - Admin user list shows "All Clients" for staff, client dropdown for external users
   - Role change rebuilds org access automatically (internal→all orgs, external→cleared)
 - [ ] Test AI SOP scanner with real documents
-- [ ] Wire up email service (Resend/SendGrid) for task notifications and user invites
+- [x] Wire up email service (Resend) for task notifications and user invites
+  - `src/lib/email.ts`: sendTaskAssignmentEmail(), sendInviteEmail(), sendEmail()
+  - Integrated into task create/update routes (notify_assignee flag) and admin invite route
+  - Graceful degradation when RESEND_API_KEY not set
 - [ ] Set up Vercel Cron for daily recurring task generation (/api/pm/series/generate)
 
 ## New Features — Planned
 - [ ] Email compose modal for sending proposals to client contacts
-- [ ] Pipeline Kanban board view (drag cards between pipeline stages)
-- [ ] AI-assisted note summarization
+- [ ] Set up Vercel Cron for daily engagement nudge checks (/api/cron/engagement-nudge)
+- [ ] QuickBooks integration (placeholder — billing/invoicing)
 
 ## Recently Completed
+- [x] CRM Engagement Workflow — full quote-to-cash pipeline
+  - Migration 023: pm_engagements, pm_engagement_task_templates tables, client_status on orgs, 7-stage pipeline model
+  - Migration 024: MSA document type template with 21 intake fields
+  - 7-stage deal pipeline: lead → qualified → discovery_complete → proposal_sent → negotiation → closed_won → closed_lost
+  - Separate client_status field on orgs (prospect/client/inactive) — distinct from deal stages
+  - Engagement CRUD API: GET/POST /api/pm/engagements, GET/PATCH/DELETE /api/pm/engagements/[id]
+  - Stage-change automation engine: auto-creates tasks from templates when deal_stage advances
+  - 14 seeded task templates across lead, qualified, discovery_complete, proposal_sent, closed_won stages
+  - EngagementOverview component: visual stage stepper, summary cards (value, close date, service line, assignee)
+  - Engagement task checklist with quick-complete, overdue indicators
+  - Discovery notes inline editing on engagement view
+  - Auto-create first engagement when new org is added
+  - Existing client new SOW starts at discovery_complete (skips lead/qualified)
+  - Org pipeline_status auto-syncs to most advanced active engagement
+  - Nudge/overdue cron route: /api/cron/engagement-nudge (Vercel Cron, daily business days)
+  - Pipeline Kanban + all pipeline UIs updated to 7-stage model
+  - "Engagements" tab added as default tab on client dashboard
+- [x] Client-level tasks + task mobility + external AI agent API
+  - Migration 022: org_id on tasks (add if missing), pm_api_keys table
+  - Tasks can now be personal (no org, no project), client-level (org_id set, no project), or project-level
+  - Full task mobility: PATCH org_id/project_id to move tasks between personal/client/project
+  - New "Tasks" tab on client dashboard — create, edit, complete, move tasks
+  - API key auth system: pm_api_keys table with SHA-256 hashed keys, scoped permissions, org restrictions
+  - Middleware bypass for /api/pm/ext/* routes with Bearer pm_key_... auth
+  - External AI endpoints: GET/POST/PATCH /api/pm/ext/tasks, GET/POST /api/pm/ext/notes, GET /api/pm/ext/context
+  - API key management UI on Settings page (admin only) — create, revoke, show-once reveal
+  - AI Agent Spec doc (docs/AI-AGENT-SPEC.md) with full API reference + system prompt template
+  - /api/pm/tasks/my enriched with org_name, org_slug, supports org_id filter
+- [x] Pipeline Kanban board — drag-and-drop clients between pipeline stages
+  - New PipelineKanban component using @dnd-kit with droppable columns
+  - 6 columns: Lead, Prospect, Proposal Sent, Negotiation, Client, Inactive
+  - Optimistic UI updates with API persistence via PUT /api/pm/organizations
+  - View toggle (list/kanban) on Clients page with responsive container sizing
+  - Cards show client name, contact, location, and link to dashboard
+- [x] AI-assisted note summarization
+  - POST /api/pm/notes/summarize — GPT-4o generates actionable briefing from client notes
+  - Includes: key themes, action items, client sentiment, timeline, recommendations
+  - KB context injected for institutional knowledge awareness
+  - "AI Summary" button on NotesTab with collapsible summary panel
+  - Supports filtering: summarizes visible notes (by type filter) or all notes
 - [x] Knowledge Base system — AI institutional memory with three-tier context
   - Migration 020: pm_kb_articles table with global/org/project scope tiers, RLS, auto-updated_at
   - Categories: company-profile, client-profile, strategy, playbook, lessons-learned, industry, relationship, general

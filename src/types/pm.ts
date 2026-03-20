@@ -38,6 +38,7 @@ export interface Organization {
   website: string | null;
   notes: string | null;
   pipeline_status: PipelineStatus;
+  client_status: ClientStatus;
   contact_name: string | null;
   contact_email: string | null;
   contact_phone: string | null;
@@ -136,6 +137,10 @@ export interface Task {
   depends_on: string[];
   risk_id: string | null;
   subtasks: Subtask[];
+  engagement_id: string | null;
+  completed_at: string | null;
+  nudge_after_days: number | null;
+  last_nudge_sent_at: string | null;
   series_id: string | null;
   series_occurrence_date: string | null;
   is_exception: boolean;
@@ -251,7 +256,46 @@ export interface PMFile {
 
 // ─── CRM / Pipeline Types ───────────────────────────────────────────
 
-export type PipelineStatus = "lead" | "prospect" | "proposal_sent" | "negotiation" | "client" | "inactive";
+export type PipelineStatus = "lead" | "qualified" | "discovery_complete" | "proposal_sent" | "negotiation" | "closed_won" | "closed_lost";
+
+export type ClientStatus = "prospect" | "client" | "inactive";
+
+export type DealStage = PipelineStatus;
+
+export type EngagementType = "new_prospect" | "existing_client";
+
+export type EngagementServiceLine = "process_audit" | "ai_automation" | "marketing" | "business_consulting" | "website_dev" | "other";
+
+export interface Engagement {
+  id: string;
+  org_id: string;
+  title: string;
+  type: EngagementType;
+  deal_stage: DealStage;
+  assigned_to: string | null;
+  estimated_value: number | null;
+  probability_override: number | null;
+  expected_close_date: string | null;
+  closed_reason: string | null;
+  discovery_notes: string | null;
+  engagement_type: EngagementServiceLine | null;
+  referral_source: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EngagementTaskTemplate {
+  id: string;
+  trigger_stage: DealStage;
+  title: string;
+  description: string | null;
+  due_offset_days: number;
+  nudge_after_days: number | null;
+  engagement_type: "new_prospect" | "existing_client" | "both";
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+}
 
 export type ProposalStatus = "draft" | "sent" | "viewed" | "accepted" | "rejected" | "expired";
 

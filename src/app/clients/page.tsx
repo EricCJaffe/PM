@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { SetupBanner } from "@/components/SetupBanner";
+import { PipelineKanban } from "@/components/PipelineKanban";
 import type { PipelineStatus } from "@/types/pm";
 
 interface Client {
@@ -33,11 +34,12 @@ interface TableError {
 
 const PIPELINE_STAGES: { value: PipelineStatus; label: string; color: string }[] = [
   { value: "lead", label: "Lead", color: "bg-slate-500/20 text-slate-300" },
-  { value: "prospect", label: "Prospect", color: "bg-blue-500/20 text-blue-400" },
+  { value: "qualified", label: "Qualified", color: "bg-blue-500/20 text-blue-400" },
+  { value: "discovery_complete", label: "Discovery", color: "bg-cyan-500/20 text-cyan-400" },
   { value: "proposal_sent", label: "Proposal Sent", color: "bg-purple-500/20 text-purple-400" },
   { value: "negotiation", label: "Negotiation", color: "bg-amber-500/20 text-amber-400" },
-  { value: "client", label: "Client", color: "bg-emerald-500/20 text-emerald-400" },
-  { value: "inactive", label: "Inactive", color: "bg-red-500/20 text-red-400" },
+  { value: "closed_won", label: "Closed Won", color: "bg-emerald-500/20 text-emerald-400" },
+  { value: "closed_lost", label: "Closed Lost", color: "bg-red-500/20 text-red-400" },
 ];
 
 function PipelineBadge({ status }: { status: PipelineStatus }) {
@@ -75,6 +77,9 @@ export default function ClientsPage() {
     contact_email: "",
     contact_phone: "",
   });
+
+  // View mode: list or kanban
+  const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
 
   // Delete confirmation
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -196,29 +201,64 @@ export default function ClientsPage() {
     }
   };
 
+  const handlePipelineChange = async (clientId: string, newStatus: PipelineStatus) => {
+    try {
+      const res = await fetch("/api/pm/organizations", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: clientId, pipeline_status: newStatus }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setClients((prev) => prev.map((c) => (c.id === clientId ? { ...c, pipeline_status: newStatus } : c)));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update pipeline status");
+      loadClients(); // re-sync on failure
+    }
+  };
+
   if (tableError) {
     return <SetupBanner missing={tableError.missing} migrations={tableError.migrations} />;
   }
 
   return (
-    <div className="max-w-5xl mx-auto p-6">
+    <div className={`mx-auto p-6 ${viewMode === "kanban" ? "max-w-[1600px]" : "max-w-5xl"}`}>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold text-pm-text">Clients</h1>
           <p className="text-pm-muted mt-1">Manage your pipeline and client relationships</p>
         </div>
-        <button
-          onClick={() => {
-            if (showForm) {
-              resetForm();
-            } else {
-              setShowForm(true);
-            }
-          }}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
-        >
-          {showForm ? "Cancel" : "+ New Client"}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* View toggle */}
+          <div className="flex bg-pm-card border border-pm-border rounded-lg overflow-hidden">
+            <button
+              onClick={() => setViewMode("list")}
+              className={`px-3 py-2 text-sm transition-colors ${viewMode === "list" ? "bg-pm-accent text-white" : "text-pm-muted hover:text-pm-text"}`}
+              title="List view"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+            </button>
+            <button
+              onClick={() => setViewMode("kanban")}
+              className={`px-3 py-2 text-sm transition-colors ${viewMode === "kanban" ? "bg-pm-accent text-white" : "text-pm-muted hover:text-pm-text"}`}
+              title="Kanban view"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" /></svg>
+            </button>
+          </div>
+          <button
+            onClick={() => {
+              if (showForm) {
+                resetForm();
+              } else {
+                setShowForm(true);
+              }
+            }}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            {showForm ? "Cancel" : "+ New Client"}
+          </button>
+        </div>
       </div>
 
       {/* Pipeline filter pills */}
@@ -422,13 +462,20 @@ export default function ClientsPage() {
         </form>
       )}
 
-      {/* Client list */}
+      {/* Client list or Kanban */}
       {loading ? (
         <p className="text-pm-muted">Loading...</p>
+      ) : clients.length === 0 ? (
+        <div className="text-center py-16 text-pm-muted">
+          <p className="text-lg mb-2">No clients yet</p>
+          <p className="text-sm">Create your first client to get started.</p>
+        </div>
+      ) : viewMode === "kanban" ? (
+        <PipelineKanban clients={clients} onStatusChange={handlePipelineChange} />
       ) : filteredClients.length === 0 ? (
         <div className="text-center py-16 text-pm-muted">
-          <p className="text-lg mb-2">{pipelineFilter === "all" ? "No clients yet" : "No clients in this stage"}</p>
-          <p className="text-sm">{pipelineFilter === "all" ? "Create your first client to get started." : "Try a different filter or add new clients."}</p>
+          <p className="text-lg mb-2">No clients in this stage</p>
+          <p className="text-sm">Try a different filter or add new clients.</p>
         </div>
       ) : (
         <div className="space-y-3">
