@@ -300,6 +300,7 @@ export interface EngagementTaskTemplate {
 export type ProposalStatus = "draft" | "sent" | "viewed" | "accepted" | "rejected" | "expired";
 
 export type NoteType = "meeting" | "general" | "phone-call" | "follow-up";
+export type NoteVisibility = "internal" | "client";
 
 export interface ProposalTemplateField {
   name: string;
@@ -356,6 +357,7 @@ export interface ClientNote {
   title: string;
   body: string | null;
   note_type: NoteType;
+  visibility: NoteVisibility;
   author: string | null;
   pinned: boolean;
   created_at: string;

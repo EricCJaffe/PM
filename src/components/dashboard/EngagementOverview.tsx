@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import type { Organization, Engagement, DealStage } from "@/types/pm";
 import { StatusBadge } from "@/components/StatusBadge";
+
+const RichTextEditor = lazy(() => import("@/components/RichTextEditor"));
 
 interface EngagementTask {
   id: string;
@@ -503,19 +505,19 @@ export function EngagementOverview({ org }: { org: Organization }) {
           {/* ── Discovery Notes ── */}
           <div className="card">
             <h4 className="font-semibold text-pm-text mb-3">Discovery Notes</h4>
-            <textarea
-              value={activeEng.discovery_notes || ""}
-              onChange={(e) => {
-                // Optimistic local update
-                setEngagements((prev) =>
-                  prev.map((eng) => eng.id === activeEngId ? { ...eng, discovery_notes: e.target.value } : eng)
-                );
-              }}
-              onBlur={(e) => updateEngagementField("discovery_notes", e.target.value || null)}
-              rows={4}
-              className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text focus:outline-none focus:border-blue-500"
-              placeholder="Notes from discovery calls, meetings, client requirements..."
-            />
+            <div onBlur={() => updateEngagementField("discovery_notes", activeEng.discovery_notes || null)}>
+              <Suspense fallback={<div className="h-[150px] bg-pm-bg border border-pm-border rounded-lg flex items-center justify-center text-pm-muted text-sm">Loading editor...</div>}>
+                <RichTextEditor
+                  value={activeEng.discovery_notes || ""}
+                  onChange={(html) => {
+                    setEngagements((prev) =>
+                      prev.map((eng) => eng.id === activeEngId ? { ...eng, discovery_notes: html } : eng)
+                    );
+                  }}
+                  placeholder="Notes from discovery calls, meetings, client requirements..."
+                />
+              </Suspense>
+            </div>
           </div>
         </>
       )}

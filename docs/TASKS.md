@@ -12,6 +12,7 @@
 - [x] Apply migration 013_auth_system_upgrade.sql to Supabase
 - [x] Apply migration 014_rls_policies.sql to Supabase
 - [x] Apply migration 021_vault_storage_bucket.sql to Supabase
+- [ ] Apply migration 025_note_visibility.sql to Supabase
 
 ## Backfill Scripts — Completed
 1. [x] Run FSA site-org backfill: `npx tsx scripts/backfill-fsa-site-org.ts`

@@ -1,8 +1,10 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import type { Organization, KBArticle, KBCategory } from "@/types/pm";
 import { Modal, Field, Input, Select, ModalActions } from "../Modal";
+
+const RichTextEditor = lazy(() => import("../RichTextEditor"));
 
 const CATEGORIES: { value: KBCategory; label: string; icon: string }[] = [
   { value: "company-profile", label: "Company Profile", icon: "🏢" },
@@ -103,17 +105,17 @@ function ArticleModal({
             <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="e.g. values, culture" />
           </Field>
         </div>
-        <Field label="Content" hint="Markdown supported. This content is injected into AI context for all features.">
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text font-mono text-sm focus:outline-none focus:border-blue-500 min-h-[300px] resize-y"
-            rows={14}
-            placeholder={scope === "org"
-              ? "Describe this client — their industry, key contacts, preferences, history with us, communication style, strategic goals..."
-              : "Describe the company — values, approach, methodology, brand voice, decision frameworks..."
-            }
-          />
+        <Field label="Content" hint="This content is injected into AI context for all features.">
+          <Suspense fallback={<div className="h-[300px] bg-pm-bg border border-pm-border rounded-lg flex items-center justify-center text-pm-muted text-sm">Loading editor...</div>}>
+            <RichTextEditor
+              value={content}
+              onChange={setContent}
+              placeholder={scope === "org"
+                ? "Describe this client — their industry, key contacts, preferences, history with us, communication style, strategic goals..."
+                : "Describe the company — values, approach, methodology, brand voice, decision frameworks..."
+              }
+            />
+          </Suspense>
         </Field>
         <label className="flex items-center gap-2 mb-3 cursor-pointer">
           <input
@@ -139,9 +141,14 @@ function ArticleModal({
 
 // ─── Article Card ────────────────────────────────────────────────────
 
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
 function ArticleCard({ article, onClick }: { article: KBArticle; onClick: () => void }) {
   const cat = categoryMap[article.category];
-  const preview = article.content.slice(0, 180).replace(/\n/g, " ");
+  const plain = stripHtml(article.content);
+  const preview = plain.slice(0, 180);
 
   return (
     <button onClick={onClick} className="card text-left w-full hover:border-pm-muted/50 transition-colors">
@@ -162,7 +169,7 @@ function ArticleCard({ article, onClick }: { article: KBArticle; onClick: () => 
         <span className="text-xs text-pm-muted shrink-0">{formatDate(article.updated_at)}</span>
       </div>
       {preview && (
-        <p className="text-sm text-pm-muted mt-2 line-clamp-2">{preview}{article.content.length > 180 ? "..." : ""}</p>
+        <p className="text-sm text-pm-muted mt-2 line-clamp-2">{preview}{plain.length > 180 ? "..." : ""}</p>
       )}
       {article.tags.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-2">
