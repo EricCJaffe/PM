@@ -63,7 +63,7 @@ export function ClientTasksTab({ org }: { org: Organization }) {
 
   useEffect(() => {
     loadTasks();
-    fetch("/api/pm/members/assignable")
+    fetch(`/api/pm/members/assignable?org_id=${org.id}`)
       .then((r) => r.json())
       .then((data) => { if (Array.isArray(data)) setMembers(data); })
       .catch(() => {});
