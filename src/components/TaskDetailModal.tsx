@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { Modal, Field, Input, Select, Textarea } from "./Modal";
+
+const RichTextEditor = lazy(() => import("./RichTextEditor"));
 import { RecurrencePicker, type RecurrenceConfig } from "./RecurrencePicker";
 import type { PMStatus, Subtask, TaskComment, TaskAttachment } from "@/types/pm";
 
@@ -509,11 +511,13 @@ export function TaskDetailModal({
             />
           </Field>
           <Field label="Description">
-            <Textarea
-              value={form.description}
-              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              placeholder="Add details..."
-            />
+            <Suspense fallback={<div className="h-[150px] bg-pm-bg border border-pm-border rounded-lg flex items-center justify-center text-pm-muted text-sm">Loading editor...</div>}>
+              <RichTextEditor
+                value={form.description}
+                onChange={(html) => setForm((f) => ({ ...f, description: html }))}
+                placeholder="Add details..."
+              />
+            </Suspense>
           </Field>
           {/* Phase picker */}
           {phases && phases.length > 0 && (

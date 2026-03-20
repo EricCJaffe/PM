@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import type { Organization, ProjectWithStats, PipelineStatus } from "@/types/pm";
+
+const RichTextEditor = lazy(() => import("@/components/RichTextEditor"));
 
 const PIPELINE_STAGES: { value: PipelineStatus; label: string; color: string }[] = [
   { value: "lead", label: "Lead", color: "bg-slate-500" },
@@ -207,12 +209,13 @@ export function InfoTab({
               </div>
               <div>
                 <label className="block text-xs text-pm-muted mb-1">Notes</label>
-                <textarea
-                  value={form.notes}
-                  onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                  rows={3}
-                  className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text"
-                />
+                <Suspense fallback={<div className="h-[120px] bg-pm-bg border border-pm-border rounded flex items-center justify-center text-pm-muted text-sm">Loading editor...</div>}>
+                  <RichTextEditor
+                    value={form.notes}
+                    onChange={(html) => setForm((f) => ({ ...f, notes: html }))}
+                    placeholder="Notes about this organization..."
+                  />
+                </Suspense>
               </div>
               <button
                 onClick={() => setEditing(false)}
@@ -228,7 +231,12 @@ export function InfoTab({
               <InfoRow label="Address" value={org.address} />
               {org.address_line2 && <InfoRow label="" value={org.address_line2} />}
               <InfoRow label="City" value={[org.city, org.state, org.zip].filter(Boolean).join(", ") || null} />
-              <InfoRow label="Notes" value={org.notes} />
+              {org.notes && (
+                <div className="flex items-start gap-3">
+                  <span className="text-xs text-pm-muted w-16 shrink-0 pt-0.5">Notes</span>
+                  <div className="text-sm text-pm-text prose prose-sm prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: org.notes }} />
+                </div>
+              )}
               {!org.phone && !org.website && !org.address && !org.city && (
                 <p className="text-sm text-pm-muted italic">No company details yet. Click Edit to add.</p>
               )}

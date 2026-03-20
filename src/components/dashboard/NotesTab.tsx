@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import type { Organization, ClientNote, ClientNoteAttachment, NoteType, NoteVisibility } from "@/types/pm";
+
+const RichTextEditor = lazy(() => import("../RichTextEditor"));
 
 const NOTE_TYPES: { value: NoteType; label: string }[] = [
   { value: "general", label: "General" },
@@ -355,13 +357,13 @@ export function NotesTab({ org }: { org: Organization }) {
             </div>
             <div className="md:col-span-3">
               <label className="block text-sm font-medium text-pm-muted mb-1">Content</label>
-              <textarea
-                value={form.body}
-                onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
-                rows={5}
-                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
-                placeholder="Write your note here..."
-              />
+              <Suspense fallback={<div className="h-[200px] bg-pm-bg border border-pm-border rounded-lg flex items-center justify-center text-pm-muted text-sm">Loading editor...</div>}>
+                <RichTextEditor
+                  value={form.body}
+                  onChange={(html) => setForm((f) => ({ ...f, body: html }))}
+                  placeholder="Write your note here..."
+                />
+              </Suspense>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -426,7 +428,7 @@ export function NotesTab({ org }: { org: Organization }) {
                       </span>
                     </div>
                     {note.body && (
-                      <p className="text-sm text-pm-muted mt-2 whitespace-pre-wrap line-clamp-3">{note.body}</p>
+                      <div className="text-sm text-pm-muted mt-2 line-clamp-3 prose prose-sm prose-invert max-w-none [&>*]:m-0" dangerouslySetInnerHTML={{ __html: note.body }} />
                     )}
                     <div className="flex gap-3 mt-2 text-xs text-pm-muted">
                       {note.author && <span>By: {note.author}</span>}

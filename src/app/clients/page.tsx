@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import Link from "next/link";
+
+const RichTextEditor = lazy(() => import("@/components/RichTextEditor"));
 import { SetupBanner } from "@/components/SetupBanner";
 import { PipelineKanban } from "@/components/PipelineKanban";
 import type { PipelineStatus } from "@/types/pm";
@@ -434,13 +436,13 @@ export default function ClientsPage() {
 
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-pm-muted mb-1">Notes</label>
-              <textarea
-                value={form.notes}
-                onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                rows={2}
-                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
-                placeholder="Any additional notes about this client..."
-              />
+              <Suspense fallback={<div className="h-[120px] bg-pm-bg border border-pm-border rounded-lg flex items-center justify-center text-pm-muted text-sm">Loading editor...</div>}>
+                <RichTextEditor
+                  value={form.notes}
+                  onChange={(html) => setForm((f) => ({ ...f, notes: html }))}
+                  placeholder="Any additional notes about this client..."
+                />
+              </Suspense>
             </div>
           </div>
           <div className="flex gap-2">
