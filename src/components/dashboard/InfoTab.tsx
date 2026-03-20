@@ -5,11 +5,12 @@ import type { Organization, ProjectWithStats, PipelineStatus } from "@/types/pm"
 
 const PIPELINE_STAGES: { value: PipelineStatus; label: string; color: string }[] = [
   { value: "lead", label: "Lead", color: "bg-slate-500" },
-  { value: "prospect", label: "Prospect", color: "bg-blue-500" },
+  { value: "qualified", label: "Qualified", color: "bg-blue-500" },
+  { value: "discovery_complete", label: "Discovery", color: "bg-cyan-500" },
   { value: "proposal_sent", label: "Proposal Sent", color: "bg-purple-500" },
   { value: "negotiation", label: "Negotiation", color: "bg-amber-500" },
-  { value: "client", label: "Client", color: "bg-emerald-500" },
-  { value: "inactive", label: "Inactive", color: "bg-red-500" },
+  { value: "closed_won", label: "Closed Won", color: "bg-emerald-500" },
+  { value: "closed_lost", label: "Closed Lost", color: "bg-red-500" },
 ];
 
 export function InfoTab({
@@ -47,7 +48,7 @@ export function InfoTab({
         body: JSON.stringify({
           id: org.id,
           pipeline_status: newStatus,
-          ...(newStatus === "client" && !org.converted_at ? { converted_at: new Date().toISOString() } : {}),
+          ...(newStatus === "closed_won" && !org.converted_at ? { converted_at: new Date().toISOString() } : {}),
         }),
       });
       const data = await res.json();
@@ -92,7 +93,7 @@ export function InfoTab({
         </div>
         <div className="flex items-center gap-1">
           {PIPELINE_STAGES.map((stage, i) => {
-            const isActive = i <= currentStageIndex && pipelineStatus !== "inactive";
+            const isActive = i <= currentStageIndex && pipelineStatus !== "closed_lost";
             const isCurrent = stage.value === pipelineStatus;
             return (
               <button

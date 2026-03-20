@@ -51,8 +51,27 @@
 
 ## New Features — Planned
 - [ ] Email compose modal for sending proposals to client contacts
+- [ ] Set up Vercel Cron for daily engagement nudge checks (/api/cron/engagement-nudge)
+- [ ] QuickBooks integration (placeholder — billing/invoicing)
 
 ## Recently Completed
+- [x] CRM Engagement Workflow — full quote-to-cash pipeline
+  - Migration 023: pm_engagements, pm_engagement_task_templates tables, client_status on orgs, 7-stage pipeline model
+  - Migration 024: MSA document type template with 21 intake fields
+  - 7-stage deal pipeline: lead → qualified → discovery_complete → proposal_sent → negotiation → closed_won → closed_lost
+  - Separate client_status field on orgs (prospect/client/inactive) — distinct from deal stages
+  - Engagement CRUD API: GET/POST /api/pm/engagements, GET/PATCH/DELETE /api/pm/engagements/[id]
+  - Stage-change automation engine: auto-creates tasks from templates when deal_stage advances
+  - 14 seeded task templates across lead, qualified, discovery_complete, proposal_sent, closed_won stages
+  - EngagementOverview component: visual stage stepper, summary cards (value, close date, service line, assignee)
+  - Engagement task checklist with quick-complete, overdue indicators
+  - Discovery notes inline editing on engagement view
+  - Auto-create first engagement when new org is added
+  - Existing client new SOW starts at discovery_complete (skips lead/qualified)
+  - Org pipeline_status auto-syncs to most advanced active engagement
+  - Nudge/overdue cron route: /api/cron/engagement-nudge (Vercel Cron, daily business days)
+  - Pipeline Kanban + all pipeline UIs updated to 7-stage model
+  - "Engagements" tab added as default tab on client dashboard
 - [x] Client-level tasks + task mobility + external AI agent API
   - Migration 022: org_id on tasks (add if missing), pm_api_keys table
   - Tasks can now be personal (no org, no project), client-level (org_id set, no project), or project-level

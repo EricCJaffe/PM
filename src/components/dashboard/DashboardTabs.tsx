@@ -2,6 +2,7 @@
 import { useState, useMemo } from "react";
 import type { Organization, ProjectWithStats, ProcessMap, Opportunity, KPI, PMDocument, PhaseWithTasks } from "@/types/pm";
 import { OverviewTab } from "./OverviewTab";
+import { EngagementOverview } from "./EngagementOverview";
 import { InfoTab } from "./InfoTab";
 import { ProposalsTab } from "./ProposalsTab";
 import { NotesTab } from "./NotesTab";
@@ -15,6 +16,7 @@ import { KBTab } from "./KBTab";
 import { ClientTasksTab } from "./ClientTasksTab";
 
 const tabs = [
+  { id: "engagements", label: "Engagements" },
   { id: "overview", label: "Overview" },
   { id: "info", label: "Info" },
   { id: "tasks", label: "Tasks" },
@@ -51,7 +53,7 @@ export function DashboardTabs({
   documents: PMDocument[];
   allPhases: { project: ProjectWithStats; phases: PhaseWithTasks[] }[];
 }) {
-  const [active, setActive] = useState("overview");
+  const [active, setActive] = useState("engagements");
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
   const filteredProcessMaps = useMemo(
@@ -110,6 +112,7 @@ export function DashboardTabs({
         )}
       </div>
 
+      {active === "engagements" && <EngagementOverview org={org} />}
       {active === "info" && <InfoTab org={org} projects={projects} />}
       {active === "tasks" && <ClientTasksTab org={org} />}
       {active === "proposals" && <ProposalsTab org={org} />}

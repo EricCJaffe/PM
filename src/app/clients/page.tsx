@@ -34,11 +34,12 @@ interface TableError {
 
 const PIPELINE_STAGES: { value: PipelineStatus; label: string; color: string }[] = [
   { value: "lead", label: "Lead", color: "bg-slate-500/20 text-slate-300" },
-  { value: "prospect", label: "Prospect", color: "bg-blue-500/20 text-blue-400" },
+  { value: "qualified", label: "Qualified", color: "bg-blue-500/20 text-blue-400" },
+  { value: "discovery_complete", label: "Discovery", color: "bg-cyan-500/20 text-cyan-400" },
   { value: "proposal_sent", label: "Proposal Sent", color: "bg-purple-500/20 text-purple-400" },
   { value: "negotiation", label: "Negotiation", color: "bg-amber-500/20 text-amber-400" },
-  { value: "client", label: "Client", color: "bg-emerald-500/20 text-emerald-400" },
-  { value: "inactive", label: "Inactive", color: "bg-red-500/20 text-red-400" },
+  { value: "closed_won", label: "Closed Won", color: "bg-emerald-500/20 text-emerald-400" },
+  { value: "closed_lost", label: "Closed Lost", color: "bg-red-500/20 text-red-400" },
 ];
 
 function PipelineBadge({ status }: { status: PipelineStatus }) {

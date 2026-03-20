@@ -72,6 +72,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // Auto-create first engagement for new orgs
+    try {
+      await supabase.from("pm_engagements").insert({
+        org_id: data.id,
+        title: "Initial Engagement",
+        type: "new_prospect",
+        deal_stage: pipeline_status || "lead",
+      });
+    } catch {
+      // Non-critical — engagement table may not exist yet
+    }
+
     return NextResponse.json(data, { status: 201 });
   } catch (err) {
     return NextResponse.json(

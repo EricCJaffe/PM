@@ -34,11 +34,12 @@ interface KanbanClient {
 
 const COLUMNS: { value: PipelineStatus; label: string; headerColor: string; dotColor: string }[] = [
   { value: "lead", label: "Lead", headerColor: "text-slate-300", dotColor: "bg-slate-400" },
-  { value: "prospect", label: "Prospect", headerColor: "text-blue-400", dotColor: "bg-blue-400" },
+  { value: "qualified", label: "Qualified", headerColor: "text-blue-400", dotColor: "bg-blue-400" },
+  { value: "discovery_complete", label: "Discovery", headerColor: "text-cyan-400", dotColor: "bg-cyan-400" },
   { value: "proposal_sent", label: "Proposal Sent", headerColor: "text-purple-400", dotColor: "bg-purple-400" },
   { value: "negotiation", label: "Negotiation", headerColor: "text-amber-400", dotColor: "bg-amber-400" },
-  { value: "client", label: "Client", headerColor: "text-emerald-400", dotColor: "bg-emerald-400" },
-  { value: "inactive", label: "Inactive", headerColor: "text-red-400", dotColor: "bg-red-400" },
+  { value: "closed_won", label: "Closed Won", headerColor: "text-emerald-400", dotColor: "bg-emerald-400" },
+  { value: "closed_lost", label: "Closed Lost", headerColor: "text-red-400", dotColor: "bg-red-400" },
 ];
 
 function ClientCard({ client, isDragging }: { client: KanbanClient; isDragging?: boolean }) {
@@ -137,7 +138,7 @@ export function PipelineKanban({ clients: initialClients, onStatusChange }: {
 
   const grouped = useMemo(() => {
     const map: Record<PipelineStatus, KanbanClient[]> = {
-      lead: [], prospect: [], proposal_sent: [], negotiation: [], client: [], inactive: [],
+      lead: [], qualified: [], discovery_complete: [], proposal_sent: [], negotiation: [], closed_won: [], closed_lost: [],
     };
     for (const c of clients) {
       (map[c.pipeline_status] ?? map.lead).push(c);

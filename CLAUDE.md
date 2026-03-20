@@ -80,6 +80,7 @@ src/
 │   ├── queries.ts          # All Supabase query functions
 │   ├── kb.ts               # KB context assembly for AI (assembleKBContext)
 │   ├── recurrence.ts       # Recurrence engine (occurrence generation, validation)
+│   ├── engagement-engine.ts # Stage-change automation (auto-task spawning)
 │   └── vault.ts            # Vault storage read/write/generation
 └── types/
     └── pm.ts               # All TypeScript types
@@ -116,6 +117,8 @@ docs/                       # Project documentation
 | `pm_client_note_attachments` | File attachments on client notes |
 | `pm_kb_articles` | Knowledge base articles (global/org/project scope, AI context) |
 | `pm_api_keys` | API keys for external integrations (hashed, scoped permissions) |
+| `pm_engagements` | CRM deal engagements per org (deal_stage, value, type) |
+| `pm_engagement_task_templates` | Stage-triggered auto-task definitions |
 
 ## Project Templates
 | Slug | Name | Phases |
@@ -172,6 +175,9 @@ vault/[org-slug]/[project-slug]/
 | `/api/pm/kb` | GET, POST | List / create KB articles |
 | `/api/pm/kb/[id]` | GET, PATCH, DELETE | View / update / delete KB article |
 | `/api/pm/api-keys` | GET, POST, DELETE | List / create / revoke API keys |
+| `/api/pm/engagements` | GET, POST | List / create engagements (by org_id) |
+| `/api/pm/engagements/[id]` | GET, PATCH, DELETE | View / update / delete engagement |
+| `/api/cron/engagement-nudge` | POST | Vercel Cron: check overdue engagement tasks |
 | `/api/pm/ext/context` | GET | AI agent context dump (orgs, projects, members) |
 | `/api/pm/ext/tasks` | GET, POST, PATCH | AI agent task CRUD (API key auth) |
 | `/api/pm/ext/notes` | GET, POST | AI agent note read/create (API key auth) |

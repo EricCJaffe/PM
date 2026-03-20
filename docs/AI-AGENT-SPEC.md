@@ -183,7 +183,10 @@ Content-Type: application/json
 `general` | `meeting` | `phone-call` | `follow-up`
 
 ### Pipeline Stages (orgs, read-only)
-`lead` | `prospect` | `proposal_sent` | `negotiation` | `client` | `inactive`
+`lead` | `qualified` | `discovery_complete` | `proposal_sent` | `negotiation` | `closed_won` | `closed_lost`
+
+### Client Status (orgs, read-only)
+`prospect` | `client` | `inactive`
 
 ### Member Slugs
 Members are identified by kebab-case slugs (e.g., `eric-jaffe`). Use the context endpoint to discover valid slugs.

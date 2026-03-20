@@ -372,7 +372,7 @@ export async function getOrganizationsByPipeline(): Promise<Record<PipelineStatu
     .order("name");
   const orgs = (data ?? []) as Organization[];
   const grouped: Record<PipelineStatus, Organization[]> = {
-    lead: [], prospect: [], proposal_sent: [], negotiation: [], client: [], inactive: [],
+    lead: [], qualified: [], discovery_complete: [], proposal_sent: [], negotiation: [], closed_won: [], closed_lost: [],
   };
   for (const org of orgs) {
     const status = org.pipeline_status || "lead";
