@@ -566,21 +566,36 @@ export interface DocumentActivity {
 
 export type AuditVertical = "church" | "agency" | "nonprofit" | "general";
 export type AuditStatus = "pending" | "running" | "complete" | "failed";
-export type AuditGrade = "A" | "B" | "C" | "D" | "F";
+export type AuditGrade = "A" | "B" | "C" | "D" | "D-" | "F";
+
+export interface AuditDimensionScore {
+  grade: AuditGrade;
+  score: number; // 0–100
+  weight: number; // e.g. 0.20
+  findings: string[];
+}
 
 export interface AuditScores {
-  seo: AuditGrade;
-  entity: AuditGrade;
-  ai_discoverability: AuditGrade;
-  conversion: AuditGrade;
-  content: AuditGrade;
-  a2a_readiness: AuditGrade;
+  seo: AuditDimensionScore;
+  entity: AuditDimensionScore;
+  ai_discoverability: AuditDimensionScore;
+  conversion: AuditDimensionScore;
+  content: AuditDimensionScore;
+  a2a_readiness: AuditDimensionScore;
+}
+
+export interface AuditOverall {
+  grade: AuditGrade;
+  score: number; // weighted 0–100
+  rebuild_recommended: boolean;
+  rebuild_reason: string | null;
 }
 
 export interface AuditGapItem {
-  issue: string;
-  severity: "critical" | "major" | "minor";
-  recommendation: string;
+  item: string;
+  current_state: string;
+  standard: string;
+  gap: string;
 }
 
 export interface AuditRecommendation {
@@ -592,20 +607,27 @@ export interface AuditRecommendation {
 }
 
 export interface AuditQuickWin {
-  title: string;
-  description: string;
-}
-
-export interface AuditPageFound {
-  url: string;
-  title: string;
-  status_code: number;
+  action: string;
+  time_estimate: string;
+  impact: string;
 }
 
 export interface AuditPageToBuild {
   slug: string;
   title: string;
-  reason: string;
+  priority: "P0" | "P1" | "P2";
+  notes: string;
+}
+
+export interface AuditRebuildTimeline {
+  phase: string;
+  focus: string;
+  deliverables: string;
+}
+
+export interface AuditPlatformComparison {
+  current: string;
+  recommended: string;
 }
 
 export interface SiteAudit {
@@ -616,11 +638,15 @@ export interface SiteAudit {
   vertical: AuditVertical;
   status: AuditStatus;
   scores: AuditScores | null;
+  overall: AuditOverall | null;
   gaps: Record<string, AuditGapItem[]> | null;
   recommendations: AuditRecommendation[] | null;
   quick_wins: AuditQuickWin[] | null;
-  pages_found: AuditPageFound[] | null;
+  pages_found: string[] | null;
+  pages_missing: string[] | null;
   pages_to_build: AuditPageToBuild[] | null;
+  rebuild_timeline: AuditRebuildTimeline[] | null;
+  platform_comparison: AuditPlatformComparison | null;
   extra_context: string | null;
   audit_summary: string | null;
   document_id: string | null;

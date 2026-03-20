@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useEffect, lazy, Suspense } from "react";
-import type { Organization, SiteAudit, AuditVertical, AuditGrade, AuditScores } from "@/types/pm";
+import type {
+  Organization, SiteAudit, AuditVertical, AuditGrade,
+  AuditScores, AuditDimensionScore, AuditOverall,
+} from "@/types/pm";
 
 const RichTextEditor = lazy(() => import("@/components/RichTextEditor"));
 
@@ -17,6 +20,7 @@ const GRADE_COLORS: Record<AuditGrade, string> = {
   B: "text-blue-400 bg-blue-400/10",
   C: "text-amber-400 bg-amber-400/10",
   D: "text-orange-400 bg-orange-400/10",
+  "D-": "text-orange-400 bg-orange-400/10",
   F: "text-red-400 bg-red-400/10",
 };
 
@@ -29,23 +33,56 @@ const DIMENSION_LABELS: Record<string, string> = {
   a2a_readiness: "A2A Readiness",
 };
 
-function GradeBadge({ grade }: { grade: AuditGrade }) {
+function GradeBadge({ grade, size = "sm" }: { grade: AuditGrade; size?: "sm" | "lg" }) {
+  const cls = size === "lg"
+    ? "w-12 h-12 rounded-xl text-xl"
+    : "w-8 h-8 rounded-lg text-sm";
   return (
-    <span className={`inline-flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold ${GRADE_COLORS[grade]}`}>
+    <span className={`inline-flex items-center justify-center font-bold ${cls} ${GRADE_COLORS[grade] || GRADE_COLORS.F}`}>
       {grade}
     </span>
   );
 }
 
-function overallGrade(scores: AuditScores): AuditGrade {
-  const gradeValues: Record<string, number> = { A: 4, B: 3, C: 2, D: 1, F: 0 };
-  const values = Object.values(scores).map((g) => gradeValues[g] ?? 0);
-  const avg = values.reduce((a, b) => a + b, 0) / values.length;
-  if (avg >= 3.5) return "A";
-  if (avg >= 2.5) return "B";
-  if (avg >= 1.5) return "C";
-  if (avg >= 0.5) return "D";
-  return "F";
+function ScoreBar({ score }: { score: number }) {
+  const color = score >= 90 ? "bg-emerald-500" : score >= 80 ? "bg-blue-500"
+    : score >= 70 ? "bg-amber-500" : score >= 60 ? "bg-orange-500" : "bg-red-500";
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex-1 h-2 bg-pm-bg rounded-full overflow-hidden">
+        <div className={`h-full rounded-full ${color}`} style={{ width: `${Math.min(score, 100)}%` }} />
+      </div>
+      <span className="text-xs text-pm-muted w-8 text-right">{score}%</span>
+    </div>
+  );
+}
+
+/** Backward compat: handle both old (letter-only) and new (object) score formats */
+function normalizeDimensionScore(raw: unknown, key: string): AuditDimensionScore {
+  if (typeof raw === "object" && raw !== null && "score" in (raw as Record<string, unknown>)) {
+    return raw as AuditDimensionScore;
+  }
+  // Legacy format: just a letter grade
+  const grade = (typeof raw === "string" ? raw : "F") as AuditGrade;
+  const gradeToScore: Record<string, number> = { A: 95, B: 85, C: 75, D: 65, "D-": 55, F: 30 };
+  const weights: Record<string, number> = {
+    seo: 0.20, entity: 0.15, ai_discoverability: 0.20,
+    conversion: 0.20, content: 0.15, a2a_readiness: 0.10,
+  };
+  return { grade, score: gradeToScore[grade] ?? 30, weight: weights[key] ?? 0.15, findings: [] };
+}
+
+function getOverall(audit: SiteAudit): AuditOverall {
+  if (audit.overall) return audit.overall;
+  // Compute from scores for backward compat
+  if (!audit.scores) return { grade: "F", score: 0, rebuild_recommended: false, rebuild_reason: null };
+
+  const dims = Object.entries(audit.scores).map(([k, v]) => normalizeDimensionScore(v, k));
+  const weighted = dims.reduce((sum, d) => sum + d.score * d.weight, 0);
+  const score = Math.round(weighted);
+  const grade: AuditGrade = score >= 90 ? "A" : score >= 80 ? "B" : score >= 70 ? "C"
+    : score >= 60 ? "D" : score >= 50 ? "D-" : "F";
+  return { grade, score, rebuild_recommended: score < 60, rebuild_reason: null };
 }
 
 // ─── Audit Results View ─────────────────────────────────────────────
@@ -54,16 +91,24 @@ function AuditResults({
   audit,
   onBack,
   onGenerateDoc,
+  onGeneratePDF,
 }: {
   audit: SiteAudit;
   onBack: () => void;
   onGenerateDoc: () => void;
+  onGeneratePDF: () => void;
 }) {
   const [generatingDoc, setGeneratingDoc] = useState(false);
+  const [generatingPDF, setGeneratingPDF] = useState(false);
 
   const handleGenerateDoc = async () => {
     setGeneratingDoc(true);
     onGenerateDoc();
+  };
+
+  const handleGeneratePDF = async () => {
+    setGeneratingPDF(true);
+    onGeneratePDF();
   };
 
   if (audit.status === "failed") {
@@ -90,6 +135,7 @@ function AuditResults({
   }
 
   const scores = audit.scores;
+  const overall = getOverall(audit);
   const gaps = audit.gaps || {};
   const recommendations = audit.recommendations || [];
   const quickWins = audit.quick_wins || [];
@@ -100,6 +146,13 @@ function AuditResults({
       <div className="flex items-center justify-between">
         <button onClick={onBack} className="text-sm text-pm-muted hover:text-pm-text">&larr; Back to audits</button>
         <div className="flex gap-2">
+          <button
+            onClick={handleGeneratePDF}
+            disabled={generatingPDF}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            {generatingPDF ? "Generating..." : "Download PDF"}
+          </button>
           {!audit.document_id && (
             <button
               onClick={handleGenerateDoc}
@@ -120,7 +173,7 @@ function AuditResults({
         </div>
       </div>
 
-      {/* Header */}
+      {/* Header with Overall Score */}
       <div className="card">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -132,40 +185,81 @@ function AuditResults({
           </div>
           <div className="text-center">
             <div className="text-xs text-pm-muted mb-1">Overall</div>
-            <span className={`inline-flex items-center justify-center w-12 h-12 rounded-xl text-xl font-bold ${GRADE_COLORS[overallGrade(scores)]}`}>
-              {overallGrade(scores)}
-            </span>
+            <GradeBadge grade={overall.grade} size="lg" />
+            <div className="text-xs text-pm-muted mt-1">{overall.score}%</div>
           </div>
         </div>
         {audit.audit_summary && (
           <p className="text-sm text-pm-muted">{audit.audit_summary}</p>
         )}
+        {overall.rebuild_recommended && (
+          <div className="mt-3 p-3 bg-red-600/10 border border-red-600/30 rounded-lg">
+            <span className="text-sm font-medium text-red-400">Rebuild Recommended</span>
+            {overall.rebuild_reason && (
+              <p className="text-xs text-red-300 mt-1">{overall.rebuild_reason}</p>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Score Card */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        {Object.entries(scores).map(([key, grade]) => (
-          <div key={key} className="card text-center">
-            <GradeBadge grade={grade as AuditGrade} />
-            <div className="text-xs text-pm-muted mt-2">{DIMENSION_LABELS[key] || key}</div>
-          </div>
-        ))}
+      {/* Score Card with Bars */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {Object.entries(scores).map(([key, rawVal]) => {
+          const dim = normalizeDimensionScore(rawVal, key);
+          return (
+            <div key={key} className="card">
+              <div className="flex items-center gap-3 mb-2">
+                <GradeBadge grade={dim.grade} />
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-pm-text">{DIMENSION_LABELS[key] || key}</div>
+                  <div className="text-xs text-pm-muted">{Math.round(dim.weight * 100)}% weight</div>
+                </div>
+              </div>
+              <ScoreBar score={dim.score} />
+              {dim.findings.length > 0 && (
+                <ul className="mt-2 space-y-1">
+                  {dim.findings.slice(0, 3).map((f, i) => (
+                    <li key={i} className="text-xs text-pm-muted flex items-start gap-1.5">
+                      <span className="shrink-0 mt-0.5 text-pm-muted">&bull;</span>
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Quick Wins */}
       {quickWins.length > 0 && (
         <div className="card">
           <h4 className="font-semibold text-pm-text mb-3">Quick Wins</h4>
-          <div className="space-y-2">
-            {quickWins.map((qw, i) => (
-              <div key={i} className="flex items-start gap-2">
-                <span className="text-emerald-400 mt-0.5">&#x2713;</span>
-                <div>
-                  <span className="text-sm font-medium text-pm-text">{qw.title}</span>
-                  <p className="text-xs text-pm-muted">{qw.description}</p>
-                </div>
-              </div>
-            ))}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-pm-border">
+                  <th className="text-left py-2 text-pm-muted font-medium">Action</th>
+                  <th className="text-center py-2 text-pm-muted font-medium w-24">Time</th>
+                  <th className="text-left py-2 text-pm-muted font-medium w-40">Impact</th>
+                </tr>
+              </thead>
+              <tbody>
+                {quickWins.map((qw, i) => (
+                  <tr key={i} className="border-b border-pm-border/50">
+                    <td className="py-2 text-pm-text">
+                      {"action" in qw ? (qw as { action: string }).action : (qw as { title?: string }).title || ""}
+                    </td>
+                    <td className="py-2 text-center text-pm-muted">
+                      {"time_estimate" in qw ? (qw as { time_estimate: string }).time_estimate : "—"}
+                    </td>
+                    <td className="py-2 text-pm-muted">
+                      {"impact" in qw ? (qw as { impact: string }).impact : (qw as { description?: string }).description || ""}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -174,31 +268,51 @@ function AuditResults({
       <div className="card">
         <h4 className="font-semibold text-pm-text mb-4">Gap Analysis</h4>
         <div className="space-y-6">
-          {Object.entries(gaps).map(([dimension, items]) => (
-            <div key={dimension}>
-              <div className="flex items-center gap-2 mb-2">
-                <GradeBadge grade={(scores as unknown as Record<string, AuditGrade>)[dimension] || "C"} />
-                <span className="text-sm font-medium text-pm-text">{DIMENSION_LABELS[dimension] || dimension}</span>
+          {Object.entries(gaps).map(([dimension, items]) => {
+            const dim = normalizeDimensionScore(
+              (scores as unknown as Record<string, unknown>)[dimension],
+              dimension
+            );
+            return (
+              <div key={dimension}>
+                <div className="flex items-center gap-2 mb-3">
+                  <GradeBadge grade={dim.grade} />
+                  <span className="text-sm font-medium text-pm-text">{DIMENSION_LABELS[dimension] || dimension}</span>
+                  <span className="text-xs text-pm-muted">({dim.score}%)</span>
+                </div>
+                <div className="overflow-x-auto ml-10">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-pm-border">
+                        <th className="text-left py-1.5 text-pm-muted font-medium">Item</th>
+                        <th className="text-left py-1.5 text-pm-muted font-medium">Current State</th>
+                        <th className="text-left py-1.5 text-pm-muted font-medium">Standard</th>
+                        <th className="text-left py-1.5 text-pm-muted font-medium">Gap</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(items as unknown as Array<Record<string, string>>).map((item, i) => (
+                        <tr key={i} className="border-b border-pm-border/30">
+                          <td className="py-1.5 text-pm-text font-medium">
+                            {item.item || item.issue || ""}
+                          </td>
+                          <td className="py-1.5 text-pm-muted">
+                            {item.current_state || ""}
+                          </td>
+                          <td className="py-1.5 text-pm-muted">
+                            {item.standard || ""}
+                          </td>
+                          <td className="py-1.5 text-pm-muted">
+                            {item.gap || item.recommendation || ""}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-              <div className="space-y-1.5 ml-10">
-                {(items as Array<{ issue: string; severity: string; recommendation: string }>).map((item, i) => (
-                  <div key={i} className="flex items-start gap-2">
-                    <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 mt-0.5 ${
-                      item.severity === "critical" ? "bg-red-600/20 text-red-400" :
-                      item.severity === "major" ? "bg-amber-600/20 text-amber-400" :
-                      "bg-slate-600/20 text-pm-muted"
-                    }`}>
-                      {item.severity}
-                    </span>
-                    <div>
-                      <span className="text-sm text-pm-text">{item.issue}</span>
-                      <p className="text-xs text-pm-muted">{item.recommendation}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -249,17 +363,84 @@ function AuditResults({
       {/* Pages to Build */}
       {pagesToBuild.length > 0 && (
         <div className="card">
-          <h4 className="font-semibold text-pm-text mb-3">Recommended Pages to Build</h4>
-          <div className="space-y-2">
-            {pagesToBuild.map((page, i) => (
-              <div key={i} className="flex items-start gap-3 py-2 border-b border-pm-border/50 last:border-0">
-                <code className="text-xs text-pm-accent bg-pm-bg px-2 py-0.5 rounded shrink-0">{page.slug}</code>
-                <div>
-                  <span className="text-sm font-medium text-pm-text">{page.title}</span>
-                  <p className="text-xs text-pm-muted">{page.reason}</p>
-                </div>
-              </div>
-            ))}
+          <h4 className="font-semibold text-pm-text mb-3">Pages to Build — Priority Order</h4>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-pm-border">
+                  <th className="text-center py-2 text-pm-muted font-medium w-12">Pri</th>
+                  <th className="text-left py-2 text-pm-muted font-medium">Page</th>
+                  <th className="text-left py-2 text-pm-muted font-medium w-28">URL</th>
+                  <th className="text-left py-2 text-pm-muted font-medium">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pagesToBuild.map((page, i) => (
+                  <tr key={i} className="border-b border-pm-border/50">
+                    <td className="py-2 text-center">
+                      <span className={`text-xs px-1.5 py-0.5 rounded font-bold ${
+                        ("priority" in page && page.priority === "P0") ? "bg-red-600/20 text-red-400" :
+                        ("priority" in page && page.priority === "P1") ? "bg-amber-600/20 text-amber-400" :
+                        "bg-slate-600/20 text-pm-muted"
+                      }`}>
+                        {"priority" in page ? page.priority : `P${i}`}
+                      </span>
+                    </td>
+                    <td className="py-2 font-medium text-pm-text">{page.title}</td>
+                    <td className="py-2">
+                      <code className="text-xs text-pm-accent bg-pm-bg px-1.5 py-0.5 rounded">{page.slug}</code>
+                    </td>
+                    <td className="py-2 text-xs text-pm-muted">
+                      {page.notes || ""}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Platform Comparison */}
+      {audit.platform_comparison && (
+        <div className="card">
+          <h4 className="font-semibold text-pm-text mb-3">Platform Comparison</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-3 bg-red-600/5 border border-red-600/20 rounded-lg">
+              <div className="text-xs text-red-400 font-medium mb-1">Current</div>
+              <p className="text-sm text-pm-text">{audit.platform_comparison.current}</p>
+            </div>
+            <div className="p-3 bg-emerald-600/5 border border-emerald-600/20 rounded-lg">
+              <div className="text-xs text-emerald-400 font-medium mb-1">Recommended</div>
+              <p className="text-sm text-pm-text">{audit.platform_comparison.recommended}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rebuild Timeline */}
+      {audit.rebuild_timeline && audit.rebuild_timeline.length > 0 && (
+        <div className="card">
+          <h4 className="font-semibold text-pm-text mb-3">Rebuild Timeline</h4>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-pm-border">
+                  <th className="text-left py-2 text-pm-muted font-medium w-36">Phase</th>
+                  <th className="text-left py-2 text-pm-muted font-medium w-36">Focus</th>
+                  <th className="text-left py-2 text-pm-muted font-medium">Deliverables</th>
+                </tr>
+              </thead>
+              <tbody>
+                {audit.rebuild_timeline.map((phase, i) => (
+                  <tr key={i} className="border-b border-pm-border/50">
+                    <td className="py-2 font-medium text-pm-text">{phase.phase}</td>
+                    <td className="py-2 text-pm-muted">{phase.focus}</td>
+                    <td className="py-2 text-xs text-pm-muted">{phase.deliverables}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -333,12 +514,30 @@ export function ToolsTab({
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
-      // Update audit with document_id
       const updatedAudit = { ...audit, document_id: data.document_id };
       setActiveAudit(updatedAudit);
       setAudits((prev) => prev.map((a) => (a.id === audit.id ? updatedAudit : a)));
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to generate document");
+    }
+  };
+
+  const handleGeneratePDF = async (audit: SiteAudit) => {
+    try {
+      const res = await fetch(`/api/pm/site-audit/${audit.id}/pdf`, { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to generate PDF");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `site-audit-${audit.url.replace(/https?:\/\//, "").replace(/[^a-z0-9]/gi, "-")}.html`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to generate PDF");
     }
   };
 
@@ -353,13 +552,13 @@ export function ToolsTab({
 
   if (loading) return <div className="text-pm-muted py-8">Loading tools...</div>;
 
-  // Show audit results if one is selected
   if (activeAudit) {
     return (
       <AuditResults
         audit={activeAudit}
         onBack={() => setActiveAudit(null)}
         onGenerateDoc={() => handleGenerateDoc(activeAudit)}
+        onGeneratePDF={() => handleGeneratePDF(activeAudit)}
       />
     );
   }
@@ -487,51 +686,61 @@ export function ToolsTab({
             Past Audits ({audits.length})
           </h4>
           <div className="space-y-2">
-            {audits.map((audit) => (
-              <div key={audit.id} className="card flex items-center justify-between">
-                <button
-                  onClick={() => setActiveAudit(audit)}
-                  className="flex-1 text-left"
-                >
-                  <div className="flex items-center gap-3">
-                    {audit.status === "complete" && audit.scores ? (
-                      <span className={`inline-flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold ${GRADE_COLORS[overallGrade(audit.scores)]}`}>
-                        {overallGrade(audit.scores)}
-                      </span>
-                    ) : audit.status === "running" ? (
-                      <span className="w-8 h-8 rounded-lg bg-pm-surface flex items-center justify-center">
-                        <span className="animate-pulse text-pm-muted text-xs">...</span>
-                      </span>
-                    ) : (
-                      <span className="w-8 h-8 rounded-lg bg-red-600/10 flex items-center justify-center text-red-400 text-xs">!</span>
-                    )}
-                    <div>
-                      <span className="text-sm font-medium text-pm-text">{audit.url}</span>
-                      <div className="flex gap-2 text-xs text-pm-muted mt-0.5">
-                        <span>{VERTICALS.find((v) => v.value === audit.vertical)?.label}</span>
-                        <span>&middot;</span>
-                        <span>{new Date(audit.created_at).toLocaleDateString()}</span>
-                        {audit.document_id && (
-                          <>
-                            <span>&middot;</span>
-                            <span className="text-pm-accent">Report generated</span>
-                          </>
-                        )}
+            {audits.map((audit) => {
+              const ov = getOverall(audit);
+              return (
+                <div key={audit.id} className="card flex items-center justify-between">
+                  <button
+                    onClick={() => setActiveAudit(audit)}
+                    className="flex-1 text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      {audit.status === "complete" && audit.scores ? (
+                        <div className="text-center">
+                          <GradeBadge grade={ov.grade} />
+                          <div className="text-[10px] text-pm-muted mt-0.5">{ov.score}%</div>
+                        </div>
+                      ) : audit.status === "running" ? (
+                        <span className="w-8 h-8 rounded-lg bg-pm-surface flex items-center justify-center">
+                          <span className="animate-pulse text-pm-muted text-xs">...</span>
+                        </span>
+                      ) : (
+                        <span className="w-8 h-8 rounded-lg bg-red-600/10 flex items-center justify-center text-red-400 text-xs">!</span>
+                      )}
+                      <div>
+                        <span className="text-sm font-medium text-pm-text">{audit.url}</span>
+                        <div className="flex gap-2 text-xs text-pm-muted mt-0.5">
+                          <span>{VERTICALS.find((v) => v.value === audit.vertical)?.label}</span>
+                          <span>&middot;</span>
+                          <span>{new Date(audit.created_at).toLocaleDateString()}</span>
+                          {ov.rebuild_recommended && (
+                            <>
+                              <span>&middot;</span>
+                              <span className="text-red-400">Rebuild recommended</span>
+                            </>
+                          )}
+                          {audit.document_id && (
+                            <>
+                              <span>&middot;</span>
+                              <span className="text-pm-accent">Report generated</span>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleDelete(audit.id); }}
-                  className="p-1.5 text-pm-muted hover:text-red-400 transition-colors ml-2"
-                  title="Delete"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                  </svg>
-                </button>
-              </div>
-            ))}
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDelete(audit.id); }}
+                    className="p-1.5 text-pm-muted hover:text-red-400 transition-colors ml-2"
+                    title="Delete"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                    </svg>
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

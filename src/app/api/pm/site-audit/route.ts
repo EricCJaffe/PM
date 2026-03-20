@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getOpenAI } from "@/lib/openai";
 import { assembleKBContext } from "@/lib/kb";
+import { readFileSync } from "fs";
+import { join } from "path";
 
 // GET /api/pm/site-audit?org_id=...
 export async function GET(request: NextRequest) {
@@ -36,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServiceClient();
 
-    // 1. Create audit record in pending state
+    // 1. Create audit record in running state
     const { data: audit, error: insertErr } = await supabase
       .from("pm_site_audits")
       .insert({
@@ -76,17 +78,20 @@ export async function POST(request: NextRequest) {
       // 4. Get KB context for the org
       const kbContext = await assembleKBContext(org_id, null);
 
-      // 5. Build AI prompt and score
+      // 5. Load rubric for the vertical
+      const rubricContent = loadRubric(vertical);
+
+      // 6. Build AI prompt and score
       const openai = getOpenAI();
       const completion = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
-          { role: "system", content: buildSystemPrompt(vertical, kbContext) },
+          { role: "system", content: buildSystemPrompt(vertical, rubricContent, kbContext) },
           { role: "user", content: buildUserPrompt(signals, url, extra_context) },
         ],
         temperature: 0.3,
         response_format: { type: "json_object" },
-        max_tokens: 4000,
+        max_tokens: 6000,
       });
 
       const content = completion.choices[0]?.message?.content;
@@ -94,19 +99,74 @@ export async function POST(request: NextRequest) {
 
       const analysis = JSON.parse(content);
 
-      // 6. Update audit record with results
+      // 7. Calculate weighted overall score
+      const weights: Record<string, number> = {
+        seo: 0.20, entity: 0.15, ai_discoverability: 0.20,
+        conversion: 0.20, content: 0.15, a2a_readiness: 0.10,
+      };
+
+      // Ensure scores have numeric values and weights
+      const scores: Record<string, unknown> = {};
+      for (const [dim, w] of Object.entries(weights)) {
+        const raw = analysis.scores?.[dim] || {};
+        scores[dim] = {
+          grade: raw.grade || "F",
+          score: typeof raw.score === "number" ? raw.score : 0,
+          weight: w,
+          findings: Array.isArray(raw.findings) ? raw.findings : [],
+        };
+      }
+
+      const overallScore = Object.entries(weights).reduce((sum, [dim, w]) => {
+        const dimScore = (scores[dim] as { score: number }).score;
+        return sum + dimScore * w;
+      }, 0);
+
+      const overallGrade = scoreToGrade(overallScore);
+
+      // Rebuild logic
+      const aiScore = (scores.ai_discoverability as { score: number }).score;
+      const contentScore = (scores.content as { score: number }).score;
+      let rebuildRecommended = analysis.rebuild_recommended ?? false;
+      let rebuildReason = analysis.rebuild_reason || null;
+
+      if (overallScore < 60 && !rebuildRecommended) {
+        rebuildRecommended = true;
+        rebuildReason = "Overall grade is D or below — full rebuild recommended";
+      }
+      if (aiScore < 50 && !rebuildRecommended) {
+        rebuildRecommended = true;
+        rebuildReason = "AI search invisible — priority fix regardless of overall score";
+      }
+      if (contentScore < 40 && !rebuildRecommended) {
+        rebuildRecommended = true;
+        rebuildReason = "Too few pages to compete — content expansion required";
+      }
+
+      const overall = {
+        grade: overallGrade,
+        score: Math.round(overallScore),
+        rebuild_recommended: rebuildRecommended,
+        rebuild_reason: rebuildReason,
+      };
+
+      // 8. Update audit record with results
       const { data: updated, error: updateErr } = await supabase
         .from("pm_site_audits")
         .update({
           status: "complete",
-          scores: analysis.scores,
-          gaps: analysis.gaps,
-          recommendations: analysis.recommendations,
-          quick_wins: analysis.quick_wins,
-          pages_found: signals.pages,
-          pages_to_build: analysis.pages_to_build,
+          scores: scores,
+          overall: overall,
+          gaps: analysis.gaps || {},
+          recommendations: analysis.recommendations || [],
+          quick_wins: analysis.quick_wins || [],
+          pages_found: analysis.pages_found || [],
+          pages_missing: analysis.pages_missing || [],
+          pages_to_build: analysis.pages_to_build || [],
+          rebuild_timeline: analysis.rebuild_timeline || [],
+          platform_comparison: analysis.platform_comparison || null,
           audit_summary: analysis.summary,
-          raw_html: html.slice(0, 50000), // cap storage
+          raw_html: html.slice(0, 50000),
         })
         .eq("id", audit.id)
         .select()
@@ -116,7 +176,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(updated, { status: 201 });
 
     } catch (err) {
-      // Mark audit as failed
       await supabase
         .from("pm_site_audits")
         .update({
@@ -132,6 +191,38 @@ export async function POST(request: NextRequest) {
     }
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Internal error" }, { status: 500 });
+  }
+}
+
+// ─── Grade Calculation ──────────────────────────────────────────────
+
+function scoreToGrade(score: number): "A" | "B" | "C" | "D" | "D-" | "F" {
+  if (score >= 90) return "A";
+  if (score >= 80) return "B";
+  if (score >= 70) return "C";
+  if (score >= 60) return "D";
+  if (score >= 50) return "D-";
+  return "F";
+}
+
+// ─── Rubric Loader ──────────────────────────────────────────────────
+
+const RUBRIC_FILES: Record<string, string> = {
+  church: "SCORING_RUBRIC_CHURCH.md",
+  agency: "SCORING_RUBRIC_AGENCY.md",
+  nonprofit: "SCORING_RUBRIC_NONPROFIT.md",
+};
+
+function loadRubric(vertical: string): string {
+  const filename = RUBRIC_FILES[vertical];
+  if (!filename) return ""; // general vertical has no specific rubric
+
+  try {
+    const rubricPath = join(process.cwd(), "docs", "SEO", filename);
+    return readFileSync(rubricPath, "utf-8");
+  } catch {
+    console.warn(`Could not load rubric file for vertical: ${vertical}`);
+    return "";
   }
 }
 
@@ -167,7 +258,6 @@ function extractSignals(html: string, baseUrl: string): SiteSignals {
   const h1s = [...html.matchAll(/<h1[^>]*>([\s\S]*?)<\/h1>/gi)].map(m => stripTags(m[1]));
   const h2s = [...html.matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>/gi)].map(m => stripTags(m[1]));
 
-  // Links
   const linkMatches = [...html.matchAll(/<a[^>]*href=["']([^"'#][^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi)];
   const domain = new URL(baseUrl).hostname;
   const internalLinks: string[] = [];
@@ -189,7 +279,6 @@ function extractSignals(html: string, baseUrl: string): SiteSignals {
     } catch { /* skip malformed */ }
   }
 
-  // Schema
   const schemaBlocks = [...html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
   const schemaTypes: string[] = [];
   for (const block of schemaBlocks) {
@@ -204,39 +293,30 @@ function extractSignals(html: string, baseUrl: string): SiteSignals {
     } catch { /* skip invalid */ }
   }
 
-  // Images
   const imgMatches = [...html.matchAll(/<img[^>]*src=["']([^"']*)["'][^>]*/gi)];
   const images = imgMatches.map(m => ({
     src: m[1],
     alt: m[0].match(/alt=["']([^"']*)["']/i)?.[1] ?? null,
   }));
 
-  // CTAs (buttons and links with action words)
   const btnMatches = [...html.matchAll(/<(?:button|a)[^>]*>([\s\S]*?)<\/(?:button|a)>/gi)];
   const ctaTexts = btnMatches
     .map(m => stripTags(m[1]).trim())
     .filter(t => t.length > 0 && t.length < 60 && /contact|start|book|donate|give|visit|join|sign|schedule|get|plan|call|free/i.test(t));
 
-  // Forms
   const formCount = (html.match(/<form/gi) || []).length;
 
-  // Word count
   const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
   const bodyText = bodyMatch ? stripTags(bodyMatch[1]) : stripTags(html);
   const wordCount = bodyText.split(/\s+/).filter(w => w.length > 0).length;
 
-  // Heading structure
   const headingStructure = [...html.matchAll(/<(h[1-6])[^>]*>([\s\S]*?)<\/\1>/gi)]
     .map(m => `${m[1].toUpperCase()}: ${stripTags(m[2]).slice(0, 60)}`);
 
   return {
     title: titleMatch ? stripTags(titleMatch[1]) : null,
     metaDescription: metaDescMatch ? metaDescMatch[1] : null,
-    h1s,
-    h2s,
-    internalLinks,
-    externalLinks,
-    pages,
+    h1s, h2s, internalLinks, externalLinks, pages,
     hasSchema: schemaBlocks.length > 0,
     schemaTypes,
     hasCanonical: /<link[^>]*rel=["']canonical["']/i.test(html),
@@ -245,10 +325,7 @@ function extractSignals(html: string, baseUrl: string): SiteSignals {
     hasViewport: /<meta[^>]*name=["']viewport["']/i.test(html),
     images,
     imagesWithoutAlt: images.filter(i => !i.alt || i.alt.trim() === "").length,
-    formCount,
-    ctaTexts,
-    wordCount,
-    headingStructure,
+    formCount, ctaTexts, wordCount, headingStructure,
   };
 }
 
@@ -258,39 +335,44 @@ function stripTags(html: string): string {
 
 // ─── AI Prompt Builders ─────────────────────────────────────────────
 
-function buildSystemPrompt(vertical: string, kbContext: string): string {
-  return `You are a professional website auditor and digital strategist. You specialize in analyzing websites for ${vertical === "church" ? "churches and religious organizations" : vertical === "agency" ? "marketing agencies and service businesses" : vertical === "nonprofit" ? "nonprofits and charitable organizations" : "businesses"}.
+function buildSystemPrompt(vertical: string, rubricContent: string, kbContext: string): string {
+  const verticalLabel = vertical === "church" ? "churches and religious organizations"
+    : vertical === "agency" ? "marketing agencies and service businesses"
+    : vertical === "nonprofit" ? "nonprofits and charitable organizations"
+    : "businesses";
 
-You analyze websites against 6 key dimensions and provide letter grades (A-F), gap analysis, and actionable recommendations.
+  const rubricSection = rubricContent
+    ? `\n\nSCORING RUBRIC (use these EXACT criteria and point values):\n${rubricContent}`
+    : `\n\nNo specific rubric file for this vertical. Use general web standards for each dimension.`;
 
-SCORING DIMENSIONS:
-1. SEO — Title tags, meta descriptions, H1 structure, page count, internal linking, canonical tags, mobile viewport
-2. Entity Authority — Name consistency, About page quality, organization schema, Google Business signals, staff/team pages
-3. AI Discoverability — Structured data, FAQ content, detailed about/beliefs pages, llms.txt readiness, clear entity descriptions
-4. Conversion — CTAs quality and placement, visit/contact page, service times visibility (churches), contact forms, clear value proposition
-5. Content — Page count, content depth (word count), missing critical pages, blog/resources, media
-6. A2A Readiness — Action-oriented schema, booking/scheduling flow, online giving/payment (churches), appointment booking, API-ready integrations
+  return `You are a professional website auditor and digital strategist specializing in ${verticalLabel}.
 
-GRADING SCALE:
-A = Excellent (90-100%) — Best practices followed, minimal issues
-B = Good (70-89%) — Most bases covered, minor gaps
-C = Average (50-69%) — Notable gaps, several improvements needed
-D = Poor (30-49%) — Major deficiencies, significant work needed
-F = Failing (0-29%) — Critical issues, near-complete rebuild needed
+Score the website against the rubric criteria below. Each dimension is scored 0–100 based on the specific criteria and point values in the rubric.
 
-Return your analysis as a JSON object with this exact structure:
+GRADE THRESHOLDS (apply these consistently):
+A = 90–100 (Best practice — minor polish only)
+B = 80–89 (Strong — 1-2 specific gaps to fix)
+C = 70–79 (Adequate — structural improvements needed)
+D = 60–69 (Weak — significant rebuild or refactor needed)
+D- = 50–59 (Poor — foundational problems throughout)
+F = Below 50 (Critical — not competitive, recommend full rebuild)
+
+Be conservative — only give full credit when a criterion is clearly met in the extracted signals.
+${rubricSection}
+
+Return your analysis as a JSON object with this EXACT structure:
 {
   "summary": "2-3 sentence executive summary of the site's overall state",
   "scores": {
-    "seo": "A-F letter grade",
-    "entity": "A-F letter grade",
-    "ai_discoverability": "A-F letter grade",
-    "conversion": "A-F letter grade",
-    "content": "A-F letter grade",
-    "a2a_readiness": "A-F letter grade"
+    "seo": { "grade": "A-F or D-", "score": 0-100, "findings": ["finding 1", "finding 2", ...] },
+    "entity": { "grade": "...", "score": 0-100, "findings": [...] },
+    "ai_discoverability": { "grade": "...", "score": 0-100, "findings": [...] },
+    "conversion": { "grade": "...", "score": 0-100, "findings": [...] },
+    "content": { "grade": "...", "score": 0-100, "findings": [], "pages_found": ["/about", "/contact", ...], "pages_missing": ["/beliefs", "/visit", ...] },
+    "a2a_readiness": { "grade": "...", "score": 0-100, "findings": [...] }
   },
   "gaps": {
-    "seo": [{"issue": "...", "severity": "critical|major|minor", "recommendation": "..."}],
+    "seo": [{"item": "Page title", "current_state": "Missing location in title", "standard": "Title must include org name + location", "gap": "Add city name to title tag"}],
     "entity": [...],
     "ai_discoverability": [...],
     "conversion": [...],
@@ -301,14 +383,26 @@ Return your analysis as a JSON object with this exact structure:
     {"title": "...", "priority": "high|medium|low", "effort": "quick|moderate|significant", "impact": "high|medium|low", "description": "..."}
   ],
   "quick_wins": [
-    {"title": "...", "description": "..."}
+    {"action": "Change CTA to Plan Your Visit", "time_estimate": "15 min", "impact": "Immediate conversion improvement"}
   ],
+  "pages_found": ["/about", "/contact"],
+  "pages_missing": ["/beliefs", "/visit"],
   "pages_to_build": [
-    {"slug": "/page-name", "title": "Page Name", "reason": "Why this page should exist"}
+    {"slug": "/visit", "title": "Plan Your Visit", "priority": "P0", "notes": "Critical for conversion — must have visit form"}
+  ],
+  "rebuild_recommended": true,
+  "rebuild_reason": "Overall score below 60 with critical AI discoverability gaps",
+  "platform_comparison": {
+    "current": "The Church Co template — limited SEO control, no schema support",
+    "recommended": "Next.js + headless CMS — full schema control, AI-optimized structure"
+  },
+  "rebuild_timeline": [
+    {"phase": "Phase 1 (Week 1-2)", "focus": "Foundation", "deliverables": "Domain, hosting, CMS setup, design system"},
+    {"phase": "Phase 2 (Week 3-4)", "focus": "Core Pages", "deliverables": "Home, About, Visit, Beliefs, Contact"}
   ]
 }
 
-Provide 3-5 gap items per dimension, 5-8 total recommendations ordered by priority, 3-5 quick wins, and suggest any missing pages.${kbContext}`;
+Provide 3-6 gap items per dimension, 5-8 recommendations, 3-5 quick wins from the rubric trigger rules, and rebuild timeline if applicable.${kbContext}`;
 }
 
 function buildUserPrompt(signals: SiteSignals, url: string, extraContext?: string | null): string {
@@ -339,6 +433,6 @@ ${signals.pages.slice(0, 20).map(p => `  ${p.url} — ${p.title}`).join("\n")}`;
     prompt += `\n\nADDITIONAL CONTEXT PROVIDED:\n${extraContext}`;
   }
 
-  prompt += "\n\nAnalyze this site thoroughly and return the JSON analysis.";
+  prompt += "\n\nScore this site against every criterion in the rubric. Be specific about what's present and what's missing. Return the JSON analysis.";
   return prompt;
 }
