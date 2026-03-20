@@ -64,20 +64,27 @@ export function EngagementOverview({ org }: { org: Organization }) {
   // Load engagements
   useEffect(() => {
     fetch(`/api/pm/engagements?org_id=${org.id}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) return [];
+        return r.json();
+      })
       .then((data) => {
         if (Array.isArray(data)) {
           setEngagements(data);
-          if (data.length > 0 && !activeEngId) setActiveEngId(data[0].id);
+          if (data.length > 0) setActiveEngId(data[0].id);
         }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
 
-    fetch("/api/pm/members/assignable")
-      .then((r) => r.json())
+    fetch(`/api/pm/members/assignable?org_id=${org.id}`)
+      .then((r) => {
+        if (!r.ok) return [];
+        return r.json();
+      })
       .then((data) => { if (Array.isArray(data)) setMembers(data); })
       .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [org.id]);
 
   // Load tasks for active engagement
@@ -85,13 +92,16 @@ export function EngagementOverview({ org }: { org: Organization }) {
     if (!activeEngId) { setTasks([]); return; }
     setTasksLoading(true);
     fetch(`/api/pm/tasks/my?org_id=${org.id}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) return [];
+        return r.json();
+      })
       .then((data) => {
         if (Array.isArray(data)) {
           setTasks(data.filter((t: { engagement_id?: string }) => t.engagement_id === activeEngId));
         }
       })
-      .catch(() => {})
+      .catch(() => setTasks([]))
       .finally(() => setTasksLoading(false));
   }, [activeEngId, org.id]);
 
@@ -191,9 +201,7 @@ export function EngagementOverview({ org }: { org: Organization }) {
     } catch {}
   };
 
-  if (loading) return <div className="text-pm-muted py-8">Loading engagements...</div>;
-
-  // Group tasks by stage
+  // Group tasks by stage (must be before any early returns to satisfy rules of hooks)
   const stageTasks = useMemo(() => {
     const grouped: Record<string, EngagementTask[]> = {};
     for (const t of tasks) grouped[t.status] = [...(grouped[t.status] || []), t];
@@ -202,6 +210,8 @@ export function EngagementOverview({ org }: { org: Organization }) {
 
   const completedTasks = tasks.filter((t) => t.status === "complete").length;
   const totalTasks = tasks.length;
+
+  if (loading) return <div className="text-pm-muted py-8">Loading engagements...</div>;
 
   return (
     <div className="space-y-6">

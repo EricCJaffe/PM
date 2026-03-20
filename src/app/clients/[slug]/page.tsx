@@ -9,16 +9,18 @@ import type { PipelineStatus } from "@/types/pm";
 
 const PIPELINE_COLORS: Record<string, string> = {
   lead: "bg-slate-500/20 text-slate-300",
-  prospect: "bg-blue-500/20 text-blue-400",
+  qualified: "bg-blue-500/20 text-blue-400",
+  discovery_complete: "bg-cyan-500/20 text-cyan-400",
   proposal_sent: "bg-purple-500/20 text-purple-400",
   negotiation: "bg-amber-500/20 text-amber-400",
-  client: "bg-emerald-500/20 text-emerald-400",
-  inactive: "bg-red-500/20 text-red-400",
+  closed_won: "bg-emerald-500/20 text-emerald-400",
+  closed_lost: "bg-red-500/20 text-red-400",
 };
 
 const PIPELINE_LABELS: Record<string, string> = {
-  lead: "Lead", prospect: "Prospect", proposal_sent: "Proposal Sent",
-  negotiation: "Negotiation", client: "Client", inactive: "Inactive",
+  lead: "Lead", qualified: "Qualified", discovery_complete: "Discovery",
+  proposal_sent: "Proposal Sent", negotiation: "Negotiation",
+  closed_won: "Closed Won", closed_lost: "Closed Lost",
 };
 
 function PipelineStatusBadge({ status }: { status: PipelineStatus }) {
