@@ -2,6 +2,7 @@
 import Link from "next/link";
 import type { Organization, ProjectWithStats, ProcessMap, Opportunity, PhaseWithTasks } from "@/types/pm";
 import { ProgressBar } from "../ProgressBar";
+import { StandupWidget } from "../StandupWidget";
 
 export function OverviewTab({
   org,
@@ -29,7 +30,11 @@ export function OverviewTab({
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="space-y-6">
+      {/* Morning Standup */}
+      <StandupWidget orgId={org.id} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Process Maps Preview */}
       <div className="card">
         <div className="flex items-center justify-between mb-4">
@@ -177,6 +182,7 @@ export function OverviewTab({
             })}
           </div>
         )}
+      </div>
       </div>
     </div>
   );

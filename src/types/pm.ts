@@ -237,11 +237,45 @@ export interface Risk {
 
 export interface DailyLog {
   id: string;
-  project_id: string;
+  project_id: string | null;
+  org_id: string | null;
   date: string;
   content: string;
-  generated_by: "ai" | "manual";
+  generated_by: "ai" | "manual" | "standup-agent";
+  log_type: DailyLogType;
   created_at: string;
+}
+
+export type DailyLogType = "daily" | "standup" | "rollup" | "blocker" | "hub" | "decisions";
+
+export interface StandupData {
+  org_id: string;
+  date: string;
+  completed_yesterday: StandupItem[];
+  in_progress_today: StandupItem[];
+  blocked: StandupItem[];
+  due_soon: StandupItem[];
+  overdue: StandupItem[];
+  project_summaries: ProjectStandupSummary[];
+}
+
+export interface StandupItem {
+  task_name: string;
+  project_name: string;
+  owner: string | null;
+  due_date: string | null;
+  status: string;
+}
+
+export interface ProjectStandupSummary {
+  project_id: string;
+  project_name: string;
+  current_phase: string | null;
+  phase_progress: number;
+  open_tasks: number;
+  blocked_tasks: number;
+  completed_this_week: number;
+  overdue_tasks: number;
 }
 
 export interface PMFile {
@@ -299,7 +333,8 @@ export interface EngagementTaskTemplate {
 
 export type ProposalStatus = "draft" | "sent" | "viewed" | "accepted" | "rejected" | "expired";
 
-export type NoteType = "meeting" | "general" | "phone-call" | "follow-up";
+export type NoteType = "meeting" | "general" | "phone-call" | "follow-up" | "client-update";
+export type ClientNoteStatus = "draft" | "sent" | "archived";
 export type NoteVisibility = "internal" | "client";
 
 export interface ProposalTemplateField {
@@ -354,12 +389,20 @@ export interface ProposalAttachment {
 export interface ClientNote {
   id: string;
   org_id: string;
+  project_id: string | null;
   title: string;
   body: string | null;
   note_type: NoteType;
   visibility: NoteVisibility;
   author: string | null;
   pinned: boolean;
+  status: ClientNoteStatus;
+  sent_at: string | null;
+  sent_to_email: string | null;
+  sent_to_name: string | null;
+  period_start: string | null;
+  period_end: string | null;
+  subject: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -451,6 +494,64 @@ export interface PMDocument {
   mime_type: string | null;
   uploaded_by: string | null;
   created_at: string;
+}
+
+// ─── Project Intake Types ────────────────────────────────────────
+
+export type ProjectType =
+  | "personal_app"
+  | "client_marketing"
+  | "client_web_app"
+  | "church_site"
+  | "nonprofit"
+  | "ecommerce"
+  | "saas"
+  | "other";
+
+export interface ProjectIntakeData {
+  project_type: ProjectType;
+  is_greenfield: boolean;
+  v1_done: string;
+  target_launch: string | null;
+  github_repo: string | null;
+  vercel_project: string | null;
+  supabase_ref: string | null;
+  framework: "nextjs" | "remix" | "other";
+  stack_deviations: string | null;
+  seo_enabled: boolean;
+  security_review: boolean;
+  multi_tenant: boolean;
+  a2a_enabled: boolean;
+  payments_enabled: boolean;
+  hipaa_scope: boolean;
+  integrations: string[];
+  integration_notes: string | null;
+}
+
+export interface ClientContextData {
+  problem_in_their_words: string;
+  what_fixed_looks_like: string;
+  technical_comfort: "none" | "basic" | "moderate" | "high";
+  primary_contact_name: string;
+  primary_contact_role: string;
+  budget_range: string | null;
+  hard_deadline: string | null;
+  known_constraints: string | null;
+  decisions_needed: string | null;
+}
+
+export interface ProjectIntakeFormData {
+  name: string;
+  slug: string;
+  org_id: string;
+  template_slug: string;
+  owner: string;
+  description: string | null;
+  target_date: string | null;
+  budget: number | null;
+  engagement_id: string | null;
+  intake_data: ProjectIntakeData;
+  client_context: ClientContextData;
 }
 
 export interface ShareToken {

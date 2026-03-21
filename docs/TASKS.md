@@ -58,6 +58,46 @@
 - [ ] QuickBooks integration (placeholder — billing/invoicing)
 
 ## Recently Completed
+- [x] Project Intake Form — Multi-Step Client Project Kickoff
+  - `src/lib/intake-file-generator.ts`: generates PROJECT_INIT.md, CLIENT_CONTEXT.md, AUTOMATION_MAP.md, PROMPT_LIBRARY.md
+  - `POST /api/pm/projects/intake`: creates project from intake + generates zip download
+  - `GET /api/pm/projects/[id]/init-files`: regenerate zip for existing project
+  - `src/components/intake/`: 6-step form components (basics, toolstack, flags, client context, integrations, review)
+  - `src/app/projects/intake/page.tsx`: multi-step intake wizard with success/download screen
+  - "Convert to project" button on engagement detail page (EngagementOverview.tsx)
+  - "New client project" button on projects list page
+  - Migration 031: adds intake_data, client_context, feature_flags, github_repo, vercel_project, supabase_ref, engagement_id, intake_completed_at to pm_projects; adds project_id to pm_engagements
+  - JSZip for zip generation and Supabase Storage for download URLs
+- [x] Client Update Generator — AI Weekly Status Emails
+  - `src/lib/client-update-assembler.ts`: gathers completed/in-progress/blocked tasks, phases, milestones for a project period
+  - `POST /api/pm/client-update/generate`: GPT-4o generates client-facing update in flowing paragraphs (no jargon)
+  - `GET /api/pm/client-update`: list client updates for a project or org
+  - `GET/PATCH /api/pm/client-update/[id]`: view/edit draft before sending (cannot edit sent)
+  - `POST /api/pm/client-update/[id]/send`: sends via Resend with branded HTML email template
+  - `ClientUpdateTab` component: generate form → draft card with edit → send flow → sent history
+  - Integrated into project detail page as "Client Updates" tab
+  - Migration 030: adds status, sent_at, sent_to_email/name, project_id, period dates, subject to pm_client_notes
+  - Expands note_type CHECK to include 'client-update'
+  - Human-in-the-loop: drafts always reviewed before sending
+- [x] Standup Agent — Cross-Org Morning Standup
+  - `src/lib/standup-assembler.ts`: gathers tasks/phases across all active projects for an org
+  - `POST /api/pm/standup/generate`: AI standup generation via GPT-4o with cron bypass
+  - `GET /api/pm/standup`: standup history per org (default 7 days)
+  - `POST /api/cron/standup`: Vercel Cron auto-generates for all orgs (weekdays 8am)
+  - `StandupWidget` component: generate/regenerate/history with markdown rendering
+  - Integrated into OverviewTab on client detail page
+  - Migration 029: adds `org_id`, `log_type` to pm_daily_logs, makes `project_id` nullable
+  - `vercel.json` created with cron config for standup + engagement-nudge
+  - Types: `StandupData`, `StandupItem`, `ProjectStandupSummary`, `DailyLogType`
+  - Email support via Resend (optional, fire-and-forget)
+- [x] Site Audit UI + Multi-Page Fetcher + Mockup Generator
+  - `SiteAuditTab` component: form → running → results flow with polling, score badges, quick wins, pages-to-build table
+  - Standalone `/site-audit` page with org selector for running audits without an engagement
+  - `src/lib/site-fetcher.ts`: multi-page fetcher — crawls homepage + discovered internal links + common paths (up to 12k chars)
+  - `src/lib/audit-rubrics.ts`: standalone rubric loader utility (extracted from inline route code)
+  - `src/lib/audit-mockup.ts`: generates rebuilt site mockup HTML per vertical (church, agency, nonprofit, general)
+  - Subpage content now included in AI scoring prompt for deeper analysis
+  - Migration 028: adds `mockup_html` and `subpages_fetched` columns to pm_site_audits
 - [x] AI Daily Standup, Risk Radar, and Natural Language Updates
   - POST /api/pm/reports/standup — AI-generated daily standup from task activity, phase progress, blockers, overdue items
   - GET /api/pm/reports/standup — Fetch standup history for a project

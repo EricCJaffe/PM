@@ -8,6 +8,7 @@ import { EditableTaskTable } from "@/components/EditableTaskTable";
 import { EditableRiskTable } from "@/components/EditableRiskTable";
 import { SaveAsTemplateButton } from "@/components/SaveAsTemplateButton";
 import { AIReportsPanel } from "@/components/AIReportsPanel";
+import { ClientUpdateTab } from "@/components/ClientUpdateTab";
 import { NLPCommandBar } from "@/components/NLPCommandBar";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -92,6 +93,11 @@ export default async function ProjectDetailPage({
               id: "ai-reports",
               label: "AI Reports",
               content: <AIReportsPanel projectId={project.id} orgSlug={orgSlug} projectSlug={project.slug} />,
+            },
+            {
+              id: "client-updates",
+              label: "Client Updates",
+              content: <ClientUpdateTab projectId={project.id} orgId={project.org_id} />,
             },
           ]}
         />

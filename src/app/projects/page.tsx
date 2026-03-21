@@ -119,12 +119,20 @@ function ProjectsTab() {
           <div><span className="text-pm-muted">Completed:</span> <span className="text-pm-complete font-medium">{completeTasks}</span></div>
           <div><span className="text-pm-muted">Blocked:</span> <span className="text-pm-blocked font-medium">{blockedTasks}</span></div>
         </div>
-        <Link
-          href="/projects/new"
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
-        >
-          + New Project
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href="/projects/new"
+            className="px-4 py-2 bg-pm-card border border-pm-border hover:border-pm-muted text-pm-text rounded-lg text-sm font-medium transition-colors"
+          >
+            Quick create
+          </Link>
+          <Link
+            href="/projects/intake"
+            className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            + New client project
+          </Link>
+        </div>
       </div>
 
       {loading ? (

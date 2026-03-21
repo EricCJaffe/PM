@@ -53,6 +53,14 @@ This module shares a Supabase project with FSA. Auth and org/tenant schema are r
 | target_date | DATE | Optional |
 | budget | NUMERIC | Optional |
 | status | TEXT | active, complete, paused, archived, on-hold |
+| intake_data | JSONB | Project intake form data (migration 031) |
+| client_context | JSONB | Client context from intake (migration 031) |
+| feature_flags | JSONB | Feature flag toggles (migration 031) |
+| github_repo | TEXT | GitHub repo slug (migration 031) |
+| vercel_project | TEXT | Vercel project name (migration 031) |
+| supabase_ref | TEXT | Supabase project ref (migration 031) |
+| engagement_id | UUID | FK → pm_engagements (migration 031) |
+| intake_completed_at | TIMESTAMPTZ | When intake was completed (migration 031) |
 | created_at | TIMESTAMPTZ | Auto |
 | updated_at | TIMESTAMPTZ | Auto (trigger) |
 
@@ -110,11 +118,15 @@ This module shares a Supabase project with FSA. Auth and org/tenant schema are r
 | Column | Type | Notes |
 |---|---|---|
 | id | UUID | PK |
-| project_id | UUID | FK → pm_projects |
-| date | DATE | Unique per project |
+| project_id | UUID | FK → pm_projects (nullable — null for org-level standups) |
+| org_id | UUID | FK → pm_organizations (migration 029) |
+| date | DATE | Unique per project or per org+log_type |
 | content | TEXT | Markdown |
-| generated_by | TEXT | ai or manual |
+| generated_by | TEXT | ai, manual, or standup-agent |
+| log_type | TEXT | daily, standup, rollup, blocker, hub, decisions (migration 029) |
 | created_at | TIMESTAMPTZ | Auto |
+
+Migrations: 001 (base), 029 (org_id, log_type, nullable project_id)
 
 ### pm_files
 | Column | Type | Notes |
@@ -254,6 +266,59 @@ All PM tables have RLS enabled (migration 014). Access model:
 | action | TEXT | created, edited, generated, approved, sent, signed, comment |
 | details | JSONB | Optional metadata |
 | created_at | TIMESTAMPTZ | Auto |
+
+### pm_site_audits
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | PK |
+| org_id | UUID | FK → pm_organizations (CASCADE) |
+| engagement_id | UUID | FK → pm_engagements (SET NULL) |
+| url | TEXT | Website URL audited |
+| vertical | TEXT | church, agency, nonprofit, general |
+| status | TEXT | pending, running, complete, failed |
+| scores | JSONB | Per-dimension scores (grade, score, weight, findings) |
+| overall | JSONB | { grade, score, rebuild_recommended, rebuild_reason } |
+| gaps | JSONB | Gap tables per dimension |
+| recommendations | JSONB | Prioritized recommendations |
+| quick_wins | JSONB | Quick win actions |
+| pages_found | JSONB | Discovered pages on site |
+| pages_missing | JSONB | Expected but absent pages |
+| pages_to_build | JSONB | Recommended pages with priority |
+| rebuild_timeline | JSONB | Phased rebuild plan |
+| platform_comparison | JSONB | Current vs recommended platform |
+| raw_html | TEXT | Homepage HTML (capped 50k) |
+| mockup_html | TEXT | Generated rebuilt site mockup (migration 028) |
+| subpages_fetched | JSONB | Subpage metadata from multi-page fetch (migration 028) |
+| extra_context | TEXT | User-provided context (GMB info, etc.) |
+| audit_summary | TEXT | AI-generated executive summary |
+| document_id | UUID | FK → generated_documents (SET NULL) |
+| created_by | TEXT | |
+| created_at, updated_at | TIMESTAMPTZ | Auto |
+
+Migrations: 026 (base), 027 (scoring v2 columns), 028 (mockup + subpages)
+
+### pm_client_notes
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | PK |
+| org_id | UUID | FK → pm_organizations (CASCADE) |
+| project_id | UUID | FK → pm_projects (SET NULL) — migration 030 |
+| title | TEXT | Note title |
+| body | TEXT | Markdown content |
+| note_type | TEXT | meeting, general, phone-call, follow-up, client-update |
+| visibility | TEXT | internal, client (migration 025) |
+| author | TEXT | |
+| pinned | BOOLEAN | Default false |
+| status | TEXT | draft, sent, archived (migration 030) |
+| sent_at | TIMESTAMPTZ | When email was sent (migration 030) |
+| sent_to_email | TEXT | Recipient email (migration 030) |
+| sent_to_name | TEXT | Recipient name (migration 030) |
+| period_start | DATE | Update period start (migration 030) |
+| period_end | DATE | Update period end (migration 030) |
+| subject | TEXT | Email subject line (migration 030) |
+| created_at, updated_at | TIMESTAMPTZ | Auto |
+
+Migrations: 015 (base), 025 (visibility), 030 (client update columns)
 
 ### Storage
 - Bucket: `documents` (private, for PDF storage)
