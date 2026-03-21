@@ -111,20 +111,39 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
       // POST returns immediately with status "running" — polling takes over
       setActiveAudit(data);
 
-      // Trigger background processing (separate serverless invocation)
-      fetch("/api/pm/site-audit/process", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          audit_id: data.id,
-          url: data.url,
-          vertical,
-          org_id: orgId,
-          extra_context: null,
-        }),
-      }).catch(() => {
-        // Processing errors are handled server-side (marks audit as failed)
-      });
+      // Trigger processing — await it so we catch failures
+      // (polling runs in parallel via useEffect and will pick up "complete" status)
+      try {
+        const processRes = await fetch("/api/pm/site-audit/process", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            audit_id: data.id,
+            url: data.url,
+            vertical,
+            org_id: orgId,
+            extra_context: null,
+          }),
+        });
+        if (!processRes.ok) {
+          const errData = await processRes.json().catch(() => ({}));
+          // Process route marks audit as failed in DB — update local state too
+          setActiveAudit((prev) =>
+            prev && prev.id === data.id
+              ? { ...prev, status: "failed" as const, audit_summary: errData.error || "Audit processing failed" }
+              : prev
+          );
+          setRunning(false);
+        }
+      } catch {
+        // Network error or process route unreachable — mark failed locally
+        setActiveAudit((prev) =>
+          prev && prev.id === data.id
+            ? { ...prev, status: "failed" as const, audit_summary: "Processing failed — please try again" }
+            : prev
+        );
+        setRunning(false);
+      }
     } catch (err) {
       setRunning(false);
       setView("form");
