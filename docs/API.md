@@ -221,3 +221,31 @@ Auto-generates standup for all orgs with active projects. Runs weekdays at 8am.
 
 **Auth:** `Authorization: Bearer {CRON_SECRET}`
 **Response:** `{ generated: number, results: [...] }`
+
+---
+
+## Client Update Generator
+
+### `POST /api/pm/client-update/generate`
+Generate a weekly client update draft from project data using GPT-4o.
+
+**Body:** `{ project_id: string, client_email: string, client_name: string, period_start?: string, period_end?: string, tone?: "friendly" | "formal" }`
+**Response:** `{ note_id, subject, body, status: "draft" }` (status: 201)
+
+### `GET /api/pm/client-update?project_id=<uuid>&org_id=<uuid>`
+List client updates for a project or org.
+
+**Response:** `ClientNote[]` (filtered to note_type=client-update)
+
+### `GET /api/pm/client-update/[id]`
+Get single client update note.
+
+### `PATCH /api/pm/client-update/[id]`
+Edit draft body or subject before sending. Cannot edit sent updates.
+
+**Body:** `{ body?: string, subject?: string, sent_to_email?: string, sent_to_name?: string }`
+
+### `POST /api/pm/client-update/[id]/send`
+Send approved draft to client via Resend. Marks note as sent.
+
+**Response:** `{ sent: true, sent_at: string, sent_to: string }`

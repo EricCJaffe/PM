@@ -289,5 +289,28 @@ All PM tables have RLS enabled (migration 014). Access model:
 
 Migrations: 026 (base), 027 (scoring v2 columns), 028 (mockup + subpages)
 
+### pm_client_notes
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | PK |
+| org_id | UUID | FK → pm_organizations (CASCADE) |
+| project_id | UUID | FK → pm_projects (SET NULL) — migration 030 |
+| title | TEXT | Note title |
+| body | TEXT | Markdown content |
+| note_type | TEXT | meeting, general, phone-call, follow-up, client-update |
+| visibility | TEXT | internal, client (migration 025) |
+| author | TEXT | |
+| pinned | BOOLEAN | Default false |
+| status | TEXT | draft, sent, archived (migration 030) |
+| sent_at | TIMESTAMPTZ | When email was sent (migration 030) |
+| sent_to_email | TEXT | Recipient email (migration 030) |
+| sent_to_name | TEXT | Recipient name (migration 030) |
+| period_start | DATE | Update period start (migration 030) |
+| period_end | DATE | Update period end (migration 030) |
+| subject | TEXT | Email subject line (migration 030) |
+| created_at, updated_at | TIMESTAMPTZ | Auto |
+
+Migrations: 015 (base), 025 (visibility), 030 (client update columns)
+
 ### Storage
 - Bucket: `documents` (private, for PDF storage)

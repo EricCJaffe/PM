@@ -58,6 +58,17 @@
 - [ ] QuickBooks integration (placeholder — billing/invoicing)
 
 ## Recently Completed
+- [x] Client Update Generator — AI Weekly Status Emails
+  - `src/lib/client-update-assembler.ts`: gathers completed/in-progress/blocked tasks, phases, milestones for a project period
+  - `POST /api/pm/client-update/generate`: GPT-4o generates client-facing update in flowing paragraphs (no jargon)
+  - `GET /api/pm/client-update`: list client updates for a project or org
+  - `GET/PATCH /api/pm/client-update/[id]`: view/edit draft before sending (cannot edit sent)
+  - `POST /api/pm/client-update/[id]/send`: sends via Resend with branded HTML email template
+  - `ClientUpdateTab` component: generate form → draft card with edit → send flow → sent history
+  - Integrated into project detail page as "Client Updates" tab
+  - Migration 030: adds status, sent_at, sent_to_email/name, project_id, period dates, subject to pm_client_notes
+  - Expands note_type CHECK to include 'client-update'
+  - Human-in-the-loop: drafts always reviewed before sending
 - [x] Standup Agent — Cross-Org Morning Standup
   - `src/lib/standup-assembler.ts`: gathers tasks/phases across all active projects for an org
   - `POST /api/pm/standup/generate`: AI standup generation via GPT-4o with cron bypass

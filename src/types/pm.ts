@@ -333,7 +333,8 @@ export interface EngagementTaskTemplate {
 
 export type ProposalStatus = "draft" | "sent" | "viewed" | "accepted" | "rejected" | "expired";
 
-export type NoteType = "meeting" | "general" | "phone-call" | "follow-up";
+export type NoteType = "meeting" | "general" | "phone-call" | "follow-up" | "client-update";
+export type ClientNoteStatus = "draft" | "sent" | "archived";
 export type NoteVisibility = "internal" | "client";
 
 export interface ProposalTemplateField {
@@ -388,12 +389,20 @@ export interface ProposalAttachment {
 export interface ClientNote {
   id: string;
   org_id: string;
+  project_id: string | null;
   title: string;
   body: string | null;
   note_type: NoteType;
   visibility: NoteVisibility;
   author: string | null;
   pinned: boolean;
+  status: ClientNoteStatus;
+  sent_at: string | null;
+  sent_to_email: string | null;
+  sent_to_name: string | null;
+  period_start: string | null;
+  period_end: string | null;
+  subject: string | null;
   created_at: string;
   updated_at: string;
 }
