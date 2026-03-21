@@ -56,8 +56,21 @@
 - [ ] Email compose modal for sending proposals to client contacts
 - [ ] Set up Vercel Cron for daily engagement nudge checks (/api/cron/engagement-nudge)
 - [ ] QuickBooks integration (placeholder — billing/invoicing)
+- [ ] Build out full intake/discovery form wizard (multi-step discovery questionnaire)
+- [ ] Discovery findings summary — AI-generated brief from notes + attachments
 
 ## Recently Completed
+- [x] Engagement Discovery & Attachments — Fix Notes Save + File Attachments
+  - Fixed discovery notes save: replaced buggy onBlur closure with ref-tracked debounced auto-save (3s) + explicit Save button
+  - Save state indicators: "Unsaved changes" (amber), "Saving..." spinner, "Saved" (green checkmark)
+  - New `pm_engagement_attachments` table with category-based filing (discovery, proposal, contract, intake, project-files, general, other)
+  - Upload files directly to engagement with category picker
+  - Download and delete attachments with signed URLs from Supabase Storage
+  - "Re-download Project Files" button: regenerates project init files (PROJECT_INIT.md, CLIENT_CONTEXT.md, etc.) and saves as engagement attachment
+  - Migration 032: pm_engagement_attachments table + 8 additional discovery-phase task templates
+  - New task templates: research prospect, send intro email, prepare discovery questionnaire, schedule next meeting, run site audit, collect supporting docs, compile discovery summary, present findings
+  - API routes: GET/POST/DELETE `/api/pm/engagements/[id]/attachments`, GET `.../download`, POST `.../project-files`
+  - Storage path convention: `{org-slug}/engagements/{engagement-id}/...`
 - [x] Project Intake Form — Multi-Step Client Project Kickoff
   - `src/lib/intake-file-generator.ts`: generates PROJECT_INIT.md, CLIENT_CONTEXT.md, AUTOMATION_MAP.md, PROMPT_LIBRARY.md
   - `POST /api/pm/projects/intake`: creates project from intake + generates zip download

@@ -331,6 +331,21 @@ export interface EngagementTaskTemplate {
   created_at: string;
 }
 
+export type EngagementAttachmentCategory = "general" | "discovery" | "proposal" | "contract" | "intake" | "project-files" | "other";
+
+export interface EngagementAttachment {
+  id: string;
+  engagement_id: string;
+  file_name: string;
+  file_size: number;
+  content_type: string | null;
+  storage_path: string;
+  category: EngagementAttachmentCategory;
+  description: string | null;
+  uploaded_by: string | null;
+  created_at: string;
+}
+
 export type ProposalStatus = "draft" | "sent" | "viewed" | "accepted" | "rejected" | "expired";
 
 export type NoteType = "meeting" | "general" | "phone-call" | "follow-up" | "client-update";

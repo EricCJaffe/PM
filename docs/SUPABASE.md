@@ -320,5 +320,22 @@ Migrations: 026 (base), 027 (scoring v2 columns), 028 (mockup + subpages)
 
 Migrations: 015 (base), 025 (visibility), 030 (client update columns)
 
+### pm_engagement_attachments
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | PK |
+| engagement_id | UUID | FK → pm_engagements (CASCADE) |
+| file_name | TEXT | Original file name |
+| file_size | INTEGER | Bytes |
+| content_type | TEXT | MIME type |
+| storage_path | TEXT | Supabase Storage path |
+| category | TEXT | general, discovery, proposal, contract, intake, project-files, other |
+| description | TEXT | Optional description |
+| uploaded_by | TEXT | Member slug |
+| created_at | TIMESTAMPTZ | Auto |
+
+Migration: 032
+
 ### Storage
 - Bucket: `documents` (private, for PDF storage)
+- Bucket: `vault` (private, engagement attachments stored at `{org-slug}/engagements/{engagement-id}/...`)

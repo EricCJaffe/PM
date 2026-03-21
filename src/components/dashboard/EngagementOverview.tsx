@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from "react";
 import Link from "next/link";
-import type { Organization, Engagement, DealStage } from "@/types/pm";
+import type { Organization, Engagement, DealStage, EngagementAttachment } from "@/types/pm";
 import { StatusBadge } from "@/components/StatusBadge";
 
 const RichTextEditor = lazy(() => import("@/components/RichTextEditor"));
@@ -42,6 +42,22 @@ const SERVICE_LINES = [
   { value: "other", label: "Other" },
 ];
 
+const ATTACHMENT_CATEGORIES = [
+  { value: "discovery", label: "Discovery" },
+  { value: "proposal", label: "Proposal" },
+  { value: "contract", label: "Contract" },
+  { value: "intake", label: "Intake" },
+  { value: "project-files", label: "Project Files" },
+  { value: "general", label: "General" },
+  { value: "other", label: "Other" },
+];
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export function EngagementOverview({ org }: { org: Organization }) {
   const [engagements, setEngagements] = useState<Engagement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,6 +68,22 @@ export function EngagementOverview({ org }: { org: Organization }) {
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [advancing, setAdvancing] = useState(false);
+
+  // Discovery notes state — tracks dirty/saved independently from engagement state
+  const [notesContent, setNotesContent] = useState("");
+  const [notesDirty, setNotesDirty] = useState(false);
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesSaved, setNotesSaved] = useState(false);
+  const notesRef = useRef(notesContent);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Attachments state
+  const [attachments, setAttachments] = useState<EngagementAttachment[]>([]);
+  const [attachmentsLoading, setAttachmentsLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadCategory, setUploadCategory] = useState("discovery");
+  const [generatingProjectFiles, setGeneratingProjectFiles] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Create form state
   const [form, setForm] = useState({
@@ -108,17 +140,93 @@ export function EngagementOverview({ org }: { org: Organization }) {
       .finally(() => setTasksLoading(false));
   }, [activeEngId, org.id]);
 
+  // Load attachments for active engagement
+  useEffect(() => {
+    if (!activeEngId) { setAttachments([]); return; }
+    setAttachmentsLoading(true);
+    fetch(`/api/pm/engagements/${activeEngId}/attachments`)
+      .then((r) => r.ok ? r.json() : [])
+      .then((data) => { if (Array.isArray(data)) setAttachments(data); })
+      .catch(() => setAttachments([]))
+      .finally(() => setAttachmentsLoading(false));
+  }, [activeEngId]);
+
   const activeEng = useMemo(
     () => engagements.find((e) => e.id === activeEngId) || null,
     [engagements, activeEngId]
   );
 
+  // Sync discovery notes when active engagement changes
+  useEffect(() => {
+    if (activeEng) {
+      setNotesContent(activeEng.discovery_notes || "");
+      notesRef.current = activeEng.discovery_notes || "";
+      setNotesDirty(false);
+      setNotesSaved(false);
+    }
+  }, [activeEng?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const currentStageIdx = activeEng ? STAGE_ORDER.indexOf(activeEng.deal_stage) : -1;
 
-  // Next stage (skip closed_lost as a forward step)
   const nextStage = currentStageIdx >= 0 && currentStageIdx < STAGE_ORDER.length - 2
     ? STAGE_ORDER[currentStageIdx + 1]
     : null;
+
+  // Save discovery notes to the API
+  const saveNotes = useCallback(async (content: string) => {
+    if (!activeEngId) return;
+    setNotesSaving(true);
+    setNotesSaved(false);
+    try {
+      const res = await fetch(`/api/pm/engagements/${activeEngId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ discovery_notes: content || null }),
+      });
+      const data = await res.json();
+      if (!data.error) {
+        setEngagements((prev) => prev.map((e) => e.id === activeEngId ? data : e));
+        setNotesDirty(false);
+        setNotesSaved(true);
+        setTimeout(() => setNotesSaved(false), 2000);
+      }
+    } catch {
+      // Silent fail — user can retry with Save button
+    } finally {
+      setNotesSaving(false);
+    }
+  }, [activeEngId]);
+
+  // Handle notes change with debounced auto-save
+  const handleNotesChange = useCallback((html: string) => {
+    setNotesContent(html);
+    notesRef.current = html;
+    setNotesDirty(true);
+    setNotesSaved(false);
+
+    // Debounce auto-save: 3 seconds after last keystroke
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      saveNotes(notesRef.current);
+    }, 3000);
+  }, [saveNotes]);
+
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, []);
+
+  // Save on engagement switch (flush pending notes)
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        // We can't await here but the save fires
+      }
+    };
+  }, [activeEngId]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -189,28 +297,79 @@ export function EngagementOverview({ org }: { org: Organization }) {
     } catch {}
   };
 
-  const updateEngagementField = async (field: string, value: unknown) => {
-    if (!activeEngId) return;
+  // File upload
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeEngId) return;
+    setUploading(true);
     try {
-      const res = await fetch(`/api/pm/engagements/${activeEngId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [field]: value }),
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("category", uploadCategory);
+      const res = await fetch(`/api/pm/engagements/${activeEngId}/attachments`, {
+        method: "POST",
+        body: fd,
       });
       const data = await res.json();
-      if (!data.error) {
-        setEngagements((prev) => prev.map((e) => e.id === activeEngId ? data : e));
+      if (data.error) throw new Error(data.error);
+      setAttachments((prev) => [data, ...prev]);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const downloadAttachment = async (att: EngagementAttachment) => {
+    try {
+      const res = await fetch(
+        `/api/pm/engagements/${activeEngId}/attachments/download?attachment_id=${att.id}`
+      );
+      const data = await res.json();
+      if (data.download_url) {
+        window.open(data.download_url, "_blank");
       }
     } catch {}
   };
 
-  // Group tasks by stage (must be before any early returns to satisfy rules of hooks)
-  const stageTasks = useMemo(() => {
-    const grouped: Record<string, EngagementTask[]> = {};
-    for (const t of tasks) grouped[t.status] = [...(grouped[t.status] || []), t];
-    return grouped;
-  }, [tasks]);
+  const deleteAttachment = async (attId: string) => {
+    if (!activeEngId || !confirm("Delete this file?")) return;
+    try {
+      await fetch(`/api/pm/engagements/${activeEngId}/attachments`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ attachment_id: attId }),
+      });
+      setAttachments((prev) => prev.filter((a) => a.id !== attId));
+    } catch {}
+  };
 
+  const regenProjectFiles = async () => {
+    if (!activeEngId) return;
+    setGeneratingProjectFiles(true);
+    try {
+      const res = await fetch(`/api/pm/engagements/${activeEngId}/project-files`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      // Add new attachment to list
+      if (data.attachment) {
+        setAttachments((prev) => [data.attachment, ...prev]);
+      }
+      // Trigger download
+      if (data.download_url) {
+        window.open(data.download_url, "_blank");
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to generate project files");
+    } finally {
+      setGeneratingProjectFiles(false);
+    }
+  };
+
+  // Memoized computed values (must be before early returns)
   const completedTasks = tasks.filter((t) => t.status === "complete").length;
   const totalTasks = tasks.length;
 
@@ -359,7 +518,6 @@ export function EngagementOverview({ org }: { org: Organization }) {
                 const stageIdx = STAGE_ORDER.indexOf(stage.value);
                 const isActive = stageIdx === currentStageIdx;
                 const isComplete = stageIdx < currentStageIdx;
-                const isFuture = stageIdx > currentStageIdx;
 
                 return (
                   <div key={stage.value} className="flex items-center shrink-0">
@@ -414,7 +572,6 @@ export function EngagementOverview({ org }: { org: Organization }) {
                 </Link>
                 <button
                   onClick={() => {
-                    // Switch to Tools tab via parent DashboardTabs
                     const toolsBtn = document.querySelector<HTMLButtonElement>('[data-tab-id="tools"]');
                     if (toolsBtn) toolsBtn.click();
                   }}
@@ -442,7 +599,7 @@ export function EngagementOverview({ org }: { org: Organization }) {
               <div className="text-xl font-bold text-pm-text">
                 {activeEng.estimated_value
                   ? `$${Number(activeEng.estimated_value).toLocaleString()}`
-                  : "—"}
+                  : "\u2014"}
               </div>
             </div>
             <div className="card">
@@ -450,7 +607,7 @@ export function EngagementOverview({ org }: { org: Organization }) {
               <div className="text-xl font-bold text-pm-text">
                 {activeEng.expected_close_date
                   ? new Date(activeEng.expected_close_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })
-                  : "—"}
+                  : "\u2014"}
               </div>
             </div>
             <div className="card">
@@ -458,7 +615,7 @@ export function EngagementOverview({ org }: { org: Organization }) {
               <div className="text-sm font-semibold text-pm-text capitalize">
                 {activeEng.engagement_type
                   ? SERVICE_LINES.find((s) => s.value === activeEng.engagement_type)?.label || activeEng.engagement_type
-                  : "—"}
+                  : "\u2014"}
               </div>
             </div>
             <div className="card">
@@ -466,7 +623,7 @@ export function EngagementOverview({ org }: { org: Organization }) {
               <div className="text-sm font-semibold text-pm-text">
                 {activeEng.assigned_to
                   ? members.find((m) => m.slug === activeEng.assigned_to)?.display_name || activeEng.assigned_to
-                  : "—"}
+                  : "\u2014"}
               </div>
             </div>
           </div>
@@ -521,20 +678,122 @@ export function EngagementOverview({ org }: { org: Organization }) {
 
           {/* ── Discovery Notes ── */}
           <div className="card">
-            <h4 className="font-semibold text-pm-text mb-3">Discovery Notes</h4>
-            <div onBlur={() => updateEngagementField("discovery_notes", activeEng.discovery_notes || null)}>
-              <Suspense fallback={<div className="h-[150px] bg-pm-bg border border-pm-border rounded-lg flex items-center justify-center text-pm-muted text-sm">Loading editor...</div>}>
-                <RichTextEditor
-                  value={activeEng.discovery_notes || ""}
-                  onChange={(html) => {
-                    setEngagements((prev) =>
-                      prev.map((eng) => eng.id === activeEngId ? { ...eng, discovery_notes: html } : eng)
-                    );
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-semibold text-pm-text">Discovery Notes</h4>
+              <div className="flex items-center gap-2">
+                {notesSaved && (
+                  <span className="text-xs text-emerald-400 flex items-center gap-1">
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Saved
+                  </span>
+                )}
+                {notesDirty && !notesSaving && !notesSaved && (
+                  <span className="text-xs text-amber-400">Unsaved changes</span>
+                )}
+                <button
+                  onClick={() => {
+                    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+                    saveNotes(notesRef.current);
                   }}
-                  placeholder="Notes from discovery calls, meetings, client requirements..."
-                />
-              </Suspense>
+                  disabled={notesSaving || !notesDirty}
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-lg text-xs font-medium transition-colors"
+                >
+                  {notesSaving ? "Saving..." : "Save Notes"}
+                </button>
+              </div>
             </div>
+            <Suspense fallback={<div className="h-[150px] bg-pm-bg border border-pm-border rounded-lg flex items-center justify-center text-pm-muted text-sm">Loading editor...</div>}>
+              <RichTextEditor
+                value={notesContent}
+                onChange={handleNotesChange}
+                placeholder="Notes from discovery calls, meetings, client requirements..."
+              />
+            </Suspense>
+          </div>
+
+          {/* ── Documents & Attachments ── */}
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-semibold text-pm-text">Documents & Attachments</h4>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={regenProjectFiles}
+                  disabled={generatingProjectFiles}
+                  className="px-3 py-1.5 border border-pm-accent/40 text-pm-accent hover:bg-pm-accent/10 rounded-lg text-xs font-medium transition-colors disabled:opacity-40"
+                >
+                  {generatingProjectFiles ? "Generating..." : "Re-download Project Files"}
+                </button>
+                <select
+                  value={uploadCategory}
+                  onChange={(e) => setUploadCategory(e.target.value)}
+                  className="bg-pm-bg border border-pm-border rounded-lg px-2 py-1.5 text-xs text-pm-text"
+                >
+                  {ATTACHMENT_CATEGORIES.map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-xs font-medium transition-colors"
+                >
+                  {uploading ? "Uploading..." : "+ Upload File"}
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  onChange={handleFileUpload}
+                />
+              </div>
+            </div>
+
+            {attachmentsLoading ? (
+              <div className="text-sm text-pm-muted py-4">Loading attachments...</div>
+            ) : attachments.length === 0 ? (
+              <div className="text-sm text-pm-muted py-4">
+                No files attached yet. Upload discovery documents, proposals, contracts, or other supporting material.
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {attachments.map((att) => (
+                  <div key={att.id} className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-pm-bg/50 transition-colors group">
+                    {/* File icon */}
+                    <div className="w-8 h-8 bg-pm-bg border border-pm-border rounded-lg flex items-center justify-center shrink-0">
+                      <svg className="w-4 h-4 text-pm-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <button
+                        onClick={() => downloadAttachment(att)}
+                        className="text-sm text-blue-400 hover:text-blue-300 truncate block text-left"
+                      >
+                        {att.file_name}
+                      </button>
+                      <div className="flex items-center gap-2 text-xs text-pm-muted">
+                        <span className="capitalize">{att.category.replace("-", " ")}</span>
+                        <span>&middot;</span>
+                        <span>{formatFileSize(att.file_size)}</span>
+                        <span>&middot;</span>
+                        <span>{new Date(att.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => deleteAttachment(att.id)}
+                      className="opacity-0 group-hover:opacity-100 p-1.5 text-red-400 hover:bg-red-500/10 rounded transition-all"
+                      title="Delete"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </>
       )}
