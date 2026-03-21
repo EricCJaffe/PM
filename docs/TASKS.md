@@ -58,6 +58,14 @@
 - [ ] QuickBooks integration (placeholder — billing/invoicing)
 
 ## Recently Completed
+- [x] Site Audit UI + Multi-Page Fetcher + Mockup Generator
+  - `SiteAuditTab` component: form → running → results flow with polling, score badges, quick wins, pages-to-build table
+  - Standalone `/site-audit` page with org selector for running audits without an engagement
+  - `src/lib/site-fetcher.ts`: multi-page fetcher — crawls homepage + discovered internal links + common paths (up to 12k chars)
+  - `src/lib/audit-rubrics.ts`: standalone rubric loader utility (extracted from inline route code)
+  - `src/lib/audit-mockup.ts`: generates rebuilt site mockup HTML per vertical (church, agency, nonprofit, general)
+  - Subpage content now included in AI scoring prompt for deeper analysis
+  - Migration 028: adds `mockup_html` and `subpages_fetched` columns to pm_site_audits
 - [x] AI Daily Standup, Risk Radar, and Natural Language Updates
   - POST /api/pm/reports/standup — AI-generated daily standup from task activity, phase progress, blockers, overdue items
   - GET /api/pm/reports/standup — Fetch standup history for a project

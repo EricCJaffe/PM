@@ -255,5 +255,35 @@ All PM tables have RLS enabled (migration 014). Access model:
 | details | JSONB | Optional metadata |
 | created_at | TIMESTAMPTZ | Auto |
 
+### pm_site_audits
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | PK |
+| org_id | UUID | FK → pm_organizations (CASCADE) |
+| engagement_id | UUID | FK → pm_engagements (SET NULL) |
+| url | TEXT | Website URL audited |
+| vertical | TEXT | church, agency, nonprofit, general |
+| status | TEXT | pending, running, complete, failed |
+| scores | JSONB | Per-dimension scores (grade, score, weight, findings) |
+| overall | JSONB | { grade, score, rebuild_recommended, rebuild_reason } |
+| gaps | JSONB | Gap tables per dimension |
+| recommendations | JSONB | Prioritized recommendations |
+| quick_wins | JSONB | Quick win actions |
+| pages_found | JSONB | Discovered pages on site |
+| pages_missing | JSONB | Expected but absent pages |
+| pages_to_build | JSONB | Recommended pages with priority |
+| rebuild_timeline | JSONB | Phased rebuild plan |
+| platform_comparison | JSONB | Current vs recommended platform |
+| raw_html | TEXT | Homepage HTML (capped 50k) |
+| mockup_html | TEXT | Generated rebuilt site mockup (migration 028) |
+| subpages_fetched | JSONB | Subpage metadata from multi-page fetch (migration 028) |
+| extra_context | TEXT | User-provided context (GMB info, etc.) |
+| audit_summary | TEXT | AI-generated executive summary |
+| document_id | UUID | FK → generated_documents (SET NULL) |
+| created_by | TEXT | |
+| created_at, updated_at | TIMESTAMPTZ | Auto |
+
+Migrations: 026 (base), 027 (scoring v2 columns), 028 (mockup + subpages)
+
 ### Storage
 - Bucket: `documents` (private, for PDF storage)

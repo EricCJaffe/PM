@@ -164,3 +164,39 @@ Compile final HTML from template + sections + intake data. Stores `compiled_html
 
 ### `POST /api/pm/docgen/[id]/send`
 Mark document as sent (sets status="sent", sent_at=now).
+
+---
+
+## Site Audit
+
+### `GET /api/pm/site-audit?org_id=<uuid>`
+List audits for an organization.
+
+**Response:** `SiteAudit[]`
+
+### `POST /api/pm/site-audit`
+Run a new site audit. Fetches the homepage + subpages, scores via GPT-4o against a vertical rubric, and generates a rebuilt site mockup.
+
+**Body:** `{ org_id: string, url: string, vertical: "church" | "agency" | "nonprofit" | "general", engagement_id?: string, extra_context?: string }`
+**Response:** `SiteAudit` (status: 201)
+
+### `GET /api/pm/site-audit/[id]`
+Get a single audit with full results.
+
+**Response:** `SiteAudit`
+
+### `DELETE /api/pm/site-audit/[id]`
+Delete an audit record.
+
+### `POST /api/pm/site-audit/[id]`
+Generate a document (report) from completed audit results. Creates entries in `generated_documents` + `document_sections`.
+
+**Response:** `{ document_id: string }` (status: 201)
+
+### `POST /api/pm/site-audit/[id]/pdf`
+Generate a printable HTML report with cover page, score cards, gap tables, and quick wins.
+
+**Response:** HTML file attachment (`Content-Type: text/html`)
+
+### Standalone Page
+`/site-audit` — Run audits without an existing engagement. Includes org selector and full audit UI.

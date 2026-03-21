@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getOpenAI } from "@/lib/openai";
 import { assembleKBContext } from "@/lib/kb";
+import { fetchSiteContent } from "@/lib/site-fetcher";
+import { loadRubric as loadRubricFile } from "@/lib/audit-rubrics";
+import { generateMockupHtml } from "@/lib/audit-mockup";
 import { readFileSync } from "fs";
 import { join } from "path";
 
@@ -75,6 +78,14 @@ export async function POST(request: NextRequest) {
       // 3. Extract key signals from HTML
       const signals = extractSignals(html, url);
 
+      // 3b. Fetch additional subpages for richer AI context
+      const subpageContent = await fetchSiteContent(url);
+      const subpagesSummary = subpageContent.pages
+        .filter((p) => p.pathname !== "/")
+        .map((p) => `=== ${p.pathname} (${p.title || "untitled"}, ${p.wordCount} words) ===\n${p.bodyText.slice(0, 1500)}`)
+        .join("\n\n")
+        .slice(0, 8000);
+
       // 4. Get KB context for the org
       const kbContext = await assembleKBContext(org_id, null);
 
@@ -87,7 +98,7 @@ export async function POST(request: NextRequest) {
         model: "gpt-4o",
         messages: [
           { role: "system", content: buildSystemPrompt(vertical, rubricContent, kbContext) },
-          { role: "user", content: buildUserPrompt(signals, url, extra_context) },
+          { role: "user", content: buildUserPrompt(signals, url, extra_context, subpagesSummary) },
         ],
         temperature: 0.3,
         response_format: { type: "json_object" },
@@ -150,7 +161,24 @@ export async function POST(request: NextRequest) {
         rebuild_reason: rebuildReason,
       };
 
-      // 8. Update audit record with results
+      // 8. Generate rebuilt site mockup
+      const siteTitle = signals.title ? stripTags(signals.title).replace(/\s*[|\-–—].*/, "").trim() : "";
+      const orgName = siteTitle || new URL(url.startsWith("http") ? url : `https://${url}`).hostname;
+      const mockupHtml = generateMockupHtml({
+        url,
+        vertical: vertical as import("@/types/pm").AuditVertical,
+        orgName,
+        scores,
+        pagesMissing: analysis.pages_missing || [],
+        pagesToBuild: analysis.pages_to_build || [],
+      });
+
+      // 9. Build subpages metadata for transparency
+      const subpagesFetched = subpageContent.pages
+        .filter((p) => p.pathname !== "/")
+        .map((p) => ({ pathname: p.pathname, title: p.title, wordCount: p.wordCount }));
+
+      // 10. Update audit record with results
       const { data: updated, error: updateErr } = await supabase
         .from("pm_site_audits")
         .update({
@@ -167,6 +195,8 @@ export async function POST(request: NextRequest) {
           platform_comparison: analysis.platform_comparison || null,
           audit_summary: analysis.summary,
           raw_html: html.slice(0, 50000),
+          mockup_html: mockupHtml,
+          subpages_fetched: subpagesFetched,
         })
         .eq("id", audit.id)
         .select()
@@ -405,7 +435,7 @@ Return your analysis as a JSON object with this EXACT structure:
 Provide 3-6 gap items per dimension, 5-8 recommendations, 3-5 quick wins from the rubric trigger rules, and rebuild timeline if applicable.${kbContext}`;
 }
 
-function buildUserPrompt(signals: SiteSignals, url: string, extraContext?: string | null): string {
+function buildUserPrompt(signals: SiteSignals, url: string, extraContext?: string | null, subpagesSummary?: string): string {
   let prompt = `Analyze this website: ${url}
 
 EXTRACTED SIGNALS:
@@ -428,6 +458,10 @@ ${signals.headingStructure.slice(0, 20).map(h => `  ${h}`).join("\n")}
 
 PAGES DISCOVERED:
 ${signals.pages.slice(0, 20).map(p => `  ${p.url} — ${p.title}`).join("\n")}`;
+
+  if (subpagesSummary) {
+    prompt += `\n\nSUBPAGE CONTENT (fetched additional pages for deeper analysis):\n${subpagesSummary}`;
+  }
 
   if (extraContext) {
     prompt += `\n\nADDITIONAL CONTEXT PROVIDED:\n${extraContext}`;
