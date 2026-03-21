@@ -12,20 +12,20 @@
 - [x] Apply migration 013_auth_system_upgrade.sql to Supabase
 - [x] Apply migration 014_rls_policies.sql to Supabase
 - [x] Apply migration 021_vault_storage_bucket.sql to Supabase
-- [ ] Apply migration 025_note_visibility.sql to Supabase
-- [ ] Apply migration 026_site_audits.sql to Supabase
-- [ ] Apply migration 027_site_audit_scoring_v2.sql to Supabase
+- [x] Apply migration 025_note_visibility.sql to Supabase
+- [x] Apply migration 026_site_audits.sql to Supabase
+- [x] Apply migration 027_site_audit_scoring_v2.sql to Supabase
 
 ## Backfill Scripts — Completed
 1. [x] Run FSA site-org backfill: `npx tsx scripts/backfill-fsa-site-org.ts`
 2. [x] Run bootstrap admin user: `npx tsx scripts/bootstrap-admin-user.ts`
 3. [x] Run Reverb Church backfill: `npx tsx scripts/backfill-reverb-church.ts`
 
-## Prepare for Additional Users
-- [ ] Disable self-registration in Supabase Dashboard (Project Settings → Authentication → User Signups → toggle OFF)
-- [ ] Configure Supabase callback URLs for auth redirects (see docs/ENVIRONMENT.md)
-- [ ] End-to-end test: full auth flow (login → admin console → add user → external user scoping)
-- [ ] Onboarding notes: new users are added via admin console, which creates auth user + links to pm_members with org access. Each user gets a role per org: admin, user, or external (read-only)
+## Prepare for Additional Users — Complete
+- [x] Disable self-registration in Supabase Dashboard (Project Settings → Authentication → User Signups → toggle OFF)
+- [x] Configure Supabase callback URLs for auth redirects (see docs/ENVIRONMENT.md)
+- [x] End-to-end test: full auth flow (login → admin console → add user → external user scoping)
+- [x] Onboarding notes: new users are added via admin console, which creates auth user + links to pm_members with org access. Each user gets a role per org: admin, user, or external (read-only)
 
 ## Still Pending
 - [x] Add RLS policies to all PM tables (leverage pm_user_org_access for row-level filtering)
@@ -58,6 +58,21 @@
 - [ ] QuickBooks integration (placeholder — billing/invoicing)
 
 ## Recently Completed
+- [x] AI Daily Standup, Risk Radar, and Natural Language Updates
+  - POST /api/pm/reports/standup — AI-generated daily standup from task activity, phase progress, blockers, overdue items
+  - GET /api/pm/reports/standup — Fetch standup history for a project
+  - Saves to pm_daily_logs table + vault at /daily/YYYY-MM-DD.md
+  - POST /api/pm/reports/risk-radar — AI scan of escalating risks, stalled tasks, dependency chains
+  - Supports both project-level and cross-project (org-level) scanning
+  - Risk heatmap with trend indicators, critical alerts, escalation watch
+  - Saves to vault at /ai/reports/RISK-RADAR-YYYY-MM-DD.md
+  - POST /api/pm/nlp — Natural language task updates via GPT-4o tool calling
+  - Parses instructions like "Set Design Review due to April 15", "Mark onboarding complete", "Assign Eric to all blocked tasks"
+  - Supports: update_task, update_multiple_tasks, add_task, complete_task, block_task
+  - Context-aware: loads project/org tasks and team members for accurate matching
+  - AIReportsPanel component: Daily Standup + Risk Radar buttons with rendered markdown output and history
+  - NLPCommandBar component: sparkle-icon text input with real-time feedback on actions taken
+  - Both integrated into project detail page (AI Reports tab + command bar above tabs)
 - [x] Site Audit Rubric-Based Scoring v2 + PDF Report Generation
   - Rubric-based scoring: loads vertical-specific rubric files (Church, Agency, Nonprofit) from docs/SEO/
   - Numeric scores (0-100) per dimension with correct grade thresholds (A=90+, B=80-89, C=70-79, D=60-69, D-=50-59, F<50)
@@ -132,9 +147,9 @@
   - Client dashboard already passes `?org={org.id}` — now it's consumed
 
 ## Backlog
-- [ ] AI daily standup generation (`/daily/YYYY-MM-DD.md`)
-- [ ] Risk radar — AI scan of escalating risks
-- [ ] Natural language updates ("Set X due date to April 15")
+- [x] AI daily standup generation (`/daily/YYYY-MM-DD.md`)
+- [x] Risk radar — AI scan of escalating risks
+- [x] Natural language updates ("Set X due date to April 15")
 - [ ] Supabase realtime subscriptions for live dashboard updates
 - [ ] Timeline view (Gantt-style) for phases
 - [ ] Budget vs actuals tracking

@@ -181,6 +181,9 @@ vault/[org-slug]/[project-slug]/
 | `/api/pm/ext/context` | GET | AI agent context dump (orgs, projects, members) |
 | `/api/pm/ext/tasks` | GET, POST, PATCH | AI agent task CRUD (API key auth) |
 | `/api/pm/ext/notes` | GET, POST | AI agent note read/create (API key auth) |
+| `/api/pm/reports/standup` | GET, POST | Generate / fetch AI daily standups |
+| `/api/pm/reports/risk-radar` | POST | AI risk radar scan (project or org level) |
+| `/api/pm/nlp` | POST | Natural language task updates |
 | `/api/pm/site-audit` | GET, POST | List / run site audits (rubric-based scoring) |
 | `/api/pm/site-audit/[id]` | GET, POST, DELETE | View / generate doc / delete audit |
 | `/api/pm/site-audit/[id]/pdf` | POST | Generate printable HTML audit report |
