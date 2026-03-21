@@ -58,7 +58,14 @@ Microsoft sign-in is configured as an OAuth provider through Supabase using the 
 - Used for: task assignment notifications, user invites
 - Gracefully degrades — if `RESEND_API_KEY` is not set, emails are skipped with a console log
 
+## Vercel Cron
+- `CRON_SECRET` — Bearer token for Vercel Cron routes (auto-set by Vercel, or `openssl rand -hex 32` for local)
+- `NEXT_PUBLIC_APP_URL` — App base URL (e.g. `https://your-domain.vercel.app`) used by cron to call internal API routes
+- Cron schedule configured in `vercel.json`:
+  - `/api/cron/standup` — weekdays at 8am (morning standup generation)
+  - `/api/cron/engagement-nudge` — weekdays at 9am (overdue engagement task checks)
+
 ## Security
-- Never put `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`, `RESEND_API_KEY`, `GITHUB_TOKEN`, or `DOCUSEAL_API_KEY` in `NEXT_PUBLIC_*` variables
+- Never put `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`, `RESEND_API_KEY`, `GITHUB_TOKEN`, `CRON_SECRET`, or `DOCUSEAL_API_KEY` in `NEXT_PUBLIC_*` variables
 - `.env.local` is in `.gitignore` — never commit it
 - See `.env.local.example` for the template

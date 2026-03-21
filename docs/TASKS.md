@@ -58,6 +58,17 @@
 - [ ] QuickBooks integration (placeholder — billing/invoicing)
 
 ## Recently Completed
+- [x] Standup Agent — Cross-Org Morning Standup
+  - `src/lib/standup-assembler.ts`: gathers tasks/phases across all active projects for an org
+  - `POST /api/pm/standup/generate`: AI standup generation via GPT-4o with cron bypass
+  - `GET /api/pm/standup`: standup history per org (default 7 days)
+  - `POST /api/cron/standup`: Vercel Cron auto-generates for all orgs (weekdays 8am)
+  - `StandupWidget` component: generate/regenerate/history with markdown rendering
+  - Integrated into OverviewTab on client detail page
+  - Migration 029: adds `org_id`, `log_type` to pm_daily_logs, makes `project_id` nullable
+  - `vercel.json` created with cron config for standup + engagement-nudge
+  - Types: `StandupData`, `StandupItem`, `ProjectStandupSummary`, `DailyLogType`
+  - Email support via Resend (optional, fire-and-forget)
 - [x] Site Audit UI + Multi-Page Fetcher + Mockup Generator
   - `SiteAuditTab` component: form → running → results flow with polling, score badges, quick wins, pages-to-build table
   - Standalone `/site-audit` page with org selector for running audits without an engagement

@@ -237,11 +237,45 @@ export interface Risk {
 
 export interface DailyLog {
   id: string;
-  project_id: string;
+  project_id: string | null;
+  org_id: string | null;
   date: string;
   content: string;
-  generated_by: "ai" | "manual";
+  generated_by: "ai" | "manual" | "standup-agent";
+  log_type: DailyLogType;
   created_at: string;
+}
+
+export type DailyLogType = "daily" | "standup" | "rollup" | "blocker" | "hub" | "decisions";
+
+export interface StandupData {
+  org_id: string;
+  date: string;
+  completed_yesterday: StandupItem[];
+  in_progress_today: StandupItem[];
+  blocked: StandupItem[];
+  due_soon: StandupItem[];
+  overdue: StandupItem[];
+  project_summaries: ProjectStandupSummary[];
+}
+
+export interface StandupItem {
+  task_name: string;
+  project_name: string;
+  owner: string | null;
+  due_date: string | null;
+  status: string;
+}
+
+export interface ProjectStandupSummary {
+  project_id: string;
+  project_name: string;
+  current_phase: string | null;
+  phase_progress: number;
+  open_tasks: number;
+  blocked_tasks: number;
+  completed_this_week: number;
+  overdue_tasks: number;
 }
 
 export interface PMFile {

@@ -200,3 +200,24 @@ Generate a printable HTML report with cover page, score cards, gap tables, and q
 
 ### Standalone Page
 `/site-audit` — Run audits without an existing engagement. Includes org selector and full audit UI.
+
+---
+
+## Standup Agent
+
+### `POST /api/pm/standup/generate`
+Generate morning standup from live project data across all active projects for an org.
+
+**Body:** `{ org_id: string, date?: string, send_email?: boolean, email_to?: string }`
+**Response:** `{ content: string, date: string, org_id: string, projects_covered: number, blocked_count: number, overdue_count: number }`
+
+### `GET /api/pm/standup?org_id=<uuid>&limit=7`
+List standup history for an org. Default limit 7 (one week).
+
+**Response:** `DailyLog[]` (filtered to log_type=standup)
+
+### `POST /api/cron/standup` (Vercel Cron)
+Auto-generates standup for all orgs with active projects. Runs weekdays at 8am.
+
+**Auth:** `Authorization: Bearer {CRON_SECRET}`
+**Response:** `{ generated: number, results: [...] }`
