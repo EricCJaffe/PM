@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
+import Link from "next/link";
 import type { Organization, Engagement, DealStage } from "@/types/pm";
 import { StatusBadge } from "@/components/StatusBadge";
 
@@ -405,6 +406,12 @@ export function EngagementOverview({ org }: { org: Organization }) {
                     Mark Lost
                   </button>
                 )}
+                <Link
+                  href={`/projects/intake?engagement_id=${activeEng.id}&org_id=${org.id}`}
+                  className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-medium transition-colors"
+                >
+                  Convert to project
+                </Link>
                 <button
                   onClick={() => {
                     // Switch to Tools tab via parent DashboardTabs

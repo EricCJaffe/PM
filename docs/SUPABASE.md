@@ -53,6 +53,14 @@ This module shares a Supabase project with FSA. Auth and org/tenant schema are r
 | target_date | DATE | Optional |
 | budget | NUMERIC | Optional |
 | status | TEXT | active, complete, paused, archived, on-hold |
+| intake_data | JSONB | Project intake form data (migration 031) |
+| client_context | JSONB | Client context from intake (migration 031) |
+| feature_flags | JSONB | Feature flag toggles (migration 031) |
+| github_repo | TEXT | GitHub repo slug (migration 031) |
+| vercel_project | TEXT | Vercel project name (migration 031) |
+| supabase_ref | TEXT | Supabase project ref (migration 031) |
+| engagement_id | UUID | FK → pm_engagements (migration 031) |
+| intake_completed_at | TIMESTAMPTZ | When intake was completed (migration 031) |
 | created_at | TIMESTAMPTZ | Auto |
 | updated_at | TIMESTAMPTZ | Auto (trigger) |
 

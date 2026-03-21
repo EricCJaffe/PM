@@ -496,6 +496,64 @@ export interface PMDocument {
   created_at: string;
 }
 
+// ─── Project Intake Types ────────────────────────────────────────
+
+export type ProjectType =
+  | "personal_app"
+  | "client_marketing"
+  | "client_web_app"
+  | "church_site"
+  | "nonprofit"
+  | "ecommerce"
+  | "saas"
+  | "other";
+
+export interface ProjectIntakeData {
+  project_type: ProjectType;
+  is_greenfield: boolean;
+  v1_done: string;
+  target_launch: string | null;
+  github_repo: string | null;
+  vercel_project: string | null;
+  supabase_ref: string | null;
+  framework: "nextjs" | "remix" | "other";
+  stack_deviations: string | null;
+  seo_enabled: boolean;
+  security_review: boolean;
+  multi_tenant: boolean;
+  a2a_enabled: boolean;
+  payments_enabled: boolean;
+  hipaa_scope: boolean;
+  integrations: string[];
+  integration_notes: string | null;
+}
+
+export interface ClientContextData {
+  problem_in_their_words: string;
+  what_fixed_looks_like: string;
+  technical_comfort: "none" | "basic" | "moderate" | "high";
+  primary_contact_name: string;
+  primary_contact_role: string;
+  budget_range: string | null;
+  hard_deadline: string | null;
+  known_constraints: string | null;
+  decisions_needed: string | null;
+}
+
+export interface ProjectIntakeFormData {
+  name: string;
+  slug: string;
+  org_id: string;
+  template_slug: string;
+  owner: string;
+  description: string | null;
+  target_date: string | null;
+  budget: number | null;
+  engagement_id: string | null;
+  intake_data: ProjectIntakeData;
+  client_context: ClientContextData;
+}
+
 export interface ShareToken {
   id: string;
   org_id: string;

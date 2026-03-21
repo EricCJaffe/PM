@@ -249,3 +249,19 @@ Edit draft body or subject before sending. Cannot edit sent updates.
 Send approved draft to client via Resend. Marks note as sent.
 
 **Response:** `{ sent: true, sent_at: string, sent_to: string }`
+
+---
+
+## Project Intake
+
+### `POST /api/pm/projects/intake`
+Create project from full intake form. Creates project + phases from template,
+stores intake_data and client_context, generates zip with pre-filled markdown files.
+
+**Body:** `{ name, slug, org_id, template_slug, owner, description?, target_date?, budget?, engagement_id?, intake_data, client_context }`
+**Response:** `{ project, project_id, phases_created, download_url, storage_path }` (status: 201)
+
+### `GET /api/pm/projects/[id]/init-files`
+Regenerate download zip for an existing project with intake data.
+
+**Response:** `{ download_url }`

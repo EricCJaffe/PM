@@ -24,6 +24,7 @@
     "autoprefixer": "^10.4.27",
     "gray-matter": "^4.0.3",
     "js-yaml": "^4.1.0",
+    "jszip": "^3.10.1",
     "next": "^15.2.0",
     "openai": "^4.77.0",
     "react": "^19.0.0",
