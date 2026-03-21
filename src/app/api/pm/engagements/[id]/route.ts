@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { spawnEngagementTasks } from "@/lib/engagement-engine";
+import { spawnEngagementTasks, maybeCreateOnboardingProject } from "@/lib/engagement-engine";
 
 // GET /api/pm/engagements/[id]
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -61,6 +61,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   // If deal_stage changed, spawn tasks for the new stage
   if (body.deal_stage && body.deal_stage !== current.deal_stage) {
     await spawnEngagementTasks(id, body.deal_stage, data.type, data.assigned_to);
+
+    // When entering 'qualified' stage, auto-create onboarding project
+    if (body.deal_stage === "qualified") {
+      await maybeCreateOnboardingProject(id, current.org_id, data.assigned_to, data.type);
+    }
 
     // Also update the org's pipeline_status to match the most advanced engagement
     await syncOrgPipelineStatus(supabase, current.org_id);

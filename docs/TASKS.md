@@ -56,10 +56,38 @@
 - [ ] Email compose modal for sending proposals to client contacts
 - [ ] Set up Vercel Cron for daily engagement nudge checks (/api/cron/engagement-nudge)
 - [ ] QuickBooks integration (placeholder — billing/invoicing)
-- [ ] Build out full intake/discovery form wizard (multi-step discovery questionnaire)
+- [x] Build out full intake/discovery form wizard (multi-step discovery questionnaire)
 - [ ] Discovery findings summary — AI-generated brief from notes + attachments
+- [ ] Client portal UI pages (external user views with portal settings filtering)
+- [ ] Department management UI (create/edit departments, assign to tasks/phases)
+- [ ] Vocabulary customization UI (org-level renaming of base terms)
+- [ ] Gap analysis dashboard (visual rollup of gaps by department/severity)
+- [ ] Onboarding project → process project handoff (create child project from onboarding)
 
 ## Recently Completed
+- [x] Departments, Client Portal, Discovery/Onboarding Foundation
+  - Migration 033: `pm_departments` table with flexible vocabulary (`pm_department_vocab`)
+    - Standalone department table (org_id, slug, name, head_name/email, sort_order)
+    - Vocabulary override system: base terms (vision, people, data, processes, meetings, issues) renamable per org or per department
+    - `department_id` added to `pm_tasks` and `pm_phases` for department-scoped work
+  - Migration 034: Client portal foundation
+    - `pm_portal_settings` table: per-org toggles for what external users can see (projects, tasks, risks, reports, etc.)
+    - `pm_portal_invites` table: invite external users to portal with token-based acceptance
+    - Interaction permissions: allow_task_comments, allow_file_uploads, allow_chat
+    - Branding: portal_title, welcome_message, primary_color
+  - Migration 035: Discovery/onboarding project system + gap analysis
+    - `pm_projects` extended: project_type (standard/onboarding/personal), parent_project_id, onboarding_status
+    - `pm_gap_analysis` table: structured discovery findings with category, severity, priority, resolution tracking
+    - `pm_discovery_interviews` table: structured interview records with focus_areas, key_findings, action_items
+    - `pm_onboarding_checklists` table: template-driven onboarding steps (discovery, setup, kickoff, documentation, handoff)
+  - Engagement engine: auto-creates onboarding project when deal enters 'qualified' stage
+    - Discovery tasks generated based on engagement type (new_prospect vs existing_client)
+    - Default onboarding checklist auto-populated (12 items across 5 categories)
+  - Phase clone route updated to use resolved vocabulary labels
+  - API routes: departments CRUD, vocab management, portal settings, portal invites, gap analysis CRUD, discovery interviews, onboarding project creation
+  - TypeScript types: Department, DepartmentVocab, PortalSettings, PortalInvite, GapAnalysis, DiscoveryInterview, OnboardingChecklist
+  - Query functions: getDepartments, getDepartmentVocab, getResolvedVocab, getPortalSettings, getPortalInvites, getGapAnalysis, getDiscoveryInterviews, getOnboardingChecklist
+
 - [x] Engagement Discovery & Attachments — Fix Notes Save + File Attachments
   - Fixed discovery notes save: replaced buggy onBlur closure with ref-tracked debounced auto-save (3s) + explicit Save button
   - Save state indicators: "Unsaved changes" (amber), "Saving..." spinner, "Saved" (green checkmark)
