@@ -65,13 +65,36 @@
 - [ ] QuickBooks integration (placeholder — billing/invoicing)
 - [x] Build out full intake/discovery form wizard (multi-step discovery questionnaire)
 - [ ] Discovery findings summary — AI-generated brief from notes + attachments
-- [ ] Client portal UI pages (external user views with portal settings filtering)
-- [ ] Department management UI (create/edit departments, assign to tasks/phases)
-- [ ] Vocabulary customization UI (org-level renaming of base terms)
-- [ ] Gap analysis dashboard (visual rollup of gaps by department/severity)
-- [ ] Onboarding project → process project handoff (create child project from onboarding)
+- [x] Client portal UI pages (external user views with portal settings filtering)
+- [x] Department management UI (create/edit departments, assign to tasks/phases)
+- [x] Vocabulary customization UI (org-level renaming of base terms)
+- [x] Gap analysis dashboard (visual rollup of gaps by department/severity)
+- [x] Onboarding project → process project handoff (create child project from onboarding)
 
 ## Recently Completed
+- [x] Fix TipTap duplicate extension warning — StarterKit v3.20 now bundles Link + Underline
+  - Removed separate Link/Underline imports from RichTextEditor.tsx
+  - Configured via StarterKit.configure({ link: {...}, underline: {} }) instead
+- [x] Department Management UI — full CRUD tab on client dashboard
+  - `DepartmentsTab` component: list, add/edit inline form, delete with confirmation
+  - Shows name, description, head name/email, member count, active/inactive status
+- [x] Vocabulary Customization UI — org-level term renaming
+  - `VocabTab` component: editable table of 6 base terms with custom display labels
+  - Department-scoped overrides via dropdown, save/reset, dirty state tracking
+- [x] Gap Analysis Dashboard — visual rollup by department/severity
+  - `GapAnalysisTab` component: summary cards (total, critical/high, resolved, open)
+  - Severity breakdown bars, filter by status/severity/category/department
+  - Add/Edit modal with full gap fields, current vs desired state panels
+- [x] Client Portal Settings UI — admin configuration for external user views
+  - `PortalSettingsTab` component: branding (title, welcome message, color)
+  - Feature visibility toggles grouped by content/reports/resources
+  - Interaction permissions (comments, uploads, chat)
+  - Portal invitations management: invite, list, revoke
+- [x] Onboarding & Discovery UI — onboarding project management + handoff
+  - `OnboardingTab` component: onboarding project list with status stepper
+  - Create onboarding project, handoff to process project via seed
+  - Discovery interviews: list/add with focus areas, findings, action items
+  - Onboarding checklist grouped by category with status cycling
 - [x] Departments, Client Portal, Discovery/Onboarding Foundation
   - Migration 033: `pm_departments` table with flexible vocabulary (`pm_department_vocab`)
     - Standalone department table (org_id, slug, name, head_name/email, sort_order)

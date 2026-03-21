@@ -15,6 +15,11 @@ import { UsersTab } from "./UsersTab";
 import { KBTab } from "./KBTab";
 import { ClientTasksTab } from "./ClientTasksTab";
 import { ToolsTab } from "./ToolsTab";
+import { DepartmentsTab } from "./DepartmentsTab";
+import { VocabTab } from "./VocabTab";
+import { GapAnalysisTab } from "./GapAnalysisTab";
+import { PortalSettingsTab } from "./PortalSettingsTab";
+import { OnboardingTab } from "./OnboardingTab";
 
 const tabs = [
   { id: "engagements", label: "Engagements" },
@@ -30,6 +35,11 @@ const tabs = [
   { id: "kpis", label: "KPIs" },
   { id: "docs", label: "Docs & SOPs" },
   { id: "kb", label: "Knowledge Base" },
+  { id: "departments", label: "Departments" },
+  { id: "vocab", label: "Vocabulary" },
+  { id: "gap-analysis", label: "Gap Analysis" },
+  { id: "onboarding", label: "Onboarding" },
+  { id: "portal", label: "Client Portal" },
   { id: "tools", label: "Tools" },
 ];
 
@@ -136,6 +146,11 @@ export function DashboardTabs({
       {active === "kpis" && <KPIsTab org={org} kpis={filteredKpis} projects={projects} selectedProjectId={selectedProjectId} />}
       {active === "docs" && <DocsTab org={org} documents={filteredDocs} projects={projects} selectedProjectId={selectedProjectId} />}
       {active === "kb" && <KBTab org={org} scope="org" />}
+      {active === "departments" && <DepartmentsTab org={org} />}
+      {active === "vocab" && <VocabTab org={org} />}
+      {active === "gap-analysis" && <GapAnalysisTab org={org} />}
+      {active === "onboarding" && <OnboardingTab org={org} />}
+      {active === "portal" && <PortalSettingsTab org={org} />}
       {active === "tools" && <ToolsTab org={org} />}
     </>
   );
