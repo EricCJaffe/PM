@@ -41,8 +41,11 @@ export function StandupWidget({ orgId, adminEmail }: Props) {
     loadStandups();
   }, [loadStandups]);
 
+  const [error, setError] = useState<string | null>(null);
+
   const generateStandup = async () => {
     setGenerating(true);
+    setError(null);
     try {
       const res = await fetch("/api/pm/standup/generate", {
         method: "POST",
@@ -53,9 +56,13 @@ export function StandupWidget({ orgId, adminEmail }: Props) {
           email_to: sendEmail ? adminEmail : undefined,
         }),
       });
-      if (res.ok) {
-        await loadStandups();
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to generate standup");
       }
+      await loadStandups();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to generate standup");
     } finally {
       setGenerating(false);
     }
@@ -107,6 +114,9 @@ export function StandupWidget({ orgId, adminEmail }: Props) {
             <p className="text-pm-muted text-sm mb-4">
               No standup generated yet today
             </p>
+            {error && (
+              <p className="text-red-400 text-sm mb-3">{error}</p>
+            )}
             <div className="flex items-center justify-center gap-3 flex-wrap">
               {adminEmail && (
                 <label className="flex items-center gap-2 text-pm-muted text-sm cursor-pointer">

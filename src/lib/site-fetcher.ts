@@ -4,8 +4,10 @@
  * Complements the existing single-page extractSignals() in the audit route.
  */
 
-const TIMEOUT_MS = 10_000;
+const PAGE_TIMEOUT_MS = 5_000;
+const TOTAL_TIMEOUT_MS = 15_000;
 const MAX_CONTENT_CHARS = 12_000;
+const MAX_CONCURRENT = 6;
 const USER_AGENT = "Mozilla/5.0 (compatible; BusinessOS-SiteAudit/1.0)";
 
 export interface FetchedPage {
@@ -46,6 +48,7 @@ const COMMON_PATHS = [
 
 /**
  * Fetch the homepage and attempt to discover/fetch key subpages.
+ * Subpages are fetched in parallel with a global timeout.
  * Returns structured content capped at MAX_CONTENT_CHARS.
  */
 export async function fetchSiteContent(url: string): Promise<FetchedSiteContent> {
@@ -65,7 +68,7 @@ export async function fetchSiteContent(url: string): Promise<FetchedSiteContent>
     };
   }
 
-  // 1. Fetch the homepage first
+  // 1. Fetch the homepage first (need it to discover internal links)
   const homeResult = await fetchPage(normalizedUrl, "/");
   if (!homeResult) {
     return {
@@ -80,29 +83,34 @@ export async function fetchSiteContent(url: string): Promise<FetchedSiteContent>
   }
 
   const pages: FetchedPage[] = [homeResult];
+
+  // Extract discovered internal links from homepage raw HTML (before stripping)
+  const discoveredPaths = extractInternalPaths(homeResult.rawHtml || "", normalizedUrl);
+
+  // Merge discovered paths with common paths, dedup
+  const pathsToTry = [...new Set([...discoveredPaths, ...COMMON_PATHS])]
+    .filter((p) => p !== "/" && p !== "")
+    .slice(0, 15); // cap to prevent excessive fetching
+
+  // 2. Fetch subpages in parallel with a global timeout
+  const subpageResults = await fetchPagesParallel(
+    pathsToTry.map((p) => ({
+      url: `${baseUrl}${p.startsWith("/") ? p : "/" + p}`,
+      pathname: p,
+    }))
+  );
+
   let totalChars = homeResult.bodyText.length;
-
-  // Extract discovered internal links from homepage
-  const discoveredPaths = extractInternalPaths(homeResult.bodyText, normalizedUrl);
-
-  // Merge discovered paths with common paths (discovered first — they're more likely to exist)
-  const pathsToTry = [...new Set([...discoveredPaths, ...COMMON_PATHS])];
-
-  // 2. Fetch subpages until we hit the content cap
-  for (const path of pathsToTry) {
+  for (const result of subpageResults) {
     if (totalChars >= MAX_CONTENT_CHARS) break;
-    if (path === "/" || path === "") continue;
-
-    const pageUrl = `${baseUrl}${path.startsWith("/") ? path : "/" + path}`;
-    const result = await fetchPage(pageUrl, path);
     if (result && result.wordCount > 20) {
       pages.push(result);
       totalChars += result.bodyText.length;
     }
   }
 
-  // Extract meta info from the homepage HTML
-  const homeMeta = extractMeta(homeResult.bodyText);
+  // Extract meta info from the homepage
+  const homeMeta = extractMeta(homeResult.rawHtml || "");
 
   return {
     url: normalizedUrl,
@@ -115,11 +123,52 @@ export async function fetchSiteContent(url: string): Promise<FetchedSiteContent>
   };
 }
 
+/** Fetch multiple pages in parallel with concurrency limit and global timeout */
+async function fetchPagesParallel(
+  targets: { url: string; pathname: string }[]
+): Promise<(FetchedPage | null)[]> {
+  // Global abort controller — kills everything after TOTAL_TIMEOUT_MS
+  const globalController = new AbortController();
+  const globalTimeout = setTimeout(() => globalController.abort(), TOTAL_TIMEOUT_MS);
+
+  const results: (FetchedPage | null)[] = new Array(targets.length).fill(null);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < targets.length && !globalController.signal.aborted) {
+      const idx = nextIndex++;
+      const target = targets[idx];
+      results[idx] = await fetchPage(target.url, target.pathname, globalController.signal);
+    }
+  }
+
+  // Spawn workers up to MAX_CONCURRENT
+  const workers = Array.from(
+    { length: Math.min(MAX_CONCURRENT, targets.length) },
+    () => worker()
+  );
+
+  await Promise.allSettled(workers);
+  clearTimeout(globalTimeout);
+
+  return results;
+}
+
 /** Fetch a single page and extract text content */
-async function fetchPage(url: string, pathname: string): Promise<FetchedPage | null> {
+async function fetchPage(
+  url: string,
+  pathname: string,
+  parentSignal?: AbortSignal
+): Promise<(FetchedPage & { rawHtml?: string }) | null> {
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    const timeout = setTimeout(() => controller.abort(), PAGE_TIMEOUT_MS);
+
+    // Also abort if parent (global) signal fires
+    if (parentSignal) {
+      if (parentSignal.aborted) return null;
+      parentSignal.addEventListener("abort", () => controller.abort(), { once: true });
+    }
 
     const response = await fetch(url, {
       signal: controller.signal,
@@ -144,6 +193,7 @@ async function fetchPage(url: string, pathname: string): Promise<FetchedPage | n
       bodyText: bodyText.slice(0, 4000),
       wordCount,
       statusCode: response.status,
+      rawHtml: html,
     };
   } catch {
     return null;
@@ -163,15 +213,13 @@ function extractBodyText(html: string): string {
     .trim();
 }
 
-/** Extract internal link paths from raw HTML text */
-function extractInternalPaths(htmlOrText: string, baseUrl: string): string[] {
-  // We operate on the raw fetch so we need to re-match href attributes
-  // This is intentionally a simple regex — we just want link discovery
+/** Extract internal link paths from raw HTML */
+function extractInternalPaths(html: string, baseUrl: string): string[] {
   const domain = new URL(baseUrl).hostname;
   const paths: string[] = [];
   const seen = new Set<string>();
 
-  const hrefMatches = [...htmlOrText.matchAll(/href=["']([^"'#][^"']*)["']/gi)];
+  const hrefMatches = [...html.matchAll(/href=["']([^"'#][^"']*)["']/gi)];
   for (const m of hrefMatches) {
     try {
       const linkUrl = new URL(m[1], baseUrl);
@@ -187,7 +235,7 @@ function extractInternalPaths(htmlOrText: string, baseUrl: string): string[] {
     }
   }
 
-  return paths.slice(0, 20); // cap discovery
+  return paths.slice(0, 20);
 }
 
 /** Extract meta description and h1 from HTML (used for homepage) */

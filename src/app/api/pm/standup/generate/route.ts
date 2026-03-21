@@ -85,10 +85,19 @@ export async function POST(req: NextRequest) {
       { onConflict: "org_id,date,log_type", ignoreDuplicates: false }
     );
 
-  // Fallback: if upsert fails (e.g. unique index not yet applied), try insert
+  // Fallback: if upsert fails (e.g. unique index not yet applied), try plain insert
   if (upsertErr) {
     console.warn("[Standup] Upsert failed, trying insert:", upsertErr.message);
-    await supabase.from("pm_daily_logs").insert({
+
+    // Delete any existing standup for today first (manual dedup)
+    await supabase
+      .from("pm_daily_logs")
+      .delete()
+      .eq("org_id", org_id)
+      .eq("date", dateStr)
+      .eq("generated_by", "standup-agent");
+
+    const { error: insertErr } = await supabase.from("pm_daily_logs").insert({
       project_id: null,
       org_id,
       date: dateStr,
@@ -96,6 +105,23 @@ export async function POST(req: NextRequest) {
       generated_by: "standup-agent",
       log_type: "standup",
     });
+
+    if (insertErr) {
+      console.error("[Standup] Insert also failed:", insertErr.message);
+      // Last resort: try minimal insert without optional columns
+      const { error: minimalErr } = await supabase.from("pm_daily_logs").insert({
+        date: dateStr,
+        content,
+        generated_by: "standup-agent",
+      });
+      if (minimalErr) {
+        console.error("[Standup] Minimal insert failed:", minimalErr.message);
+        return NextResponse.json(
+          { error: `Standup generated but failed to save: ${minimalErr.message}`, content },
+          { status: 500 }
+        );
+      }
+    }
   }
 
   // Send email if requested

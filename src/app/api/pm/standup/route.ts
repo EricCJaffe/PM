@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
 
   const supabase = createServiceClient();
 
+  // Primary query: by org_id + log_type
   const { data, error } = await supabase
     .from("pm_daily_logs")
     .select("*")
@@ -26,16 +27,30 @@ export async function GET(req: NextRequest) {
     .order("date", { ascending: false })
     .limit(limit);
 
-  if (error) {
-    // Fallback if org_id/log_type columns don't exist yet (pre-migration)
-    const fallback = await supabase
-      .from("pm_daily_logs")
-      .select("*")
-      .eq("generated_by", "standup-agent")
-      .order("date", { ascending: false })
-      .limit(limit);
-    return NextResponse.json(fallback.data ?? []);
+  if (!error && data) {
+    return NextResponse.json(data);
   }
 
-  return NextResponse.json(data ?? []);
+  // Fallback 1: org_id exists but log_type doesn't
+  const { data: fb1, error: fb1Err } = await supabase
+    .from("pm_daily_logs")
+    .select("*")
+    .eq("org_id", orgId)
+    .eq("generated_by", "standup-agent")
+    .order("date", { ascending: false })
+    .limit(limit);
+
+  if (!fb1Err && fb1) {
+    return NextResponse.json(fb1);
+  }
+
+  // Fallback 2: neither org_id nor log_type columns exist
+  const { data: fb2 } = await supabase
+    .from("pm_daily_logs")
+    .select("*")
+    .eq("generated_by", "standup-agent")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  return NextResponse.json(fb2 ?? []);
 }
