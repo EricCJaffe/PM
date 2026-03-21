@@ -145,6 +145,7 @@ export async function POST(request: NextRequest) {
     );
 
     let insertedPhases: { id: string; slug: string }[] = [];
+    let tasksCreated = 0;
     if (phaseRows.length > 0) {
       const { data: pData, error: pError } = await supabase
         .from("pm_phases")
@@ -159,25 +160,34 @@ export async function POST(request: NextRequest) {
 
       // Create tasks from template phases
       const phaseMap = new Map(insertedPhases.map((p) => [p.slug, p.id]));
-      const taskRows: Record<string, unknown>[] = [];
+      const taskRows: {
+        project_id: string;
+        org_id: string;
+        phase_id: string;
+        slug: string;
+        name: string;
+        status: string;
+        sort_order: number;
+      }[] = [];
 
       for (const phase of phases) {
         const typedPhase = phase as {
           slug: string;
-          tasks?: { name: string; slug: string; status?: string; priority?: string }[];
+          tasks?: { name: string; slug: string }[];
         };
         const phaseId = phaseMap.get(typedPhase.slug);
         if (!phaseId || !typedPhase.tasks) continue;
 
-        for (const t of typedPhase.tasks) {
+        for (let i = 0; i < typedPhase.tasks.length; i++) {
+          const t = typedPhase.tasks[i];
           taskRows.push({
             project_id: project.id,
             phase_id: phaseId,
             org_id: org.id,
             name: t.name,
             slug: t.slug,
-            status: t.status ?? "not-started",
-            priority: t.priority ?? "medium",
+            status: "not-started",
+            sort_order: i,
           });
         }
       }
@@ -186,7 +196,11 @@ export async function POST(request: NextRequest) {
         const { error: tError } = await supabase
           .from("pm_tasks")
           .insert(taskRows);
-        if (tError) console.error("Task insert failed:", tError);
+        if (tError) {
+          console.error("Task insert failed:", tError.message);
+        } else {
+          tasksCreated = taskRows.length;
+        }
       }
     }
 
@@ -281,6 +295,7 @@ export async function POST(request: NextRequest) {
         project,
         project_id: project.id,
         phases_created: insertedPhases.length,
+        tasks_created: tasksCreated,
         download_url: signedUrl?.signedUrl ?? null,
         storage_path: storagePath,
       },

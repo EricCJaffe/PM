@@ -27,6 +27,13 @@
 - [x] End-to-end test: full auth flow (login → admin console → add user → external user scoping)
 - [x] Onboarding notes: new users are added via admin console, which creates auth user + links to pm_members with org access. Each user gets a role per org: admin, user, or external (read-only)
 
+## Bug Fixes
+- [x] Fix intake route not creating tasks from template — `priority` column doesn't exist on `pm_tasks`, causing silent insert failure
+  - Removed non-existent `priority` field from task insert in `/api/pm/projects/intake`
+  - Added `sort_order` to task inserts in both seed and intake routes
+  - Added `tasks_created` count to intake route response
+  - Migration 036: adds `priority` column to `pm_tasks` (low/medium/high/urgent, default medium)
+
 ## Still Pending
 - [x] Add RLS policies to all PM tables (leverage pm_user_org_access for row-level filtering)
   - Migration 014_rls_policies.sql: enables RLS on all 20 PM tables
