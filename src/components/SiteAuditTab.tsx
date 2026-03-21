@@ -57,11 +57,11 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
       .catch(() => {});
   }, [orgId]);
 
-  // Poll for audit completion (max ~2 minutes before giving up)
+  // Poll for audit completion (max ~3 minutes before giving up)
   useEffect(() => {
     if (!activeAudit || activeAudit.status !== "running") return;
     let pollCount = 0;
-    const MAX_POLLS = 48; // 48 * 2.5s = 2 minutes
+    const MAX_POLLS = 72; // 72 * 2.5s = 3 minutes
     const interval = setInterval(async () => {
       pollCount++;
       if (pollCount > MAX_POLLS) {
@@ -110,6 +110,21 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
 
       // POST returns immediately with status "running" — polling takes over
       setActiveAudit(data);
+
+      // Trigger background processing (separate serverless invocation)
+      fetch("/api/pm/site-audit/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          audit_id: data.id,
+          url: data.url,
+          vertical,
+          org_id: orgId,
+          extra_context: null,
+        }),
+      }).catch(() => {
+        // Processing errors are handled server-side (marks audit as failed)
+      });
     } catch (err) {
       setRunning(false);
       setView("form");

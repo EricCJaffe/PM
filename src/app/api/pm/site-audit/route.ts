@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       .update({ status: "failed", audit_summary: "Audit timed out" })
       .eq("org_id", orgId)
       .eq("status", "running")
-      .lt("created_at", new Date(Date.now() - 3 * 60 * 1000).toISOString());
+      .lt("created_at", new Date(Date.now() - 5 * 60 * 1000).toISOString());
 
     const { data, error } = await supabase
       .from("pm_site_audits")
@@ -72,23 +72,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: insertErr?.message || "Failed to create audit" }, { status: 500 });
     }
 
-    // Fire off background processing — don't await it
-    const processUrl = new URL("/api/pm/site-audit/process", request.url);
-    fetch(processUrl.toString(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        audit_id: audit.id,
-        url: normalizedUrl,
-        vertical,
-        org_id,
-        extra_context: extra_context || null,
-      }),
-    }).catch((err) => {
-      console.error("Failed to trigger audit processing:", err);
-    });
-
-    // Return immediately — frontend will poll via GET /api/pm/site-audit/[id]
+    // Return immediately — frontend triggers processing and polls for completion
     return NextResponse.json(audit, { status: 202 });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Internal error" }, { status: 500 });
