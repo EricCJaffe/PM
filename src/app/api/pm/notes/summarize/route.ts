@@ -67,7 +67,30 @@ Keep the summary clear, professional, and focused on what matters for the accoun
 
     const summary = response.choices[0]?.message?.content ?? "Summary generation failed.";
 
-    return NextResponse.json({ summary, note_count: notes.length });
+    // Save summary as a client note for historical reference
+    const { data: savedNote, error: saveErr } = await supabase
+      .from("pm_client_notes")
+      .insert({
+        org_id,
+        title: `AI Summary — ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`,
+        body: summary,
+        note_type: "general",
+        visibility: "internal",
+        author: "AI",
+        pinned: false,
+      })
+      .select()
+      .single();
+
+    if (saveErr) {
+      console.warn("Failed to save summary note:", saveErr.message);
+    }
+
+    return NextResponse.json({
+      summary,
+      note_count: notes.length,
+      saved_note_id: savedNote?.id ?? null,
+    });
   } catch (err) {
     console.error("Note summarization error:", err);
     return NextResponse.json(

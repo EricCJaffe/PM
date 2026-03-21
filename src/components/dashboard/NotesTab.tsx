@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
 import type { Organization, ClientNote, ClientNoteAttachment, NoteType, NoteVisibility } from "@/types/pm";
 
 const RichTextEditor = lazy(() => import("../RichTextEditor"));
@@ -59,12 +59,15 @@ export function NotesTab({ org }: { org: Organization }) {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    fetch(`/api/pm/notes?org_id=${org.id}`)
+  const reloadNotes = useCallback(() => {
+    return fetch(`/api/pm/notes?org_id=${org.id}`)
       .then((r) => r.json())
-      .then((data) => { if (Array.isArray(data)) setNotes(data); })
-      .finally(() => setLoading(false));
+      .then((data) => { if (Array.isArray(data)) setNotes(data); });
   }, [org.id]);
+
+  useEffect(() => {
+    reloadNotes().finally(() => setLoading(false));
+  }, [reloadNotes]);
 
   const filtered = notes.filter((n) => {
     if (filterType !== "all" && n.note_type !== filterType) return false;
@@ -216,6 +219,8 @@ export function NotesTab({ org }: { org: Organization }) {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setSummary(data.summary);
+      // Reload notes to show the saved summary note
+      await reloadNotes();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Summarization failed");
     } finally {
