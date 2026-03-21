@@ -3,6 +3,7 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { Organization, PMDocument, ProjectWithStats } from "@/types/pm";
 import { Modal, Field, Input, Select, ModalActions } from "../Modal";
+import { FilePreviewModal } from "@/components/FilePreviewModal";
 
 const CATEGORIES = ["sop", "document", "report", "template", "policy", "other"] as const;
 
@@ -99,6 +100,7 @@ export function DocsTab({ org, documents, projects, selectedProjectId }: { org: 
   const [filter, setFilter] = useState<string | null>(null);
   const [scanning, setScanning] = useState<string | null>(null);
   const [scanResult, setScanResult] = useState<{ docTitle: string; count: number } | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<PMDocument | null>(null);
 
   const filtered = filter ? documents.filter((d) => d.category === filter) : documents;
   const categories = [...new Set(documents.map((d) => d.category))];
@@ -128,6 +130,24 @@ export function DocsTab({ org, documents, projects, selectedProjectId }: { org: 
       router.refresh();
     } else {
       alert(data.error || "Scan failed");
+    }
+  }
+
+  async function handleDownload(doc: PMDocument) {
+    try {
+      const res = await fetch(`/api/pm/attachments/download?type=document&id=${doc.id}`);
+      const data = await res.json();
+      if (data.download_url) {
+        const a = document.createElement("a");
+        a.href = data.download_url;
+        a.download = doc.file_name;
+        a.target = "_blank";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+    } catch {
+      alert("Failed to download file");
     }
   }
 
@@ -178,10 +198,16 @@ export function DocsTab({ org, documents, projects, selectedProjectId }: { org: 
       ) : (
         <div className="space-y-2">
           {filtered.map((doc) => (
-            <div key={doc.id} className="card flex items-center gap-4">
+            <div key={doc.id} className="card flex items-center gap-4 group">
               <span className="text-2xl">{categoryIcons[doc.category] ?? "📎"}</span>
               <div className="flex-1 min-w-0">
-                <div className="font-medium text-pm-text">{doc.title}</div>
+                <button
+                  onClick={() => setPreviewDoc(doc)}
+                  className="font-medium text-blue-400 hover:text-blue-300 text-left truncate block"
+                  title="Click to preview"
+                >
+                  {doc.title}
+                </button>
                 <div className="flex items-center gap-3 mt-0.5 text-xs text-pm-muted">
                   <span>{categoryLabels[doc.category]}</span>
                   {doc.department && <span>{doc.department}</span>}
@@ -192,6 +218,25 @@ export function DocsTab({ org, documents, projects, selectedProjectId }: { org: 
                 {doc.description && <p className="text-xs text-pm-muted mt-1">{doc.description}</p>}
               </div>
               <button
+                onClick={() => setPreviewDoc(doc)}
+                className="opacity-0 group-hover:opacity-100 p-1.5 text-pm-muted hover:text-pm-text hover:bg-pm-bg rounded transition-all shrink-0"
+                title="Preview"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              </button>
+              <button
+                onClick={() => handleDownload(doc)}
+                className="opacity-0 group-hover:opacity-100 p-1.5 text-pm-muted hover:text-blue-400 hover:bg-pm-bg rounded transition-all shrink-0"
+                title="Download"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              </button>
+              <button
                 onClick={() => handleScan(doc)}
                 disabled={scanning === doc.id}
                 className="px-2 py-1 text-xs rounded border border-pm-accent text-pm-accent hover:bg-pm-accent hover:text-white transition-colors disabled:opacity-50 shrink-0"
@@ -201,7 +246,7 @@ export function DocsTab({ org, documents, projects, selectedProjectId }: { org: 
               </button>
               <button
                 onClick={() => handleDelete(doc)}
-                className="p-1 text-pm-muted hover:text-pm-blocked shrink-0"
+                className="opacity-0 group-hover:opacity-100 p-1.5 text-pm-muted hover:text-pm-blocked hover:bg-pm-bg rounded transition-all shrink-0"
                 title="Delete"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -214,6 +259,16 @@ export function DocsTab({ org, documents, projects, selectedProjectId }: { org: 
       )}
 
       {upload && <UploadModal orgId={org.id} onClose={() => setUpload(false)} projectId={selectedProjectId} />}
+
+      {previewDoc && (
+        <FilePreviewModal
+          fileName={previewDoc.file_name}
+          contentType={previewDoc.mime_type || "application/octet-stream"}
+          attachmentType="document"
+          attachmentId={previewDoc.id}
+          onClose={() => setPreviewDoc(null)}
+        />
+      )}
     </div>
   );
 }

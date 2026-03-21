@@ -5,6 +5,7 @@ import { Modal, Field, Input, Select, Textarea } from "./Modal";
 
 const RichTextEditor = lazy(() => import("./RichTextEditor"));
 import { RecurrencePicker, type RecurrenceConfig } from "./RecurrencePicker";
+import { FilePreviewModal } from "./FilePreviewModal";
 import type { PMStatus, Subtask, TaskComment, TaskAttachment } from "@/types/pm";
 
 const STATUSES: PMStatus[] = ["not-started", "in-progress", "complete", "blocked", "pending", "on-hold"];
@@ -100,6 +101,7 @@ export function TaskDetailModal({
   const [attachments, setAttachments] = useState<TaskAttachment[]>([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [previewAtt, setPreviewAtt] = useState<TaskAttachment | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load comments when tab opens (edit mode only)
@@ -430,7 +432,7 @@ export function TaskDetailModal({
   }
 
   async function deleteAttachment(attachmentId: string) {
-    if (!task) return;
+    if (!task || !confirm("Delete this file?")) return;
     try {
       await fetch(`/api/pm/tasks/${task.id}/attachments`, {
         method: "DELETE",
@@ -440,6 +442,24 @@ export function TaskDetailModal({
       setAttachments((prev) => prev.filter((a) => a.id !== attachmentId));
     } catch {
       alert("Failed to delete attachment");
+    }
+  }
+
+  async function downloadAttachment(att: TaskAttachment) {
+    try {
+      const res = await fetch(`/api/pm/attachments/download?type=task&id=${att.id}`);
+      const data = await res.json();
+      if (data.download_url) {
+        const a = document.createElement("a");
+        a.href = data.download_url;
+        a.download = att.file_name;
+        a.target = "_blank";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+    } catch {
+      alert("Failed to download file");
     }
   }
 
@@ -763,18 +783,58 @@ export function TaskDetailModal({
                         </svg>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm text-pm-text truncate">{a.file_name}</div>
+                        <button
+                          onClick={() => setPreviewAtt(a)}
+                          className="text-sm text-blue-400 hover:text-blue-300 truncate block text-left"
+                          title="Click to preview"
+                        >
+                          {a.file_name}
+                        </button>
                         <div className="text-xs text-pm-muted">{formatFileSize(a.file_size)}</div>
                       </div>
-                      <button
-                        onClick={() => deleteAttachment(a.id)}
-                        className="text-red-400/0 group-hover:text-red-400/60 hover:!text-red-400 text-xs transition-colors shrink-0"
-                      >
-                        Remove
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => setPreviewAtt(a)}
+                          className="opacity-0 group-hover:opacity-100 p-1.5 text-pm-muted hover:text-pm-text hover:bg-pm-card rounded transition-all"
+                          title="Preview"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => downloadAttachment(a)}
+                          className="opacity-0 group-hover:opacity-100 p-1.5 text-pm-muted hover:text-blue-400 hover:bg-pm-card rounded transition-all"
+                          title="Download"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => deleteAttachment(a.id)}
+                          className="opacity-0 group-hover:opacity-100 p-1.5 text-red-400 hover:bg-red-500/10 rounded transition-all"
+                          title="Delete"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
+              )}
+
+              {previewAtt && (
+                <FilePreviewModal
+                  fileName={previewAtt.file_name}
+                  contentType={previewAtt.content_type || "application/octet-stream"}
+                  attachmentType="task"
+                  attachmentId={previewAtt.id}
+                  onClose={() => setPreviewAtt(null)}
+                />
               )}
             </>
           )}

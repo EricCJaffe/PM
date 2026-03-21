@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } fro
 import Link from "next/link";
 import type { Organization, Engagement, DealStage, EngagementAttachment } from "@/types/pm";
 import { StatusBadge } from "@/components/StatusBadge";
+import { FilePreviewModal } from "@/components/FilePreviewModal";
 
 const RichTextEditor = lazy(() => import("@/components/RichTextEditor"));
 
@@ -83,6 +84,7 @@ export function EngagementOverview({ org }: { org: Organization }) {
   const [uploading, setUploading] = useState(false);
   const [uploadCategory, setUploadCategory] = useState("discovery");
   const [generatingProjectFiles, setGeneratingProjectFiles] = useState(false);
+  const [previewAtt, setPreviewAtt] = useState<EngagementAttachment | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Create form state
@@ -768,8 +770,9 @@ export function EngagementOverview({ org }: { org: Organization }) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <button
-                        onClick={() => downloadAttachment(att)}
+                        onClick={() => setPreviewAtt(att)}
                         className="text-sm text-blue-400 hover:text-blue-300 truncate block text-left"
+                        title="Click to preview"
                       >
                         {att.file_name}
                       </button>
@@ -781,21 +784,52 @@ export function EngagementOverview({ org }: { org: Organization }) {
                         <span>{new Date(att.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
                       </div>
                     </div>
-                    <button
-                      onClick={() => deleteAttachment(att.id)}
-                      className="opacity-0 group-hover:opacity-100 p-1.5 text-red-400 hover:bg-red-500/10 rounded transition-all"
-                      title="Delete"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => setPreviewAtt(att)}
+                        className="opacity-0 group-hover:opacity-100 p-1.5 text-pm-muted hover:text-pm-text hover:bg-pm-bg rounded transition-all"
+                        title="Preview"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => downloadAttachment(att)}
+                        className="opacity-0 group-hover:opacity-100 p-1.5 text-pm-muted hover:text-blue-400 hover:bg-pm-bg rounded transition-all"
+                        title="Download"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => deleteAttachment(att.id)}
+                        className="opacity-0 group-hover:opacity-100 p-1.5 text-red-400 hover:bg-red-500/10 rounded transition-all"
+                        title="Delete"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
         </>
+      )}
+
+      {previewAtt && (
+        <FilePreviewModal
+          fileName={previewAtt.file_name}
+          contentType={previewAtt.content_type || "application/octet-stream"}
+          attachmentType="engagement"
+          attachmentId={previewAtt.id}
+          onClose={() => setPreviewAtt(null)}
+        />
       )}
     </div>
   );
