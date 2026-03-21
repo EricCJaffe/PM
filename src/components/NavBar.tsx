@@ -44,7 +44,7 @@ export function NavBar() {
     { href: "/documents", label: "Documents" },
     { href: "/kb", label: "KB" },
     { href: "/site-audit", label: "Audit" },
-    ...(isAdmin ? [{ href: "/admin/users", label: "Admin" }] : []),
+    ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
   ];
 
   async function handleSignOut() {
