@@ -115,11 +115,14 @@ export async function POST(
 
     // Generate section content from audit data using AI
     const openai = getOpenAI();
-    const scores = audit.scores as Record<string, string>;
-    const gaps = audit.gaps as Record<string, Array<{ issue: string; severity: string; recommendation: string }>>;
-    const recommendations = audit.recommendations as Array<{ title: string; priority: string; description: string }>;
-    const quickWins = audit.quick_wins as Array<{ title: string; description: string }>;
-    const pagesToBuild = audit.pages_to_build as Array<{ slug: string; title: string; reason: string }>;
+    const scores = audit.scores;
+    const overall = audit.overall;
+    const gaps = audit.gaps;
+    const recommendations = audit.recommendations;
+    const quickWins = audit.quick_wins;
+    const pagesToBuild = audit.pages_to_build;
+    const rebuildTimeline = audit.rebuild_timeline;
+    const platformComparison = audit.platform_comparison;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -137,20 +140,23 @@ Return a JSON object where keys are section_key strings and values are HTML stri
 
 AUDIT DATA:
 - Summary: ${audit.audit_summary}
+- Overall: ${JSON.stringify(overall)}
 - Scores: ${JSON.stringify(scores)}
 - Gaps: ${JSON.stringify(gaps)}
 - Recommendations: ${JSON.stringify(recommendations)}
 - Quick Wins: ${JSON.stringify(quickWins)}
 - Pages to Build: ${JSON.stringify(pagesToBuild)}
+- Rebuild Timeline: ${JSON.stringify(rebuildTimeline)}
+- Platform Comparison: ${JSON.stringify(platformComparison)}
 
 SECTIONS TO GENERATE:
-1. "executive_summary" — High-level overview of findings, overall grade, key takeaways
-2. "score_card" — Visual scorecard table with all 6 dimensions, grades, and brief explanations
-3. "gap_analysis" — Detailed gap analysis organized by dimension with severity indicators
-4. "recommendations" — Prioritized list of recommendations with effort/impact ratings
-5. "quick_wins" — Immediate actions that can be taken right away
-6. "site_structure" — Recommended page structure / pages to build
-7. "next_steps" — Proposed engagement next steps and timeline
+1. "executive_summary" — High-level overview with overall grade (${overall?.grade || "?"}, ${overall?.score || 0}%), key takeaways, rebuild recommendation if applicable
+2. "score_card" — Table with all 6 dimensions showing grade, numeric score, weight, and top finding
+3. "gap_analysis" — Gap tables per dimension with Item / Current State / Standard / Gap columns
+4. "recommendations" — Prioritized list with effort/impact ratings
+5. "quick_wins" — Action / Time / Impact table for immediate improvements
+6. "site_structure" — Pages to build with priority (P0/P1/P2) and notes
+7. "next_steps" — Proposed engagement next steps, timeline, and platform recommendation
 
 Return ONLY valid JSON, no markdown fences.`,
         },

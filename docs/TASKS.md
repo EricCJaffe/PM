@@ -14,6 +14,7 @@
 - [x] Apply migration 021_vault_storage_bucket.sql to Supabase
 - [ ] Apply migration 025_note_visibility.sql to Supabase
 - [ ] Apply migration 026_site_audits.sql to Supabase
+- [ ] Apply migration 027_site_audit_scoring_v2.sql to Supabase
 
 ## Backfill Scripts — Completed
 1. [x] Run FSA site-org backfill: `npx tsx scripts/backfill-fsa-site-org.ts`
@@ -57,6 +58,22 @@
 - [ ] QuickBooks integration (placeholder — billing/invoicing)
 
 ## Recently Completed
+- [x] Site Audit Rubric-Based Scoring v2 + PDF Report Generation
+  - Rubric-based scoring: loads vertical-specific rubric files (Church, Agency, Nonprofit) from docs/SEO/
+  - Numeric scores (0-100) per dimension with correct grade thresholds (A=90+, B=80-89, C=70-79, D=60-69, D-=50-59, F<50)
+  - Weighted overall score calculation: SEO 20%, Entity 15%, AI Discoverability 20%, Conversion 20%, Content 15%, A2A 10%
+  - Rebuild decision logic: auto-flags when overall<60, AI<50, or content<40
+  - Gap analysis tables: Item / Current State / Standard / Gap format (matches PDF spec)
+  - Quick wins with time estimates and impact descriptions
+  - Pages to build with P0/P1/P2 priority ranking
+  - Platform comparison (current vs recommended)
+  - Rebuild timeline with phases, focus areas, and deliverables
+  - PDF report route: /api/pm/site-audit/[id]/pdf — generates printable HTML matching AUDIT_PDF_SPEC.md
+  - PDF design system: dark green (#1c2b1e) / amber (#c4793a) / cream (#f5f0e8) color palette
+  - PDF structure: cover page, executive summary, 6 dimension pages, rebuild recommendation, quick wins
+  - UI updated: score bars with percentages, overall grade badge, rebuild warnings, gap analysis tables
+  - Migration 027: adds overall, pages_missing, rebuild_timeline, platform_comparison columns
+  - Backward compatible: old letter-grade-only audits still display correctly
 - [x] CRM Engagement Workflow — full quote-to-cash pipeline
   - Migration 023: pm_engagements, pm_engagement_task_templates tables, client_status on orgs, 7-stage pipeline model
   - Migration 024: MSA document type template with 21 intake fields
