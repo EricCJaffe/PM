@@ -17,7 +17,10 @@ ALTER TABLE pm_daily_logs
   ADD COLUMN IF NOT EXISTS log_type TEXT NOT NULL DEFAULT 'daily'
   CHECK (log_type IN ('daily', 'standup', 'rollup', 'blocker', 'hub', 'decisions'));
 
--- 4. Drop old generated_by CHECK and re-add with standup-agent
+-- 4. Ensure generated_by column exists, then expand CHECK for standup-agent
+ALTER TABLE pm_daily_logs
+  ADD COLUMN IF NOT EXISTS generated_by TEXT DEFAULT 'ai';
+
 ALTER TABLE pm_daily_logs
   DROP CONSTRAINT IF EXISTS pm_daily_logs_generated_by_check;
 
