@@ -39,6 +39,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "org_id, url, and vertical are required" }, { status: 400 });
     }
 
+    // Normalize URL — add https:// if no protocol provided
+    const normalizedUrl = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+
+    // Validate it's a parseable URL
+    try {
+      new URL(normalizedUrl);
+    } catch {
+      return NextResponse.json({ error: `Invalid URL: ${url}` }, { status: 400 });
+    }
+
     const supabase = createServiceClient();
 
     // 1. Create audit record in running state
@@ -46,7 +56,7 @@ export async function POST(request: NextRequest) {
       .from("pm_site_audits")
       .insert({
         org_id,
-        url,
+        url: normalizedUrl,
         vertical,
         engagement_id: engagement_id || null,
         extra_context: extra_context || null,
@@ -61,7 +71,7 @@ export async function POST(request: NextRequest) {
 
     try {
       // 2. Fetch the website HTML
-      const siteResponse = await fetch(url, {
+      const siteResponse = await fetch(normalizedUrl, {
         headers: {
           "User-Agent": "Mozilla/5.0 (compatible; BusinessOS-SiteAudit/1.0)",
           Accept: "text/html",
@@ -76,10 +86,10 @@ export async function POST(request: NextRequest) {
       const html = await siteResponse.text();
 
       // 3. Extract key signals from HTML
-      const signals = extractSignals(html, url);
+      const signals = extractSignals(html, normalizedUrl);
 
       // 3b. Fetch additional subpages for richer AI context
-      const subpageContent = await fetchSiteContent(url);
+      const subpageContent = await fetchSiteContent(normalizedUrl);
       const subpagesSummary = subpageContent.pages
         .filter((p) => p.pathname !== "/")
         .map((p) => `=== ${p.pathname} (${p.title || "untitled"}, ${p.wordCount} words) ===\n${p.bodyText.slice(0, 1500)}`)
@@ -98,7 +108,7 @@ export async function POST(request: NextRequest) {
         model: "gpt-4o",
         messages: [
           { role: "system", content: buildSystemPrompt(vertical, rubricContent, kbContext) },
-          { role: "user", content: buildUserPrompt(signals, url, extra_context, subpagesSummary) },
+          { role: "user", content: buildUserPrompt(signals, normalizedUrl, extra_context, subpagesSummary) },
         ],
         temperature: 0.3,
         response_format: { type: "json_object" },
@@ -163,9 +173,9 @@ export async function POST(request: NextRequest) {
 
       // 8. Generate rebuilt site mockup
       const siteTitle = signals.title ? stripTags(signals.title).replace(/\s*[|\-–—].*/, "").trim() : "";
-      const orgName = siteTitle || new URL(url.startsWith("http") ? url : `https://${url}`).hostname;
+      const orgName = siteTitle || new URL(normalizedUrl).hostname;
       const mockupHtml = generateMockupHtml({
-        url,
+        url: normalizedUrl,
         vertical: vertical as import("@/types/pm").AuditVertical,
         orgName,
         scores,
