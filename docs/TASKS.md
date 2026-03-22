@@ -232,9 +232,10 @@
   - Pages to build with P0/P1/P2 priority ranking
   - Platform comparison (current vs recommended)
   - Rebuild timeline with phases, focus areas, and deliverables
-  - PDF report route: /api/pm/site-audit/[id]/pdf — generates printable HTML matching AUDIT_PDF_SPEC.md
-  - PDF design system: dark green (#1c2b1e) / amber (#c4793a) / cream (#f5f0e8) color palette
-  - PDF structure: cover page, executive summary, 6 dimension pages, rebuild recommendation, quick wins
+  - PDF report route: /api/pm/site-audit/[id]/pdf — generates printable HTML with FSA brand design system
+  - PDF design system: FSA branded — Navy (#1B2A4A) cover, white body pages, blue (#5B9BD5) accent bars, navy section dividers, navy table headers with alternating rows
+  - PDF layout matches COMPONENTS.md: cover with accent bars + logo + prepared for/by, body pages with navy header strip + footer, closing callout box
+  - PDF structure: cover page, executive summary, 6 dimension pages, rebuild recommendation, quick wins, closing page
   - UI updated: score bars with percentages, overall grade badge, rebuild warnings, gap analysis tables
   - Migration 027: adds overall, pages_missing, rebuild_timeline, platform_comparison columns
   - Backward compatible: old letter-grade-only audits still display correctly
