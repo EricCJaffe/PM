@@ -42,6 +42,7 @@ export function ProposalsTab({ org }: { org: Organization }) {
   const [loading, setLoading] = useState(true);
   const [showBuilder, setShowBuilder] = useState(false);
   const [showPreview, setShowPreview] = useState<Proposal | null>(null);
+  const [showEmailCompose, setShowEmailCompose] = useState<Proposal | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -65,7 +66,19 @@ export function ProposalsTab({ org }: { org: Organization }) {
     setProposals((prev) => prev.filter((p) => p.id !== id));
   };
 
-  const handleSend = async (id: string) => {
+  const handleSendEmail = async (id: string, emailData: { to: string; subject: string; message: string }) => {
+    const res = await fetch(`/api/pm/proposals/${id}/send`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(emailData),
+    });
+    const data = await res.json();
+    if (data.error) { alert(data.error); return false; }
+    setProposals((prev) => prev.map((p) => (p.id === id ? data : p)));
+    return true;
+  };
+
+  const handleMarkSent = async (id: string) => {
     const res = await fetch(`/api/pm/proposals/${id}/send`, { method: "POST" });
     const data = await res.json();
     if (data.error) { alert(data.error); return; }
@@ -137,12 +150,20 @@ export function ProposalsTab({ org }: { org: Organization }) {
                     </button>
                   )}
                   {proposal.status === "draft" && proposal.generated_content && (
-                    <button
-                      onClick={() => handleSend(proposal.id)}
-                      className="px-3 py-1.5 bg-pm-accent hover:bg-pm-accent-hover text-white rounded-md text-xs font-medium transition-colors"
-                    >
-                      Mark Sent
-                    </button>
+                    <>
+                      <button
+                        onClick={() => setShowEmailCompose(proposal)}
+                        className="px-3 py-1.5 bg-pm-accent hover:bg-pm-accent-hover text-white rounded-md text-xs font-medium transition-colors"
+                      >
+                        Send Email
+                      </button>
+                      <button
+                        onClick={() => handleMarkSent(proposal.id)}
+                        className="px-3 py-1.5 border border-pm-border text-pm-muted hover:text-pm-text hover:bg-pm-card rounded-md text-xs font-medium transition-colors"
+                      >
+                        Mark Sent
+                      </button>
+                    </>
                   )}
                   {proposal.status === "draft" && (
                     <button
@@ -224,6 +245,164 @@ export function ProposalsTab({ org }: { org: Organization }) {
           </div>
         </div>
       )}
+
+      {/* Email Compose Modal */}
+      {showEmailCompose && (
+        <EmailComposeModal
+          proposal={showEmailCompose}
+          org={org}
+          onClose={() => setShowEmailCompose(null)}
+          onSent={(updatedProposal) => {
+            setProposals((prev) => prev.map((p) => (p.id === updatedProposal.id ? updatedProposal : p)));
+            setShowEmailCompose(null);
+          }}
+          onSendEmail={handleSendEmail}
+        />
+      )}
+    </div>
+  );
+}
+
+function EmailComposeModal({
+  proposal,
+  org,
+  onClose,
+  onSent,
+  onSendEmail,
+}: {
+  proposal: Proposal;
+  org: Organization;
+  onClose: () => void;
+  onSent: (p: Proposal) => void;
+  onSendEmail: (id: string, data: { to: string; subject: string; message: string }) => Promise<boolean>;
+}) {
+  const [to, setTo] = useState(org.contact_email || "");
+  const [subject, setSubject] = useState(`Proposal: ${proposal.title}`);
+  const [message, setMessage] = useState(
+    `We've prepared a proposal for ${org.name}. Please click the link below to review the details and let us know if you have any questions.`
+  );
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const handleSend = async () => {
+    if (!to || !to.includes("@")) {
+      alert("Please enter a valid email address");
+      return;
+    }
+    setSending(true);
+    const success = await onSendEmail(proposal.id, { to, subject, message });
+    setSending(false);
+    if (success) setSent(true);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+      <div className="bg-pm-card rounded-xl border border-pm-border max-w-xl w-full max-h-[85vh] overflow-auto">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-semibold text-pm-text">
+              {sent ? "Email Sent" : "Send Proposal"}
+            </h3>
+            <button onClick={onClose} className="text-pm-muted hover:text-pm-text text-xl">&times;</button>
+          </div>
+
+          {sent ? (
+            <div className="space-y-4">
+              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4">
+                <p className="text-sm text-emerald-400 font-medium">
+                  Proposal sent to {to}
+                </p>
+                <p className="text-xs text-emerald-400/70 mt-1">
+                  The recipient will receive an email with a link to view and respond to the proposal.
+                </p>
+              </div>
+              <button
+                onClick={onClose}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Proposal info */}
+              <div className="bg-pm-bg rounded-lg p-3 border border-pm-border">
+                <p className="text-xs text-pm-muted">Proposal</p>
+                <p className="text-sm text-pm-text font-medium">{proposal.title}</p>
+              </div>
+
+              {/* To field */}
+              <div>
+                <label className="block text-sm font-medium text-pm-muted mb-1">To *</label>
+                <input
+                  type="email"
+                  value={to}
+                  onChange={(e) => setTo(e.target.value)}
+                  placeholder="client@example.com"
+                  className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text text-sm focus:outline-none focus:border-blue-500"
+                />
+                {org.contact_email && to !== org.contact_email && (
+                  <button
+                    onClick={() => setTo(org.contact_email!)}
+                    className="text-xs text-blue-400 hover:text-blue-300 mt-1"
+                  >
+                    Use {org.contact_name || "client"}&apos;s email ({org.contact_email})
+                  </button>
+                )}
+              </div>
+
+              {/* Subject */}
+              <div>
+                <label className="block text-sm font-medium text-pm-muted mb-1">Subject</label>
+                <input
+                  type="text"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text text-sm focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {/* Message body */}
+              <div>
+                <label className="block text-sm font-medium text-pm-muted mb-1">Message</label>
+                <textarea
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  rows={5}
+                  className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text text-sm focus:outline-none focus:border-blue-500"
+                />
+                <p className="text-xs text-pm-muted mt-1">
+                  A &quot;View Proposal&quot; button with the share link will be included automatically.
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={handleSend}
+                  disabled={sending || !to}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  {sending ? (
+                    <>
+                      <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                      Sending...
+                    </>
+                  ) : (
+                    "Send Email"
+                  )}
+                </button>
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 text-pm-muted hover:text-pm-text text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

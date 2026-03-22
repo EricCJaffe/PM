@@ -103,6 +103,9 @@ export interface Project {
   status: ProjectStatus;
   is_personal: boolean;
   personal_member_slug: string | null;
+  project_type: ProjectCategory;
+  parent_project_id: string | null;
+  onboarding_status: OnboardingStatus;
   created_at: string;
   updated_at: string;
 }
@@ -119,6 +122,9 @@ export interface Phase {
   owner: string | null;
   start_date: string | null;
   due_date: string | null;
+  department_id: string | null;
+  estimated_cost: number | null;
+  actual_cost: number | null;
   created_at: string;
 }
 
@@ -137,6 +143,7 @@ export interface Task {
   depends_on: string[];
   risk_id: string | null;
   subtasks: Subtask[];
+  department_id: string | null;
   engagement_id: string | null;
   completed_at: string | null;
   nudge_after_days: number | null;
@@ -145,6 +152,8 @@ export interface Task {
   series_occurrence_date: string | null;
   is_exception: boolean;
   original_date: string | null;
+  estimated_cost: number | null;
+  actual_cost: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -328,6 +337,21 @@ export interface EngagementTaskTemplate {
   engagement_type: "new_prospect" | "existing_client" | "both";
   sort_order: number;
   is_active: boolean;
+  created_at: string;
+}
+
+export type EngagementAttachmentCategory = "general" | "discovery" | "proposal" | "contract" | "intake" | "project-files" | "other";
+
+export interface EngagementAttachment {
+  id: string;
+  engagement_id: string;
+  file_name: string;
+  file_size: number;
+  content_type: string | null;
+  storage_path: string;
+  category: EngagementAttachmentCategory;
+  description: string | null;
+  uploaded_by: string | null;
   created_at: string;
 }
 
@@ -779,6 +803,156 @@ export interface KBArticle {
   tags: string[];
   is_pinned: boolean;
   updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ─── Department Types ────────────────────────────────────────────────
+
+export interface Department {
+  id: string;
+  org_id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  head_name: string | null;
+  head_email: string | null;
+  member_count: number;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Base vocabulary terms that can be renamed per org/department */
+export type BaseVocabTerm = "vision" | "people" | "data" | "processes" | "meetings" | "issues";
+
+export const BASE_VOCAB_TERMS: BaseVocabTerm[] = [
+  "vision", "people", "data", "processes", "meetings", "issues",
+];
+
+export interface DepartmentVocab {
+  id: string;
+  org_id: string;
+  department_id: string | null;
+  base_term: BaseVocabTerm;
+  display_label: string;
+  description: string | null;
+  sort_order: number;
+  created_at: string;
+}
+
+// ─── Client Portal Types ────────────────────────────────────────────
+
+export interface PortalSettings {
+  id: string;
+  org_id: string;
+  show_projects: boolean;
+  show_phases: boolean;
+  show_tasks: boolean;
+  show_risks: boolean;
+  show_process_maps: boolean;
+  show_kpis: boolean;
+  show_documents: boolean;
+  show_proposals: boolean;
+  show_reports: boolean;
+  show_daily_logs: boolean;
+  show_engagements: boolean;
+  show_kb_articles: boolean;
+  allow_task_comments: boolean;
+  allow_file_uploads: boolean;
+  allow_chat: boolean;
+  portal_title: string | null;
+  welcome_message: string | null;
+  primary_color: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PortalInvite {
+  id: string;
+  org_id: string;
+  email: string;
+  name: string | null;
+  role: string;
+  invited_by: string | null;
+  token: string;
+  accepted_at: string | null;
+  expires_at: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+// ─── Discovery / Onboarding Types ───────────────────────────────────
+
+export type ProjectCategory = "standard" | "onboarding" | "personal";
+export type OnboardingStatus = "not-started" | "discovery" | "gap-analysis" | "planning" | "active" | "complete";
+export type GapSeverity = "low" | "medium" | "high" | "critical";
+export type GapStatus = "identified" | "acknowledged" | "planned" | "in-progress" | "resolved";
+export type GapSource = "interview" | "observation" | "document-review" | "audit" | "other";
+
+export interface GapAnalysis {
+  id: string;
+  org_id: string;
+  project_id: string | null;
+  engagement_id: string | null;
+  department_id: string | null;
+  category: string;
+  title: string;
+  current_state: string | null;
+  desired_state: string | null;
+  gap_description: string | null;
+  severity: GapSeverity;
+  priority: number;
+  status: GapStatus;
+  resolution_notes: string | null;
+  resolved_at: string | null;
+  task_id: string | null;
+  discovered_by: string | null;
+  discovered_at: string;
+  source: GapSource | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DiscoveryInterview {
+  id: string;
+  org_id: string;
+  project_id: string | null;
+  engagement_id: string | null;
+  department_id: string | null;
+  note_id: string | null;
+  title: string;
+  interviewee_name: string | null;
+  interviewee_role: string | null;
+  interview_date: string;
+  duration_minutes: number | null;
+  focus_areas: string[];
+  key_findings: { finding: string; category: string; severity: string }[];
+  action_items: { item: string; assigned_to: string | null; due_date: string | null }[];
+  follow_up_needed: boolean;
+  status: "scheduled" | "completed" | "cancelled" | "follow-up";
+  summary: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type OnboardingChecklistCategory = "discovery" | "setup" | "kickoff" | "documentation" | "handoff";
+
+export interface OnboardingChecklist {
+  id: string;
+  org_id: string;
+  project_id: string;
+  engagement_id: string | null;
+  category: OnboardingChecklistCategory;
+  title: string;
+  description: string | null;
+  sort_order: number;
+  is_required: boolean;
+  status: "pending" | "in-progress" | "complete" | "skipped";
+  completed_by: string | null;
+  completed_at: string | null;
+  task_id: string | null;
   created_at: string;
   updated_at: string;
 }

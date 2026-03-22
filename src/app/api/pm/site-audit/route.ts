@@ -9,13 +9,13 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServiceClient();
 
-    // Clean up stale audits stuck in "running" for > 3 minutes
+    // Clean up stale audits stuck in "running" for > 2 minutes
     await supabase
       .from("pm_site_audits")
       .update({ status: "failed", audit_summary: "Audit timed out" })
       .eq("org_id", orgId)
       .eq("status", "running")
-      .lt("created_at", new Date(Date.now() - 5 * 60 * 1000).toISOString());
+      .lt("created_at", new Date(Date.now() - 2 * 60 * 1000).toISOString());
 
     const { data, error } = await supabase
       .from("pm_site_audits")

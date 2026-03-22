@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
 import type { Organization, ClientNote, ClientNoteAttachment, NoteType, NoteVisibility } from "@/types/pm";
+import { FilePreviewModal } from "@/components/FilePreviewModal";
 
 const RichTextEditor = lazy(() => import("../RichTextEditor"));
 
@@ -57,6 +58,7 @@ export function NotesTab({ org }: { org: Organization }) {
   const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<Record<string, ClientNoteAttachment[]>>({});
   const [uploading, setUploading] = useState(false);
+  const [previewAtt, setPreviewAtt] = useState<ClientNoteAttachment | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const reloadNotes = useCallback(() => {
@@ -198,6 +200,24 @@ export function NotesTab({ org }: { org: Organization }) {
       ...prev,
       [noteId]: (prev[noteId] || []).filter((a) => a.id !== attachmentId),
     }));
+  };
+
+  const downloadAttachment = async (att: ClientNoteAttachment) => {
+    try {
+      const res = await fetch(`/api/pm/attachments/download?type=note&id=${att.id}`);
+      const data = await res.json();
+      if (data.download_url) {
+        const a = document.createElement("a");
+        a.href = data.download_url;
+        a.download = att.file_name;
+        a.target = "_blank";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+    } catch {
+      alert("Failed to download file");
+    }
   };
 
   const formatFileSize = (bytes: number) => {
@@ -506,23 +526,50 @@ export function NotesTab({ org }: { org: Organization }) {
                     ) : (
                       <div className="space-y-2">
                         {noteAttachments.map((att) => (
-                          <div key={att.id} className="flex items-center justify-between py-2 px-3 bg-pm-surface rounded-lg">
+                          <div key={att.id} className="flex items-center justify-between py-2 px-3 bg-pm-surface rounded-lg group">
                             <div className="flex items-center gap-2 min-w-0">
                               <svg className="w-4 h-4 text-pm-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                               </svg>
-                              <span className="text-sm text-pm-text truncate">{att.file_name}</span>
+                              <button
+                                onClick={() => setPreviewAtt(att)}
+                                className="text-sm text-blue-400 hover:text-blue-300 truncate text-left"
+                                title="Click to preview"
+                              >
+                                {att.file_name}
+                              </button>
                               <span className="text-xs text-pm-muted shrink-0">{formatFileSize(att.file_size)}</span>
                             </div>
-                            <button
-                              onClick={() => handleDeleteAttachment(note.id, att.id)}
-                              className="p-1 text-pm-muted hover:text-red-400 transition-colors shrink-0 ml-2"
-                              title="Remove"
-                            >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                              </svg>
-                            </button>
+                            <div className="flex items-center gap-1 shrink-0 ml-2">
+                              <button
+                                onClick={() => setPreviewAtt(att)}
+                                className="opacity-0 group-hover:opacity-100 p-1 text-pm-muted hover:text-pm-text transition-all"
+                                title="Preview"
+                              >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => downloadAttachment(att)}
+                                className="opacity-0 group-hover:opacity-100 p-1 text-pm-muted hover:text-blue-400 transition-all"
+                                title="Download"
+                              >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => handleDeleteAttachment(note.id, att.id)}
+                                className="opacity-0 group-hover:opacity-100 p-1 text-pm-muted hover:text-red-400 transition-all"
+                                title="Delete"
+                              >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                </svg>
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -533,6 +580,16 @@ export function NotesTab({ org }: { org: Organization }) {
             );
           })}
         </div>
+      )}
+
+      {previewAtt && (
+        <FilePreviewModal
+          fileName={previewAtt.file_name}
+          contentType={previewAtt.content_type || "application/octet-stream"}
+          attachmentType="note"
+          attachmentId={previewAtt.id}
+          onClose={() => setPreviewAtt(null)}
+        />
       )}
     </div>
   );

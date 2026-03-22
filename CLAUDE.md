@@ -118,7 +118,15 @@ docs/                       # Project documentation
 | `pm_kb_articles` | Knowledge base articles (global/org/project scope, AI context) |
 | `pm_api_keys` | API keys for external integrations (hashed, scoped permissions) |
 | `pm_engagements` | CRM deal engagements per org (deal_stage, value, type) |
+| `pm_engagement_attachments` | File attachments on engagements (categorized: discovery, proposal, contract, etc.) |
 | `pm_engagement_task_templates` | Stage-triggered auto-task definitions |
+| `pm_departments` | Organizational departments within client orgs |
+| `pm_department_vocab` | Flexible vocabulary overrides (base terms → display labels) |
+| `pm_portal_settings` | Per-org client portal visibility/feature toggles |
+| `pm_portal_invites` | Portal access invitations for external users |
+| `pm_gap_analysis` | Discovery gap findings (category, severity, resolution tracking) |
+| `pm_discovery_interviews` | Structured interview records during discovery |
+| `pm_onboarding_checklists` | Template-driven onboarding steps per project |
 
 ## Project Templates
 | Slug | Name | Phases |
@@ -177,6 +185,9 @@ vault/[org-slug]/[project-slug]/
 | `/api/pm/api-keys` | GET, POST, DELETE | List / create / revoke API keys |
 | `/api/pm/engagements` | GET, POST | List / create engagements (by org_id) |
 | `/api/pm/engagements/[id]` | GET, PATCH, DELETE | View / update / delete engagement |
+| `/api/pm/engagements/[id]/attachments` | GET, POST, DELETE | Engagement file attachments |
+| `/api/pm/engagements/[id]/attachments/download` | GET | Signed download URL for attachment |
+| `/api/pm/engagements/[id]/project-files` | POST | Re-generate project init files as engagement attachment |
 | `/api/cron/engagement-nudge` | POST | Vercel Cron: check overdue engagement tasks |
 | `/api/pm/ext/context` | GET | AI agent context dump (orgs, projects, members) |
 | `/api/pm/ext/tasks` | GET, POST, PATCH | AI agent task CRUD (API key auth) |
@@ -187,6 +198,15 @@ vault/[org-slug]/[project-slug]/
 | `/api/pm/site-audit` | GET, POST | List / run site audits (rubric-based scoring) |
 | `/api/pm/site-audit/[id]` | GET, POST, DELETE | View / generate doc / delete audit |
 | `/api/pm/site-audit/[id]/pdf` | POST | Generate printable HTML audit report |
+| `/api/pm/departments` | GET, POST | List / create departments (by org_id) |
+| `/api/pm/departments/[id]` | GET, PATCH, DELETE | View / update / delete department |
+| `/api/pm/departments/vocab` | GET, POST | Get resolved vocab labels / set overrides |
+| `/api/pm/portal` | GET, POST | Get / upsert portal settings (by org_id) |
+| `/api/pm/portal/invites` | GET, POST, DELETE | List / create / revoke portal invites |
+| `/api/pm/gap-analysis` | GET, POST | List / create gap analysis items |
+| `/api/pm/gap-analysis/[id]` | GET, PATCH, DELETE | View / update / delete gap item |
+| `/api/pm/discovery-interviews` | GET, POST | List / create discovery interviews |
+| `/api/pm/onboarding` | POST | Create onboarding project with discovery tasks |
 
 ## Security Rules
 - **Never** put OpenAI API keys, service role keys, or GitHub tokens in `NEXT_PUBLIC_*` vars

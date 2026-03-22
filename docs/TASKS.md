@@ -27,6 +27,13 @@
 - [x] End-to-end test: full auth flow (login → admin console → add user → external user scoping)
 - [x] Onboarding notes: new users are added via admin console, which creates auth user + links to pm_members with org access. Each user gets a role per org: admin, user, or external (read-only)
 
+## Bug Fixes
+- [x] Fix intake route not creating tasks from template — `priority` column doesn't exist on `pm_tasks`, causing silent insert failure
+  - Removed non-existent `priority` field from task insert in `/api/pm/projects/intake`
+  - Added `sort_order` to task inserts in both seed and intake routes
+  - Added `tasks_created` count to intake route response
+  - Migration 036: adds `priority` column to `pm_tasks` (low/medium/high/urgent, default medium)
+
 ## Still Pending
 - [x] Add RLS policies to all PM tables (leverage pm_user_org_access for row-level filtering)
   - Migration 014_rls_policies.sql: enables RLS on all 20 PM tables
@@ -53,11 +60,95 @@
 - [ ] Set up Vercel Cron for daily recurring task generation (/api/pm/series/generate)
 
 ## New Features — Planned
-- [ ] Email compose modal for sending proposals to client contacts
+- [x] Email compose modal for sending proposals to client contacts
+  - `EmailComposeModal` component: to/subject/message fields with org contact auto-fill
+  - Send route upgraded: `/api/pm/proposals/[id]/send` now sends branded email via Resend with "View Proposal" button
+  - Existing "Mark Sent" preserved as secondary action for manual tracking
+  - Branded email template matching existing email design system (dark green header, FSA branding)
 - [ ] Set up Vercel Cron for daily engagement nudge checks (/api/cron/engagement-nudge)
 - [ ] QuickBooks integration (placeholder — billing/invoicing)
+- [x] Build out full intake/discovery form wizard (multi-step discovery questionnaire)
+- [ ] Discovery findings summary — AI-generated brief from notes + attachments
+- [x] Client portal UI pages (external user views with portal settings filtering)
+- [x] Department management UI (create/edit departments, assign to tasks/phases)
+- [x] Vocabulary customization UI (org-level renaming of base terms)
+- [x] Gap analysis dashboard (visual rollup of gaps by department/severity)
+- [x] Onboarding project → process project handoff (create child project from onboarding)
 
 ## Recently Completed
+- [x] Timeline/Gantt view for phases
+  - `TimelineTab` component: horizontal bar chart with phases as colored bars along a time axis
+  - Phase bars colored by status, filled proportionally by progress percentage
+  - Month markers, today line (red), and project date boundaries
+  - "Show tasks" toggle renders task due-date dots under each phase
+  - Phases without dates listed separately with prompt to add dates
+  - Responsive with horizontal scroll for wide timelines
+- [x] Budget vs Actuals tracking
+  - Migration 037: adds `estimated_cost` and `actual_cost` (NUMERIC) to `pm_phases` and `pm_tasks`
+  - `BudgetTab` component: summary cards (budget, estimated, actual, variance)
+  - Budget utilization bar with color thresholds (green < 75%, yellow 75-100%, red > 100%)
+  - Phase breakdown table with expandable task rows
+  - Inline click-to-edit on all cost cells (phases and tasks)
+  - Automatic rollup: task costs aggregate to phase totals when phase has no direct cost
+  - Variance column with red/green coloring for over/under budget
+  - PATCH routes updated: `/api/pm/phases/[id]` and `/api/pm/tasks/[id]` now accept `estimated_cost` and `actual_cost`
+- [x] Fix TipTap duplicate extension warning — StarterKit v3.20 now bundles Link + Underline
+  - Removed separate Link/Underline imports from RichTextEditor.tsx
+  - Configured via StarterKit.configure({ link: {...}, underline: {} }) instead
+- [x] Department Management UI — full CRUD tab on client dashboard
+  - `DepartmentsTab` component: list, add/edit inline form, delete with confirmation
+  - Shows name, description, head name/email, member count, active/inactive status
+- [x] Vocabulary Customization UI — org-level term renaming
+  - `VocabTab` component: editable table of 6 base terms with custom display labels
+  - Department-scoped overrides via dropdown, save/reset, dirty state tracking
+- [x] Gap Analysis Dashboard — visual rollup by department/severity
+  - `GapAnalysisTab` component: summary cards (total, critical/high, resolved, open)
+  - Severity breakdown bars, filter by status/severity/category/department
+  - Add/Edit modal with full gap fields, current vs desired state panels
+- [x] Client Portal Settings UI — admin configuration for external user views
+  - `PortalSettingsTab` component: branding (title, welcome message, color)
+  - Feature visibility toggles grouped by content/reports/resources
+  - Interaction permissions (comments, uploads, chat)
+  - Portal invitations management: invite, list, revoke
+- [x] Onboarding & Discovery UI — onboarding project management + handoff
+  - `OnboardingTab` component: onboarding project list with status stepper
+  - Create onboarding project, handoff to process project via seed
+  - Discovery interviews: list/add with focus areas, findings, action items
+  - Onboarding checklist grouped by category with status cycling
+- [x] Departments, Client Portal, Discovery/Onboarding Foundation
+  - Migration 033: `pm_departments` table with flexible vocabulary (`pm_department_vocab`)
+    - Standalone department table (org_id, slug, name, head_name/email, sort_order)
+    - Vocabulary override system: base terms (vision, people, data, processes, meetings, issues) renamable per org or per department
+    - `department_id` added to `pm_tasks` and `pm_phases` for department-scoped work
+  - Migration 034: Client portal foundation
+    - `pm_portal_settings` table: per-org toggles for what external users can see (projects, tasks, risks, reports, etc.)
+    - `pm_portal_invites` table: invite external users to portal with token-based acceptance
+    - Interaction permissions: allow_task_comments, allow_file_uploads, allow_chat
+    - Branding: portal_title, welcome_message, primary_color
+  - Migration 035: Discovery/onboarding project system + gap analysis
+    - `pm_projects` extended: project_type (standard/onboarding/personal), parent_project_id, onboarding_status
+    - `pm_gap_analysis` table: structured discovery findings with category, severity, priority, resolution tracking
+    - `pm_discovery_interviews` table: structured interview records with focus_areas, key_findings, action_items
+    - `pm_onboarding_checklists` table: template-driven onboarding steps (discovery, setup, kickoff, documentation, handoff)
+  - Engagement engine: auto-creates onboarding project when deal enters 'qualified' stage
+    - Discovery tasks generated based on engagement type (new_prospect vs existing_client)
+    - Default onboarding checklist auto-populated (12 items across 5 categories)
+  - Phase clone route updated to use resolved vocabulary labels
+  - API routes: departments CRUD, vocab management, portal settings, portal invites, gap analysis CRUD, discovery interviews, onboarding project creation
+  - TypeScript types: Department, DepartmentVocab, PortalSettings, PortalInvite, GapAnalysis, DiscoveryInterview, OnboardingChecklist
+  - Query functions: getDepartments, getDepartmentVocab, getResolvedVocab, getPortalSettings, getPortalInvites, getGapAnalysis, getDiscoveryInterviews, getOnboardingChecklist
+
+- [x] Engagement Discovery & Attachments — Fix Notes Save + File Attachments
+  - Fixed discovery notes save: replaced buggy onBlur closure with ref-tracked debounced auto-save (3s) + explicit Save button
+  - Save state indicators: "Unsaved changes" (amber), "Saving..." spinner, "Saved" (green checkmark)
+  - New `pm_engagement_attachments` table with category-based filing (discovery, proposal, contract, intake, project-files, general, other)
+  - Upload files directly to engagement with category picker
+  - Download and delete attachments with signed URLs from Supabase Storage
+  - "Re-download Project Files" button: regenerates project init files (PROJECT_INIT.md, CLIENT_CONTEXT.md, etc.) and saves as engagement attachment
+  - Migration 032: pm_engagement_attachments table + 8 additional discovery-phase task templates
+  - New task templates: research prospect, send intro email, prepare discovery questionnaire, schedule next meeting, run site audit, collect supporting docs, compile discovery summary, present findings
+  - API routes: GET/POST/DELETE `/api/pm/engagements/[id]/attachments`, GET `.../download`, POST `.../project-files`
+  - Storage path convention: `{org-slug}/engagements/{engagement-id}/...`
 - [x] Project Intake Form — Multi-Step Client Project Kickoff
   - `src/lib/intake-file-generator.ts`: generates PROJECT_INIT.md, CLIENT_CONTEXT.md, AUTOMATION_MAP.md, PROMPT_LIBRARY.md
   - `POST /api/pm/projects/intake`: creates project from intake + generates zip download
@@ -190,9 +281,15 @@
 - [x] AI daily standup generation (`/daily/YYYY-MM-DD.md`)
 - [x] Risk radar — AI scan of escalating risks
 - [x] Natural language updates ("Set X due date to April 15")
-- [ ] Supabase realtime subscriptions for live dashboard updates
-- [ ] Timeline view (Gantt-style) for phases
-- [ ] Budget vs actuals tracking
+- [x] Supabase realtime subscriptions for live dashboard updates
+  - `useRealtimeTable` hook (`src/lib/useRealtimeTable.ts`): reusable Supabase Realtime Postgres Changes subscription
+  - Integrated into 4 components: EditableTaskTable (project tasks), PipelineKanban (org pipeline), ClientTasksTab (client tasks), HomePage (my tasks)
+  - EditableTaskTable: granular INSERT/UPDATE/DELETE handling with local state updates
+  - PipelineKanban: org pipeline_status changes update Kanban cards in real time
+  - ClientTasksTab + HomePage: refetch on any task change for simplicity
+  - RLS policies automatically filter which rows each user receives
+- [x] Timeline view (Gantt-style) for phases
+- [x] Budget vs actuals tracking
 - [ ] Seed Honey Lake Digital and VakPak as sample projects
 - [ ] Asana import: support CSV format in addition to JSON
 - [ ] Asana import: connect via Asana API for live import (requires PAT)

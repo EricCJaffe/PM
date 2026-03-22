@@ -1,5 +1,5 @@
 import { createServiceClient } from "./supabase/server";
-import type { Project, ProjectWithStats, Phase, PhaseWithTasks, Task, Risk, PMFile, ProjectTemplate, Organization, Member, AssignableMember, ProcessMap, Opportunity, KPI, PMDocument, ShareToken, Proposal, ProposalTemplate as ProposalTemplateType, ClientNote, ClientNoteAttachment, PipelineStatus, DocumentType, DocumentIntakeField, GeneratedDocument, DocumentSection, KBArticle } from "@/types/pm";
+import type { Project, ProjectWithStats, Phase, PhaseWithTasks, Task, Risk, PMFile, ProjectTemplate, Organization, Member, AssignableMember, ProcessMap, Opportunity, KPI, PMDocument, ShareToken, Proposal, ProposalTemplate as ProposalTemplateType, ClientNote, ClientNoteAttachment, PipelineStatus, DocumentType, DocumentIntakeField, GeneratedDocument, DocumentSection, KBArticle, Department, DepartmentVocab, PortalSettings, PortalInvite, GapAnalysis, DiscoveryInterview, OnboardingChecklist } from "@/types/pm";
 
 // ─── Organizations ───────────────────────────────────────────────────
 
@@ -591,4 +591,147 @@ export async function getOrgKBArticles(orgId: string): Promise<KBArticle[]> {
     .order("is_pinned", { ascending: false })
     .order("updated_at", { ascending: false });
   return (data ?? []) as KBArticle[];
+}
+
+// ─── Departments ────────────────────────────────────────────────────
+
+export async function getDepartments(orgId: string): Promise<Department[]> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_departments")
+    .select("*")
+    .eq("org_id", orgId)
+    .eq("is_active", true)
+    .order("sort_order")
+    .order("name");
+  return (data ?? []) as Department[];
+}
+
+export async function getDepartmentById(id: string): Promise<Department | null> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_departments")
+    .select("*")
+    .eq("id", id)
+    .single();
+  return data as Department | null;
+}
+
+/** Get vocabulary overrides for an org (optionally filtered by department) */
+export async function getDepartmentVocab(orgId: string, departmentId?: string): Promise<DepartmentVocab[]> {
+  const supabase = createServiceClient();
+  let query = supabase
+    .from("pm_department_vocab")
+    .select("*")
+    .eq("org_id", orgId)
+    .order("sort_order");
+  if (departmentId) {
+    query = query.eq("department_id", departmentId);
+  }
+  const { data } = await query;
+  return (data ?? []) as DepartmentVocab[];
+}
+
+/** Get resolved vocab labels for an org — merges base terms with any overrides */
+export async function getResolvedVocab(
+  orgId: string,
+  departmentId?: string
+): Promise<Record<string, string>> {
+  const { BASE_VOCAB_TERMS } = await import("@/types/pm");
+  const defaults: Record<string, string> = {};
+  for (const term of BASE_VOCAB_TERMS) {
+    defaults[term] = term.charAt(0).toUpperCase() + term.slice(1);
+  }
+
+  const overrides = await getDepartmentVocab(orgId, departmentId);
+  for (const v of overrides) {
+    defaults[v.base_term] = v.display_label;
+  }
+  return defaults;
+}
+
+// ─── Portal Settings ────────────────────────────────────────────────
+
+export async function getPortalSettings(orgId: string): Promise<PortalSettings | null> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_portal_settings")
+    .select("*")
+    .eq("org_id", orgId)
+    .single();
+  return data as PortalSettings | null;
+}
+
+export async function getPortalInvites(orgId: string): Promise<PortalInvite[]> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_portal_invites")
+    .select("*")
+    .eq("org_id", orgId)
+    .order("created_at", { ascending: false });
+  return (data ?? []) as PortalInvite[];
+}
+
+export async function getPortalInviteByToken(token: string): Promise<PortalInvite | null> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_portal_invites")
+    .select("*")
+    .eq("token", token)
+    .eq("is_active", true)
+    .single();
+  if (!data) return null;
+  if (data.expires_at && new Date(data.expires_at) < new Date()) return null;
+  return data as PortalInvite;
+}
+
+// ─── Gap Analysis ───────────────────────────────────────────────────
+
+export async function getGapAnalysis(orgId: string, projectId?: string): Promise<GapAnalysis[]> {
+  const supabase = createServiceClient();
+  let query = supabase
+    .from("pm_gap_analysis")
+    .select("*")
+    .eq("org_id", orgId)
+    .order("priority", { ascending: false })
+    .order("created_at", { ascending: false });
+  if (projectId) query = query.eq("project_id", projectId);
+  const { data } = await query;
+  return (data ?? []) as GapAnalysis[];
+}
+
+export async function getGapAnalysisById(id: string): Promise<GapAnalysis | null> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_gap_analysis")
+    .select("*")
+    .eq("id", id)
+    .single();
+  return data as GapAnalysis | null;
+}
+
+// ─── Discovery Interviews ───────────────────────────────────────────
+
+export async function getDiscoveryInterviews(orgId: string, projectId?: string): Promise<DiscoveryInterview[]> {
+  const supabase = createServiceClient();
+  let query = supabase
+    .from("pm_discovery_interviews")
+    .select("*")
+    .eq("org_id", orgId)
+    .order("interview_date", { ascending: false });
+  if (projectId) query = query.eq("project_id", projectId);
+  const { data } = await query;
+  return (data ?? []) as DiscoveryInterview[];
+}
+
+// ─── Onboarding Checklists ──────────────────────────────────────────
+
+export async function getOnboardingChecklist(projectId: string): Promise<OnboardingChecklist[]> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_onboarding_checklists")
+    .select("*")
+    .eq("project_id", projectId)
+    .order("sort_order");
+  return (data ?? []) as OnboardingChecklist[];
 }

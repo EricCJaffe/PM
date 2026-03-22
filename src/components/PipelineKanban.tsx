@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import type { PipelineStatus } from "@/types/pm";
+import { useRealtimeTable } from "@/lib/useRealtimeTable";
 import {
   DndContext,
   DragOverlay,
@@ -135,6 +136,18 @@ export function PipelineKanban({ clients: initialClients, onStatusChange }: {
     setClients(initialClients);
     setPrevKey(clientsKey);
   }
+
+  // Realtime: listen for org pipeline_status changes
+  useRealtimeTable({
+    table: "pm_organizations",
+    event: "UPDATE",
+    onPayload: (payload) => {
+      const updated = payload.new as unknown as KanbanClient;
+      setClients((prev) =>
+        prev.map((c) => c.id === updated.id ? { ...c, ...updated } : c)
+      );
+    },
+  });
 
   const grouped = useMemo(() => {
     const map: Record<PipelineStatus, KanbanClient[]> = {

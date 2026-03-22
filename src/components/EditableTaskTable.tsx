@@ -1,7 +1,8 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { Task, PhaseWithTasks } from "@/types/pm";
+import { useRealtimeTable } from "@/lib/useRealtimeTable";
 import { StatusBadge } from "./StatusBadge";
 import { TaskDetailModal } from "./TaskDetailModal";
 import { PhaseModal } from "./PhaseBoard";
@@ -188,6 +189,27 @@ export function EditableTaskTable({
   const [tasks, setTasks] = useState(initialTasks);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [addPhase, setAddPhase] = useState(false);
+
+  // Sync when server re-renders with new data
+  useEffect(() => { setTasks(initialTasks); }, [initialTasks]);
+
+  // Realtime subscription for task changes
+  useRealtimeTable({
+    table: "pm_tasks",
+    filter: `project_id=eq.${projectId}`,
+    onPayload: (payload, eventType) => {
+      if (eventType === "INSERT") {
+        const newTask = payload.new as unknown as Task;
+        setTasks((prev) => prev.some((t) => t.id === newTask.id) ? prev : [...prev, newTask]);
+      } else if (eventType === "UPDATE") {
+        const updated = payload.new as unknown as Task;
+        setTasks((prev) => prev.map((t) => t.id === updated.id ? { ...t, ...updated } : t));
+      } else if (eventType === "DELETE") {
+        const old = payload.old as { id: string };
+        setTasks((prev) => prev.filter((t) => t.id !== old.id));
+      }
+    },
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),

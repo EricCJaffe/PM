@@ -210,13 +210,15 @@ export async function POST(request: NextRequest) {
       slug: string;
       name: string;
       status: string;
+      sort_order: number;
     }[] = [];
 
     for (const p of phases) {
       const phaseTasks = (p as { slug: string; tasks?: { slug: string; name: string }[] }).tasks;
       if (!phaseTasks || phaseTasks.length === 0) continue;
       const phaseId = phaseSlugToId.get(p.slug) ?? null;
-      for (const t of phaseTasks) {
+      for (let i = 0; i < phaseTasks.length; i++) {
+        const t = phaseTasks[i];
         taskRows.push({
           project_id: project.id,
           org_id: resolvedOrgId,
@@ -224,6 +226,7 @@ export async function POST(request: NextRequest) {
           slug: t.slug,
           name: t.name,
           status: "not-started",
+          sort_order: i,
         });
       }
     }

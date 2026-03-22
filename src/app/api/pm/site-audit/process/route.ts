@@ -17,9 +17,10 @@ import {
 export const maxDuration = 60;
 
 // POST /api/pm/site-audit/process — Background audit processing
-// Called internally by the main POST route. Not meant for direct client use.
+// Called by the frontend after creating the audit record.
 export async function POST(request: NextRequest) {
   let auditId: string | null = null;
+  let safetyTimer: ReturnType<typeof setTimeout> | null = null;
 
   try {
     const { audit_id, url, vertical, org_id, extra_context } = await request.json();
@@ -30,6 +31,18 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createServiceClient();
+
+    // Safety timeout: mark as failed before Vercel kills us (maxDuration=60)
+    safetyTimer = setTimeout(async () => {
+      console.error(`Audit ${audit_id}: safety timeout reached (55s)`);
+      try {
+        await createServiceClient()
+          .from("pm_site_audits")
+          .update({ status: "failed", audit_summary: "Audit processing timed out — please try again" })
+          .eq("id", audit_id)
+          .eq("status", "running");
+      } catch { /* last resort */ }
+    }, 55_000);
 
     // 1. Fetch the website HTML (15s timeout)
     const siteResponse = await fetch(url, {
@@ -170,9 +183,11 @@ export async function POST(request: NextRequest) {
       .eq("id", audit_id);
 
     if (updateErr) throw new Error(updateErr.message);
+    if (safetyTimer) clearTimeout(safetyTimer);
     return NextResponse.json({ success: true });
 
   } catch (err) {
+    if (safetyTimer) clearTimeout(safetyTimer);
     console.error("Audit processing failed:", err);
 
     // Mark audit as failed so the frontend stops polling

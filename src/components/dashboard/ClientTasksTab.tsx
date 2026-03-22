@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import type { Organization } from "@/types/pm";
 import { StatusBadge } from "@/components/StatusBadge";
+import { useRealtimeTable } from "@/lib/useRealtimeTable";
 
 type TaskStatus = "not-started" | "in-progress" | "complete" | "blocked" | "pending" | "on-hold";
 
@@ -51,7 +52,7 @@ export function ClientTasksTab({ org }: { org: Organization }) {
   const [moveOrgId, setMoveOrgId] = useState("");
   const [orgs, setOrgs] = useState<{ id: string; name: string }[]>([]);
 
-  const loadTasks = () => {
+  const loadTasks = useCallback(() => {
     fetch(`/api/pm/tasks/my?org_id=${org.id}`)
       .then((r) => r.json())
       .then((data) => {
@@ -59,7 +60,14 @@ export function ClientTasksTab({ org }: { org: Organization }) {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  };
+  }, [org.id]);
+
+  // Realtime: refetch when any task for this org changes
+  useRealtimeTable({
+    table: "pm_tasks",
+    filter: `org_id=eq.${org.id}`,
+    onPayload: () => { loadTasks(); },
+  });
 
   useEffect(() => {
     loadTasks();

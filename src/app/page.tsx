@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { StatusBadge } from "@/components/StatusBadge";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
+import { useRealtimeTable } from "@/lib/useRealtimeTable";
 import type { PMStatus, Subtask } from "@/types/pm";
 
 interface DashTask {
@@ -101,6 +102,13 @@ export default function HomePage() {
   }, [selectedMember]);
 
   useEffect(() => { loadTasks(); }, [loadTasks]);
+
+  // Realtime: refetch tasks when any task changes
+  useRealtimeTable({
+    table: "pm_tasks",
+    onPayload: () => { loadTasks(); },
+    enabled: !!selectedMember,
+  });
 
   const filteredTasks = tasks.filter((t) => {
     if (filter === "active") return t.status !== "complete";

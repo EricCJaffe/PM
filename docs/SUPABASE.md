@@ -78,6 +78,8 @@ This module shares a Supabase project with FSA. Auth and org/tenant schema are r
 | owner | TEXT | Optional |
 | start_date | DATE | Optional |
 | due_date | DATE | Optional |
+| estimated_cost | NUMERIC | Optional, estimated cost for phase |
+| actual_cost | NUMERIC | Optional, actual cost incurred |
 | created_at | TIMESTAMPTZ | Auto |
 
 ### pm_tasks
@@ -96,6 +98,8 @@ This module shares a Supabase project with FSA. Auth and org/tenant schema are r
 | depends_on | TEXT[] | Array of task slugs |
 | risk_id | UUID | Optional FK |
 | subtasks | JSONB | Array of {text, done} |
+| estimated_cost | NUMERIC | Optional, estimated cost for task |
+| actual_cost | NUMERIC | Optional, actual cost incurred |
 | created_at | TIMESTAMPTZ | Auto |
 | updated_at | TIMESTAMPTZ | Auto (trigger) |
 
@@ -320,5 +324,174 @@ Migrations: 026 (base), 027 (scoring v2 columns), 028 (mockup + subpages)
 
 Migrations: 015 (base), 025 (visibility), 030 (client update columns)
 
+### pm_engagement_attachments
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | PK |
+| engagement_id | UUID | FK → pm_engagements (CASCADE) |
+| file_name | TEXT | Original file name |
+| file_size | INTEGER | Bytes |
+| content_type | TEXT | MIME type |
+| storage_path | TEXT | Supabase Storage path |
+| category | TEXT | general, discovery, proposal, contract, intake, project-files, other |
+| description | TEXT | Optional description |
+| uploaded_by | TEXT | Member slug |
+| created_at | TIMESTAMPTZ | Auto |
+
+Migration: 032
+
+### pm_departments
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | PK |
+| org_id | UUID | FK → pm_organizations (CASCADE) |
+| slug | TEXT | Unique per org |
+| name | TEXT | Display name |
+| description | TEXT | Optional |
+| head_name | TEXT | Department lead name |
+| head_email | TEXT | Department lead email |
+| member_count | INT | Default 0 |
+| sort_order | INT | Default 0 |
+| is_active | BOOLEAN | Default true |
+| created_at, updated_at | TIMESTAMPTZ | Auto |
+
+Migration: 033
+
+### pm_department_vocab
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | PK |
+| org_id | UUID | FK → pm_organizations (CASCADE) |
+| department_id | UUID | FK → pm_departments (CASCADE), nullable for org-wide overrides |
+| base_term | TEXT | Canonical term: vision, people, data, processes, meetings, issues |
+| display_label | TEXT | What the client calls this term |
+| description | TEXT | Optional |
+| sort_order | INT | Default 0 |
+| created_at | TIMESTAMPTZ | Auto |
+
+Migration: 033. Unique constraint on (org_id, COALESCE(department_id, nil-uuid), base_term).
+
+### pm_portal_settings
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | PK |
+| org_id | UUID | FK → pm_organizations (CASCADE), UNIQUE |
+| show_projects | BOOLEAN | Default true |
+| show_phases | BOOLEAN | Default true |
+| show_tasks | BOOLEAN | Default true |
+| show_risks | BOOLEAN | Default false |
+| show_process_maps | BOOLEAN | Default true |
+| show_kpis | BOOLEAN | Default true |
+| show_documents | BOOLEAN | Default true |
+| show_proposals | BOOLEAN | Default true |
+| show_reports | BOOLEAN | Default false |
+| show_daily_logs | BOOLEAN | Default false |
+| show_engagements | BOOLEAN | Default false |
+| show_kb_articles | BOOLEAN | Default true |
+| allow_task_comments | BOOLEAN | Default true |
+| allow_file_uploads | BOOLEAN | Default false |
+| allow_chat | BOOLEAN | Default false |
+| portal_title | TEXT | Custom title (default: org name) |
+| welcome_message | TEXT | Portal home welcome text |
+| primary_color | TEXT | Hex color for accent |
+| created_at, updated_at | TIMESTAMPTZ | Auto |
+
+Migration: 034
+
+### pm_portal_invites
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | PK |
+| org_id | UUID | FK → pm_organizations (CASCADE) |
+| email | TEXT | Invitee email |
+| name | TEXT | Optional |
+| role | TEXT | Default 'viewer' |
+| invited_by | TEXT | Member slug |
+| token | TEXT | Unique, auto-generated 32-byte hex |
+| accepted_at | TIMESTAMPTZ | When accepted |
+| expires_at | TIMESTAMPTZ | Default now + 7 days |
+| is_active | BOOLEAN | Default true |
+| created_at | TIMESTAMPTZ | Auto |
+
+Migration: 034
+
+### pm_gap_analysis
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | PK |
+| org_id | UUID | FK → pm_organizations (CASCADE) |
+| project_id | UUID | FK → pm_projects (SET NULL) |
+| engagement_id | UUID | FK → pm_engagements (SET NULL) |
+| department_id | UUID | FK → pm_departments (SET NULL) |
+| category | TEXT | vision, people, data, processes, meetings, issues, other |
+| title | TEXT | Gap title |
+| current_state | TEXT | What exists now |
+| desired_state | TEXT | What should exist |
+| gap_description | TEXT | The delta |
+| severity | TEXT | low, medium, high, critical |
+| priority | INT | 0 = unranked |
+| status | TEXT | identified, acknowledged, planned, in-progress, resolved |
+| resolution_notes | TEXT | How it was resolved |
+| resolved_at | TIMESTAMPTZ | |
+| task_id | UUID | FK → pm_tasks, linked remediation task |
+| discovered_by | TEXT | Member slug |
+| discovered_at | TIMESTAMPTZ | Default now |
+| source | TEXT | interview, observation, document-review, audit, other |
+| created_at, updated_at | TIMESTAMPTZ | Auto |
+
+Migration: 035
+
+### pm_discovery_interviews
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | PK |
+| org_id | UUID | FK → pm_organizations (CASCADE) |
+| project_id | UUID | FK → pm_projects (SET NULL) |
+| engagement_id | UUID | FK → pm_engagements (SET NULL) |
+| department_id | UUID | FK → pm_departments (SET NULL) |
+| note_id | UUID | FK → pm_client_notes (SET NULL) |
+| title | TEXT | Interview title |
+| interviewee_name | TEXT | |
+| interviewee_role | TEXT | |
+| interview_date | DATE | Default CURRENT_DATE |
+| duration_minutes | INT | |
+| focus_areas | TEXT[] | Base terms this covers |
+| key_findings | JSONB | [{finding, category, severity}] |
+| action_items | JSONB | [{item, assigned_to, due_date}] |
+| follow_up_needed | BOOLEAN | Default false |
+| status | TEXT | scheduled, completed, cancelled, follow-up |
+| summary | TEXT | AI-generated or manual |
+| created_at, updated_at | TIMESTAMPTZ | Auto |
+
+Migration: 035
+
+### pm_onboarding_checklists
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | PK |
+| org_id | UUID | FK → pm_organizations (CASCADE) |
+| project_id | UUID | FK → pm_projects (CASCADE) |
+| engagement_id | UUID | FK → pm_engagements (SET NULL) |
+| category | TEXT | discovery, setup, kickoff, documentation, handoff |
+| title | TEXT | Checklist item title |
+| description | TEXT | |
+| sort_order | INT | Default 0 |
+| is_required | BOOLEAN | Default true |
+| status | TEXT | pending, in-progress, complete, skipped |
+| completed_by | TEXT | Member slug |
+| completed_at | TIMESTAMPTZ | |
+| task_id | UUID | FK → pm_tasks, auto-generated task link |
+| created_at, updated_at | TIMESTAMPTZ | Auto |
+
+Migration: 035
+
+### Additional columns added by migrations 033-035
+- `pm_tasks.department_id` — FK → pm_departments (SET NULL)
+- `pm_phases.department_id` — FK → pm_departments (SET NULL)
+- `pm_projects.project_type` — TEXT: standard, onboarding, personal
+- `pm_projects.parent_project_id` — FK → pm_projects (SET NULL)
+- `pm_projects.onboarding_status` — TEXT: not-started, discovery, gap-analysis, planning, active, complete
+
 ### Storage
 - Bucket: `documents` (private, for PDF storage)
+- Bucket: `vault` (private, engagement attachments stored at `{org-slug}/engagements/{engagement-id}/...`)
