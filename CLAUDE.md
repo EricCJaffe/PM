@@ -49,6 +49,7 @@ When making changes, update the relevant docs **in the same commit**:
 - Route protection via middleware when auth is enabled — `/dashboard/**` requires auth
 - **Entities must pre-exist**: Organizations and members must be created before projects. Owner must be a validated member of the selected org.
 - Status values are standardized: `not-started | in-progress | complete | blocked | pending | on-hold`
+- **Branding**: All client-facing output (PDFs, emails, share pages, proposals) must use `getBranding(orgId?)` from `src/lib/branding.ts` — never hardcode company names, colors, or logos. Platform defaults + per-org overrides are resolved automatically. Co-branding modes: `agency-only | co-branded | client-only | white-label`
 
 ## Project Structure
 ```
@@ -81,6 +82,7 @@ src/
 │   ├── kb.ts               # KB context assembly for AI (assembleKBContext)
 │   ├── recurrence.ts       # Recurrence engine (occurrence generation, validation)
 │   ├── engagement-engine.ts # Stage-change automation (auto-task spawning)
+│   ├── branding.ts         # Centralized branding resolver (getBranding, helpers)
 │   └── vault.ts            # Vault storage read/write/generation
 └── types/
     └── pm.ts               # All TypeScript types
@@ -127,6 +129,8 @@ docs/                       # Project documentation
 | `pm_gap_analysis` | Discovery gap findings (category, severity, resolution tracking) |
 | `pm_discovery_interviews` | Structured interview records during discovery |
 | `pm_onboarding_checklists` | Template-driven onboarding steps per project |
+| `pm_platform_branding` | Singleton platform-level branding (name, logos, colors, fonts, email settings) |
+| `pm_org_branding` | Per-org branding overrides (client logo, co-brand mode, color overrides) |
 
 ## Project Templates
 | Slug | Name | Phases |
@@ -207,6 +211,8 @@ vault/[org-slug]/[project-slug]/
 | `/api/pm/gap-analysis/[id]` | GET, PATCH, DELETE | View / update / delete gap item |
 | `/api/pm/discovery-interviews` | GET, POST | List / create discovery interviews |
 | `/api/pm/onboarding` | POST | Create onboarding project with discovery tasks |
+| `/api/pm/branding` | GET, POST | Get / update platform branding (singleton) |
+| `/api/pm/branding/org` | GET, POST | Get / upsert per-org branding overrides |
 
 ## Security Rules
 - **Never** put OpenAI API keys, service role keys, or GitHub tokens in `NEXT_PUBLIC_*` vars

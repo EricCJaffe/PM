@@ -1,4 +1,5 @@
 import { getShareTokenData, getOrganizations, getProjects, getProcessMaps, getOpportunities, getKPIs, getPhasesWithTasks } from "@/lib/queries";
+import { getBranding, buildPreparedBy } from "@/lib/branding";
 import { notFound } from "next/navigation";
 import { ProgressBar } from "@/components/ProgressBar";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -19,12 +20,14 @@ export default async function PublicSharePage({
   const org = orgs.find((o) => o.id === shareToken.org_id);
   if (!org) notFound();
 
-  const [projects, processMaps, opportunities, kpis] = await Promise.all([
+  const [projects, processMaps, opportunities, kpis, branding] = await Promise.all([
     getProjects(org.id),
     getProcessMaps(org.id),
     getOpportunities(org.id),
     getKPIs(org.id),
+    getBranding(org.id),
   ]);
+  const preparedBy = buildPreparedBy(branding);
 
   // Filter to specific project if token is project-scoped
   const filteredProjects = shareToken.project_id
@@ -60,9 +63,19 @@ export default async function PublicSharePage({
       {/* Header */}
       <div className="border-b border-pm-border bg-pm-card/50">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <div className="text-sm text-pm-muted font-medium">BusinessOS</div>
-            <h1 className="text-2xl font-bold text-pm-text">{org.name}</h1>
+          <div className="flex items-center gap-4">
+            {branding.co_brand_mode !== "client-only" && branding.agency_logo_url && (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={branding.agency_logo_url} alt={branding.agency_name} className="h-8 object-contain" />
+            )}
+            {branding.co_brand_mode !== "agency-only" && branding.client_logo_url && (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={branding.client_logo_url} alt={branding.client_name ?? org.name} className="h-8 object-contain" />
+            )}
+            <div>
+              <div className="text-sm text-pm-muted font-medium">{preparedBy}</div>
+              <h1 className="text-2xl font-bold text-pm-text">{org.name}</h1>
+            </div>
           </div>
           <span className="px-2 py-0.5 bg-pm-complete/20 text-pm-complete text-xs rounded-full font-medium">
             Live

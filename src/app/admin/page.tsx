@@ -4,8 +4,9 @@ import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AdminUsersPanel from "./UsersPanel";
 import AdminApiKeysPanel from "./ApiKeysPanel";
+import AdminBrandingPanel from "./BrandingPanel";
 
-type Tab = "users" | "api-keys";
+type Tab = "users" | "api-keys" | "branding";
 
 function AdminContent() {
   const router = useRouter();
@@ -39,6 +40,7 @@ function AdminContent() {
   const tabs: { key: Tab; label: string }[] = [
     { key: "users", label: "Users" },
     { key: "api-keys", label: "API Keys" },
+    { key: "branding", label: "Branding" },
   ];
 
   return (
@@ -63,6 +65,7 @@ function AdminContent() {
 
       {tab === "users" && <AdminUsersPanel />}
       {tab === "api-keys" && <AdminApiKeysPanel />}
+      {tab === "branding" && <AdminBrandingPanel />}
     </>
   );
 }

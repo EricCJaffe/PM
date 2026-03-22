@@ -60,6 +60,18 @@
 - [ ] Set up Vercel Cron for daily recurring task generation (/api/pm/series/generate)
 
 ## New Features — Planned
+- [x] Centralized branding system (ADR 0002)
+  - `pm_platform_branding` table (singleton) — company name, logos, colors, fonts, email settings
+  - `pm_org_branding` table — per-client overrides, co-branding modes (agency-only, co-branded, client-only, white-label)
+  - `src/lib/branding.ts`: `getBranding(orgId?)` resolver + helper functions (email FROM, footer HTML, logo HTML, CSS vars)
+  - Admin Console > Branding tab: full platform-level brand editor with color pickers, live preview swatch
+  - Org Dashboard > Branding tab: per-client co-branding settings (client logo, color overrides, co-brand mode)
+  - Email system (`src/lib/email.ts`) now resolves branding per-org
+  - Site audit PDF uses CSS custom properties from branding system
+  - Public share page shows co-branded header with agency/client logos
+  - API routes: `/api/pm/branding` (platform), `/api/pm/branding/org` (per-org)
+  - Migration: `038_branding.sql`
+  - Future: migrate proposal send route, docgen system, client update emails to branding system
 - [x] Email compose modal for sending proposals to client contacts
   - `EmailComposeModal` component: to/subject/message fields with org contact auto-fill
   - Send route upgraded: `/api/pm/proposals/[id]/send` now sends branded email via Resend with "View Proposal" button
