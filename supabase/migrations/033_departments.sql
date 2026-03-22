@@ -32,9 +32,11 @@ CREATE TABLE IF NOT EXISTS pm_department_vocab (
   display_label text NOT NULL,         -- what the client calls it
   description text,
   sort_order  int DEFAULT 0,
-  created_at  timestamptz DEFAULT now(),
-  UNIQUE(org_id, COALESCE(department_id, '00000000-0000-0000-0000-000000000000'::uuid), base_term)
+  created_at  timestamptz DEFAULT now()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_dept_vocab_org_dept_term
+  ON pm_department_vocab (org_id, COALESCE(department_id, '00000000-0000-0000-0000-000000000000'::uuid), base_term);
 
 -- ─── Link departments to tasks/phases ────────────────────────────────
 -- Add department_id to tasks so they can be scoped

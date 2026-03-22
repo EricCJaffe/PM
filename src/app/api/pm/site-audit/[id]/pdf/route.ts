@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { getBranding, buildPreparedBy } from "@/lib/branding";
 import type { AuditDimensionScore, AuditGrade } from "@/types/pm";
 
 // POST /api/pm/site-audit/[id]/pdf — Generate printable HTML report
@@ -32,6 +33,10 @@ export async function POST(
     const monthYear = now.toLocaleDateString("en-US", { month: "long", year: "numeric" });
     const dateStr = now.toISOString().split("T")[0];
 
+    // Resolve branding for this org
+    const branding = await getBranding(audit.org_id);
+    const agencyName = buildPreparedBy(branding);
+
     const html = buildAuditHTML({
       orgName,
       domain,
@@ -47,7 +52,14 @@ export async function POST(
       rebuildTimeline: audit.rebuild_timeline || [],
       platformComparison: audit.platform_comparison || null,
       summary: audit.audit_summary || "",
-      agencyName: "Foundation Stone Advisors",
+      agencyName,
+      brandColors: {
+        bgDark: branding.bg_dark,
+        bgLight: branding.bg_light,
+        accent: branding.accent_color,
+        primary: branding.primary_color,
+        textOnPrimary: branding.text_on_primary,
+      },
     });
 
     return new NextResponse(html, {
@@ -128,10 +140,18 @@ interface AuditHTMLParams {
   platformComparison: { current: string; recommended: string } | null;
   summary: string;
   agencyName: string;
+  brandColors?: {
+    bgDark: string;
+    bgLight: string;
+    accent: string;
+    primary: string;
+    textOnPrimary: string;
+  };
 }
 
 function buildAuditHTML(p: AuditHTMLParams): string {
   const dims = ["seo", "entity", "ai_discoverability", "conversion", "content", "a2a_readiness"];
+  const bc = p.brandColors ?? { bgDark: "#1c2b1e", bgLight: "#f5f0e8", accent: "#c4793a", primary: "#1B2A4A", textOnPrimary: "#ffffff" };
 
   // Build cover grade badges
   const gradeBadges = dims.map((d, i) => {
@@ -269,6 +289,17 @@ function buildAuditHTML(p: AuditHTMLParams): string {
     </div>`;
   }
 
+  // Build brand-specific CSS overrides
+  const brandCss = `
+:root {
+  --audit-bg-dark: ${bc.bgDark};
+  --audit-bg-light: ${bc.bgLight};
+  --audit-accent: ${bc.accent};
+  --audit-primary: ${bc.primary};
+  --audit-text-on-primary: ${bc.textOnPrimary};
+}
+`;
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -276,6 +307,7 @@ function buildAuditHTML(p: AuditHTMLParams): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Site Audit — ${esc(p.orgName)}</title>
 <style>
+${brandCss}
 ${AUDIT_PDF_CSS}
 </style>
 </head>
@@ -342,7 +374,7 @@ body {
 
 /* ── Cover Page ── */
 .cover-page {
-  background: #1c2b1e;
+  background: var(--audit-bg-dark, #1c2b1e);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -354,7 +386,7 @@ body {
 }
 
 .cover-eyebrow {
-  color: #c4793a;
+  color: var(--audit-accent, #c4793a);
   font-size: 9pt;
   font-weight: 700;
   letter-spacing: 3px;
@@ -362,7 +394,7 @@ body {
 }
 
 .cover-org {
-  color: #f0ebe0;
+  color: var(--audit-text-on-primary, #f0ebe0);
   font-size: 38pt;
   font-weight: 700;
   line-height: 1.1;
@@ -391,7 +423,7 @@ body {
 .grade-badge {
   width: 64px;
   height: 52px;
-  background: #1e3020;
+  background: color-mix(in srgb, var(--audit-bg-dark, #1c2b1e) 90%, white);
   border-radius: 6px;
   display: flex;
   flex-direction: column;
@@ -417,7 +449,7 @@ body {
 
 /* ── Content Pages ── */
 .page {
-  background: #f5f0e8;
+  background: var(--audit-bg-light, #f5f0e8);
   padding: 44px 0.5in 30px;
   min-height: 100vh;
   page-break-after: always;
@@ -431,7 +463,7 @@ body {
   left: 0;
   right: 0;
   height: 44px;
-  background: #1c2b1e;
+  background: var(--audit-bg-dark, #1c2b1e);
 }
 
 .page::after {
@@ -441,27 +473,27 @@ body {
   left: 0;
   right: 0;
   height: 2px;
-  background: #c4793a;
+  background: var(--audit-accent, #c4793a);
 }
 
 h1 {
   font-size: 20pt;
   font-weight: 700;
-  color: #1c2b1e;
+  color: var(--audit-bg-dark, #1c2b1e);
   margin: 20px 0 8px;
 }
 
 h2 {
   font-size: 14pt;
   font-weight: 700;
-  color: #1c2b1e;
+  color: var(--audit-bg-dark, #1c2b1e);
   margin: 20px 0 10px;
 }
 
 h3.dimension-grade {
   font-size: 11pt;
   font-weight: 700;
-  color: #c4793a;
+  color: var(--audit-accent, #c4793a);
   margin: 12px 0;
 }
 
@@ -480,7 +512,7 @@ hr.divider {
 
 /* ── Section Header Bar ── */
 .section-header {
-  background: #1c2b1e;
+  background: var(--audit-bg-dark, #1c2b1e);
   color: #fff;
   font-size: 13pt;
   font-weight: 700;
@@ -498,7 +530,7 @@ hr.divider {
 }
 
 .score-table thead tr, .gap-table thead tr {
-  background: #2e4030;
+  background: color-mix(in srgb, var(--audit-bg-dark, #1c2b1e) 80%, white);
 }
 
 .score-table th, .gap-table th {
@@ -546,8 +578,8 @@ hr.divider {
 
 /* ── Callout Box ── */
 .callout {
-  border-left: 3px solid #c4793a;
-  background: #f5e6d8;
+  border-left: 3px solid var(--audit-accent, #c4793a);
+  background: color-mix(in srgb, var(--audit-accent, #c4793a) 15%, white);
   padding: 10px 14px;
   margin: 16px 0;
   border-radius: 0 4px 4px 0;
@@ -556,7 +588,7 @@ hr.divider {
 .callout p {
   font-style: italic;
   font-size: 10pt;
-  color: #1c2b1e;
+  color: var(--audit-bg-dark, #1c2b1e);
   margin: 0;
 }
 

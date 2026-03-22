@@ -58,7 +58,7 @@ function NewProjectForm() {
     slug: "",
     description: "",
     owner: "",
-    template_slug: "saas-rollout",
+    template_slug: "",
     org_id: preselectedOrgId,
     start_date: "",
     target_date: "",
@@ -157,12 +157,25 @@ function NewProjectForm() {
     }
   };
 
+  const isWebProject = form.template_slug === "__web-project__";
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.org_id) {
       alert("Please select an organization");
       return;
     }
+
+    // Web Project → redirect to intake wizard with prefilled params
+    if (isWebProject) {
+      const params = new URLSearchParams();
+      if (form.org_id) params.set("org_id", form.org_id);
+      if (form.name) params.set("name", form.name);
+      if (form.owner) params.set("owner", form.owner);
+      router.push(`/projects/intake?${params.toString()}`);
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch("/api/pm/projects/seed", {
@@ -297,6 +310,21 @@ function NewProjectForm() {
                 <div className="text-xs text-pm-muted mt-1">{t.description}</div>
               </button>
             ))}
+            {/* Web Project — uses multi-step intake wizard */}
+            <button
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, template_slug: "__web-project__" }))}
+              className={`card text-left transition-colors ${
+                form.template_slug === "__web-project__"
+                  ? "border-orange-500 bg-orange-500/10"
+                  : "hover:border-pm-muted/50"
+              }`}
+            >
+              <div className="font-medium text-pm-text text-sm">Web Project</div>
+              <div className="text-xs text-pm-muted mt-1">
+                Full intake wizard with toolstack, feature flags, client context, and integrations.
+              </div>
+            </button>
           </div>
         </div>
 
@@ -313,16 +341,18 @@ function NewProjectForm() {
           />
         </div>
 
-        {/* Description */}
-        <div>
-          <label className="block text-sm font-medium text-pm-muted mb-1">Description</label>
-          <textarea
-            value={form.description}
-            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-            className="w-full bg-pm-card border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
-            rows={3}
-          />
-        </div>
+        {/* Description — hidden for web projects (captured in wizard) */}
+        {!isWebProject && (
+          <div>
+            <label className="block text-sm font-medium text-pm-muted mb-1">Description</label>
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              className="w-full bg-pm-card border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
+              rows={3}
+            />
+          </div>
+        )}
 
         {/* Owner */}
         <div>
@@ -364,46 +394,63 @@ function NewProjectForm() {
           )}
         </div>
 
-        {/* Start Date + End Date */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-pm-muted mb-1">Start Date</label>
-            <input
-              type="date"
-              value={form.start_date}
-              onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))}
-              className="w-full bg-pm-card border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-pm-muted mb-1">End Date</label>
-            <input
-              type="date"
-              value={form.target_date}
-              onChange={(e) => setForm((f) => ({ ...f, target_date: e.target.value }))}
-              className="w-full bg-pm-card border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
-            />
-          </div>
-        </div>
+        {/* Dates + Budget — hidden for web projects (captured in wizard) */}
+        {!isWebProject && (
+          <>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-pm-muted mb-1">Start Date</label>
+                <input
+                  type="date"
+                  value={form.start_date}
+                  onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))}
+                  className="w-full bg-pm-card border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-pm-muted mb-1">End Date</label>
+                <input
+                  type="date"
+                  value={form.target_date}
+                  onChange={(e) => setForm((f) => ({ ...f, target_date: e.target.value }))}
+                  className="w-full bg-pm-card border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
+                />
+              </div>
+            </div>
 
-        {/* Budget */}
-        <div>
-          <label className="block text-sm font-medium text-pm-muted mb-1">Budget</label>
-          <input
-            type="number"
-            value={form.budget}
-            onChange={(e) => setForm((f) => ({ ...f, budget: e.target.value }))}
-            className="w-full bg-pm-card border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
-            placeholder="Optional"
-          />
-        </div>
+            <div>
+              <label className="block text-sm font-medium text-pm-muted mb-1">Budget</label>
+              <input
+                type="number"
+                value={form.budget}
+                onChange={(e) => setForm((f) => ({ ...f, budget: e.target.value }))}
+                className="w-full bg-pm-card border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
+                placeholder="Optional"
+              />
+            </div>
+          </>
+        )}
+
+        {isWebProject && (
+          <p className="text-sm text-orange-400/80 bg-orange-900/20 border border-orange-500/20 rounded-lg px-4 py-3">
+            The Web Project template uses a multi-step intake wizard to capture toolstack, feature flags, client context, and integrations. You&apos;ll continue to the wizard after clicking below.
+          </p>
+        )}
 
         <button
           type="submit"
-          disabled={loading || !form.org_id}
-          className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg font-medium transition-colors"
+          disabled={loading || !form.org_id || !form.template_slug}
+          className={`w-full py-3 disabled:opacity-50 text-white rounded-lg font-medium transition-colors ${
+            isWebProject
+              ? "bg-orange-600 hover:bg-orange-700"
+              : "bg-blue-600 hover:bg-blue-700"
+          }`}
         >
-          {loading ? "Creating..." : "Create Project"}
+          {loading
+            ? "Creating..."
+            : isWebProject
+              ? "Continue to Intake Wizard"
+              : "Create Project"}
         </button>
       </form>
     </div>

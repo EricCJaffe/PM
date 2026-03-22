@@ -1,5 +1,5 @@
 import { createServiceClient } from "./supabase/server";
-import type { Project, ProjectWithStats, Phase, PhaseWithTasks, Task, Risk, PMFile, ProjectTemplate, Organization, Member, AssignableMember, ProcessMap, Opportunity, KPI, PMDocument, ShareToken, Proposal, ProposalTemplate as ProposalTemplateType, ClientNote, ClientNoteAttachment, PipelineStatus, DocumentType, DocumentIntakeField, GeneratedDocument, DocumentSection, KBArticle, Department, DepartmentVocab, PortalSettings, PortalInvite, GapAnalysis, DiscoveryInterview, OnboardingChecklist } from "@/types/pm";
+import type { Project, ProjectWithStats, Phase, PhaseWithTasks, Task, Risk, PMFile, ProjectTemplate, Organization, Member, AssignableMember, ProcessMap, Opportunity, KPI, PMDocument, ShareToken, Proposal, ProposalTemplate as ProposalTemplateType, ClientNote, ClientNoteAttachment, PipelineStatus, DocumentType, DocumentIntakeField, GeneratedDocument, DocumentSection, KBArticle, Department, DepartmentVocab, PortalSettings, PortalInvite, GapAnalysis, DiscoveryInterview, OnboardingChecklist, PlatformBranding, OrgBranding } from "@/types/pm";
 
 // ─── Organizations ───────────────────────────────────────────────────
 
@@ -734,4 +734,26 @@ export async function getOnboardingChecklist(projectId: string): Promise<Onboard
     .eq("project_id", projectId)
     .order("sort_order");
   return (data ?? []) as OnboardingChecklist[];
+}
+
+// ─── Branding ────────────────────────────────────────────────────────
+
+export async function getPlatformBranding(): Promise<PlatformBranding | null> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_platform_branding")
+    .select("*")
+    .limit(1)
+    .single();
+  return data as PlatformBranding | null;
+}
+
+export async function getOrgBranding(orgId: string): Promise<OrgBranding | null> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("pm_org_branding")
+    .select("*")
+    .eq("org_id", orgId)
+    .single();
+  return data as OrgBranding | null;
 }

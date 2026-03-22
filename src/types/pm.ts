@@ -957,6 +957,88 @@ export interface OnboardingChecklist {
   updated_at: string;
 }
 
+// ─── Branding Types ─────────────────────────────────────────────────
+
+export type CoBrandMode = "agency-only" | "co-branded" | "client-only" | "white-label";
+
+export interface PlatformBranding {
+  id: string;
+  company_name: string;
+  company_short_name: string;
+  tagline: string | null;
+  logo_url: string | null;
+  logo_icon_url: string | null;
+  favicon_url: string | null;
+  primary_color: string;
+  secondary_color: string;
+  accent_color: string;
+  text_on_primary: string;
+  text_on_light: string;
+  bg_dark: string;
+  bg_light: string;
+  font_heading: string;
+  font_body: string;
+  email_from_name: string;
+  email_from_address: string;
+  website_url: string | null;
+  support_email: string | null;
+  footer_text: string | null;
+  location: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrgBranding {
+  id: string;
+  org_id: string;
+  client_logo_url: string | null;
+  client_logo_icon_url: string | null;
+  client_company_name: string | null;
+  primary_color_override: string | null;
+  secondary_color_override: string | null;
+  accent_color_override: string | null;
+  co_brand_mode: CoBrandMode;
+  cover_bg_override: string | null;
+  content_bg_override: string | null;
+  footer_text_override: string | null;
+  email_from_name_override: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Resolved branding — platform defaults merged with org overrides */
+export interface ResolvedBranding {
+  // Identity
+  agency_name: string;
+  agency_short_name: string;
+  agency_tagline: string | null;
+  agency_logo_url: string | null;
+  agency_logo_icon_url: string | null;
+  client_name: string | null;
+  client_logo_url: string | null;
+  client_logo_icon_url: string | null;
+  co_brand_mode: CoBrandMode;
+  // Colors (resolved — org override wins if set)
+  primary_color: string;
+  secondary_color: string;
+  accent_color: string;
+  text_on_primary: string;
+  text_on_light: string;
+  bg_dark: string;
+  bg_light: string;
+  // Typography
+  font_heading: string;
+  font_body: string;
+  // Email
+  email_from_name: string;
+  email_from_address: string;
+  // Footer & links
+  website_url: string | null;
+  footer_text: string;
+  location: string | null;
+}
+
 // ─── Chat / AI Types ─────────────────────────────────────────────────
 
 export interface ChatMessage {

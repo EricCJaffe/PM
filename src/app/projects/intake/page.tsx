@@ -26,6 +26,8 @@ function IntakeForm() {
   const searchParams = useSearchParams();
   const engagementId = searchParams.get("engagement_id");
   const prefillOrgId = searchParams.get("org_id");
+  const prefillName = searchParams.get("name");
+  const prefillOwner = searchParams.get("owner");
 
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
@@ -34,11 +36,13 @@ function IntakeForm() {
 
   const [form, setForm] = useState({
     // Step 1
-    name: "",
-    slug: "",
+    name: prefillName ?? "",
+    slug: prefillName
+      ? prefillName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")
+      : "",
     org_id: prefillOrgId ?? "",
     template_slug: "custom",
-    owner: "",
+    owner: prefillOwner ?? "",
     description: "",
     target_date: "",
     budget: "",
@@ -220,12 +224,12 @@ function IntakeForm() {
             &larr; Projects
           </Link>
           <h1 className="text-2xl font-bold text-pm-text">
-            New project intake
+            Web project intake
           </h1>
           <p className="text-pm-muted mt-1">
             {engagementId
-              ? "Converting engagement to project"
-              : "Full project kickoff"}
+              ? "Converting engagement to web project"
+              : "Full web project kickoff with toolstack, flags, and client context"}
           </p>
         </div>
 

@@ -19,6 +19,7 @@ import { DepartmentsTab } from "./DepartmentsTab";
 import { VocabTab } from "./VocabTab";
 import { GapAnalysisTab } from "./GapAnalysisTab";
 import { PortalSettingsTab } from "./PortalSettingsTab";
+import { OrgBrandingTab } from "./OrgBrandingTab";
 import { OnboardingTab } from "./OnboardingTab";
 
 const tabs = [
@@ -39,6 +40,7 @@ const tabs = [
   { id: "vocab", label: "Vocabulary" },
   { id: "gap-analysis", label: "Gap Analysis" },
   { id: "onboarding", label: "Onboarding" },
+  { id: "branding", label: "Branding" },
   { id: "portal", label: "Client Portal" },
   { id: "tools", label: "Tools" },
 ];
@@ -150,6 +152,7 @@ export function DashboardTabs({
       {active === "vocab" && <VocabTab org={org} />}
       {active === "gap-analysis" && <GapAnalysisTab org={org} />}
       {active === "onboarding" && <OnboardingTab org={org} />}
+      {active === "branding" && <OrgBrandingTab org={org} />}
       {active === "portal" && <PortalSettingsTab org={org} />}
       {active === "tools" && <ToolsTab org={org} />}
     </>
