@@ -28,6 +28,12 @@
 - [x] Onboarding notes: new users are added via admin console, which creates auth user + links to pm_members with org access. Each user gets a role per org: admin, user, or external (read-only)
 
 ## Bug Fixes
+- [x] Fix intake wizard applying to all templates — was showing web-specific 6-step wizard (Toolstack, Flags, Integrations) for every template
+  - Replaced two buttons ("Quick create" + "+ New client project") with single "+ New Project" button
+  - Added "Web Project" template card on new project page — only this template routes to the intake wizard
+  - All other templates (SaaS, Ministry, PMBOK, ChurchOS, Standard, Custom) use simple seed-based creation with predefined phases/tasks
+  - Intake wizard now accepts prefilled org_id, name, owner via query params
+  - Intake wizard relabeled as "Web project intake" to clarify its scope
 - [x] Fix intake route not creating tasks from template — `priority` column doesn't exist on `pm_tasks`, causing silent insert failure
   - Removed non-existent `priority` field from task insert in `/api/pm/projects/intake`
   - Added `sort_order` to task inserts in both seed and intake routes
