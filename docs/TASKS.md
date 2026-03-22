@@ -72,6 +72,22 @@
 - [x] Onboarding project → process project handoff (create child project from onboarding)
 
 ## Recently Completed
+- [x] Timeline/Gantt view for phases
+  - `TimelineTab` component: horizontal bar chart with phases as colored bars along a time axis
+  - Phase bars colored by status, filled proportionally by progress percentage
+  - Month markers, today line (red), and project date boundaries
+  - "Show tasks" toggle renders task due-date dots under each phase
+  - Phases without dates listed separately with prompt to add dates
+  - Responsive with horizontal scroll for wide timelines
+- [x] Budget vs Actuals tracking
+  - Migration 037: adds `estimated_cost` and `actual_cost` (NUMERIC) to `pm_phases` and `pm_tasks`
+  - `BudgetTab` component: summary cards (budget, estimated, actual, variance)
+  - Budget utilization bar with color thresholds (green < 75%, yellow 75-100%, red > 100%)
+  - Phase breakdown table with expandable task rows
+  - Inline click-to-edit on all cost cells (phases and tasks)
+  - Automatic rollup: task costs aggregate to phase totals when phase has no direct cost
+  - Variance column with red/green coloring for over/under budget
+  - PATCH routes updated: `/api/pm/phases/[id]` and `/api/pm/tasks/[id]` now accept `estimated_cost` and `actual_cost`
 - [x] Fix TipTap duplicate extension warning — StarterKit v3.20 now bundles Link + Underline
   - Removed separate Link/Underline imports from RichTextEditor.tsx
   - Configured via StarterKit.configure({ link: {...}, underline: {} }) instead
@@ -262,8 +278,8 @@
 - [x] Risk radar — AI scan of escalating risks
 - [x] Natural language updates ("Set X due date to April 15")
 - [ ] Supabase realtime subscriptions for live dashboard updates
-- [ ] Timeline view (Gantt-style) for phases
-- [ ] Budget vs actuals tracking
+- [x] Timeline view (Gantt-style) for phases
+- [x] Budget vs actuals tracking
 - [ ] Seed Honey Lake Digital and VakPak as sample projects
 - [ ] Asana import: support CSV format in addition to JSON
 - [ ] Asana import: connect via Asana API for live import (requires PAT)

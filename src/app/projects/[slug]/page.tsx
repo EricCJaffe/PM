@@ -10,6 +10,8 @@ import { SaveAsTemplateButton } from "@/components/SaveAsTemplateButton";
 import { AIReportsPanel } from "@/components/AIReportsPanel";
 import { ClientUpdateTab } from "@/components/ClientUpdateTab";
 import { NLPCommandBar } from "@/components/NLPCommandBar";
+import { TimelineTab } from "@/components/TimelineTab";
+import { BudgetTab } from "@/components/BudgetTab";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -93,6 +95,16 @@ export default async function ProjectDetailPage({
               id: "ai-reports",
               label: "AI Reports",
               content: <AIReportsPanel projectId={project.id} orgSlug={orgSlug} projectSlug={project.slug} />,
+            },
+            {
+              id: "timeline",
+              label: "Timeline",
+              content: <TimelineTab phases={phases} projectStart={project.start_date} projectTarget={project.target_date} />,
+            },
+            {
+              id: "budget",
+              label: "Budget",
+              content: <BudgetTab phases={phases} projectBudget={project.budget} projectId={project.id} />,
             },
             {
               id: "client-updates",

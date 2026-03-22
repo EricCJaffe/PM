@@ -123,6 +123,8 @@ export interface Phase {
   start_date: string | null;
   due_date: string | null;
   department_id: string | null;
+  estimated_cost: number | null;
+  actual_cost: number | null;
   created_at: string;
 }
 
@@ -150,6 +152,8 @@ export interface Task {
   series_occurrence_date: string | null;
   is_exception: boolean;
   original_date: string | null;
+  estimated_cost: number | null;
+  actual_cost: number | null;
   created_at: string;
   updated_at: string;
 }

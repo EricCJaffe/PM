@@ -78,6 +78,8 @@ This module shares a Supabase project with FSA. Auth and org/tenant schema are r
 | owner | TEXT | Optional |
 | start_date | DATE | Optional |
 | due_date | DATE | Optional |
+| estimated_cost | NUMERIC | Optional, estimated cost for phase |
+| actual_cost | NUMERIC | Optional, actual cost incurred |
 | created_at | TIMESTAMPTZ | Auto |
 
 ### pm_tasks
@@ -96,6 +98,8 @@ This module shares a Supabase project with FSA. Auth and org/tenant schema are r
 | depends_on | TEXT[] | Array of task slugs |
 | risk_id | UUID | Optional FK |
 | subtasks | JSONB | Array of {text, done} |
+| estimated_cost | NUMERIC | Optional, estimated cost for task |
+| actual_cost | NUMERIC | Optional, actual cost incurred |
 | created_at | TIMESTAMPTZ | Auto |
 | updated_at | TIMESTAMPTZ | Auto (trigger) |
 

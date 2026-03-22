@@ -8,7 +8,7 @@ export async function PATCH(
 ) {
   const { id } = await params;
   const body = await request.json();
-  const allowed = ["name", "status", "owner", "assigned_to", "due_date", "description", "phase_id", "sort_order", "subtasks", "notify_assignee", "is_exception", "series_id", "series_occurrence_date", "original_date", "org_id", "project_id"];
+  const allowed = ["name", "status", "owner", "assigned_to", "due_date", "description", "phase_id", "sort_order", "subtasks", "notify_assignee", "is_exception", "series_id", "series_occurrence_date", "original_date", "org_id", "project_id", "estimated_cost", "actual_cost"];
   const updates: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in body) updates[key] = body[key];
