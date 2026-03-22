@@ -3,7 +3,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { getBranding, buildPreparedBy } from "@/lib/branding";
 import type { AuditDimensionScore, AuditGrade } from "@/types/pm";
 
-// POST /api/pm/site-audit/[id]/pdf — Generate printable HTML report
+// POST /api/pm/site-audit/[id]/pdf — Generate printable HTML report (FSA branded)
 export async function POST(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -53,11 +53,15 @@ export async function POST(
       platformComparison: audit.platform_comparison || null,
       summary: audit.audit_summary || "",
       agencyName,
+      agencyFullName: branding.agency_name,
+      agencyShortName: branding.agency_short_name,
+      agencyTagline: branding.agency_tagline,
+      agencyLocation: branding.location,
+      agencyLogoUrl: branding.agency_logo_url,
       brandColors: {
-        bgDark: branding.bg_dark,
-        bgLight: branding.bg_light,
-        accent: branding.accent_color,
-        primary: branding.primary_color,
+        navy: branding.primary_color,
+        accent: branding.secondary_color,
+        gold: branding.accent_color,
         textOnPrimary: branding.text_on_primary,
       },
     });
@@ -100,6 +104,12 @@ function gradeColor(grade: string): string {
   return "#c0392b";
 }
 
+function gradeBgColor(grade: string): string {
+  if (grade === "A" || grade === "B") return "#F0FDF4";
+  if (grade === "C") return "#FFFBEB";
+  return "#FEF2F2";
+}
+
 function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -122,7 +132,7 @@ const DIMENSION_FULL_LABELS: Record<string, string> = {
   a2a_readiness: "A2A Readiness",
 };
 
-// ─── HTML Builder ───────────────────────────────────────────────────
+// ─── HTML Builder (FSA Design System) ────────────────────────────────
 
 interface AuditHTMLParams {
   orgName: string;
@@ -140,38 +150,46 @@ interface AuditHTMLParams {
   platformComparison: { current: string; recommended: string } | null;
   summary: string;
   agencyName: string;
-  brandColors?: {
-    bgDark: string;
-    bgLight: string;
+  agencyFullName: string;
+  agencyShortName: string;
+  agencyTagline: string | null;
+  agencyLocation: string | null;
+  agencyLogoUrl: string | null;
+  brandColors: {
+    navy: string;
     accent: string;
-    primary: string;
+    gold: string;
     textOnPrimary: string;
   };
 }
 
 function buildAuditHTML(p: AuditHTMLParams): string {
   const dims = ["seo", "entity", "ai_discoverability", "conversion", "content", "a2a_readiness"];
-  const bc = p.brandColors ?? { bgDark: "#1c2b1e", bgLight: "#f5f0e8", accent: "#c4793a", primary: "#1B2A4A", textOnPrimary: "#ffffff" };
+  const bc = p.brandColors;
 
-  // Build cover grade badges
-  const gradeBadges = dims.map((d, i) => {
+  // Build cover grade badges (horizontal row)
+  const gradeBadges = dims.map((d) => {
     const dim = p.scores[d] as AuditDimensionScore;
     const grade = dim?.grade || "F";
-    return `<div class="grade-badge">
-      <div class="grade-letter" style="color:${gradeColor(grade)}">${esc(grade)}</div>
-      <div class="grade-label">${esc(DIMENSION_LABELS[d] || d)}</div>
+    const score = dim?.score ?? 0;
+    return `<div class="cover-badge">
+      <div class="cover-badge-grade" style="color:${gradeColor(grade)}">${esc(grade)}</div>
+      <div class="cover-badge-label">${esc(DIMENSION_LABELS[d] || d)}</div>
+      <div class="cover-badge-score">${score}%</div>
     </div>`;
   }).join("\n");
 
   // Build executive summary score table
-  const scoreTableRows = dims.map(d => {
+  const scoreTableRows = dims.map((d, i) => {
     const dim = p.scores[d] as AuditDimensionScore;
     const grade = dim?.grade || "F";
+    const score = dim?.score ?? 0;
     const findings = dim?.findings || [];
     const keyFinding = findings[0] || "—";
-    return `<tr>
-      <td style="font-weight:600">${esc(DIMENSION_FULL_LABELS[d] || d)}</td>
-      <td style="text-align:center;font-weight:700;color:${gradeColor(grade)}">${esc(grade)}</td>
+    return `<tr class="${i % 2 === 0 ? "" : "alt"}">
+      <td class="td-bold">${esc(DIMENSION_FULL_LABELS[d] || d)}</td>
+      <td class="td-center td-bold" style="color:${gradeColor(grade)}">${esc(grade)}</td>
+      <td class="td-center">${score}%</td>
       <td>${esc(keyFinding)}</td>
     </tr>`;
   }).join("\n");
@@ -180,30 +198,30 @@ function buildAuditHTML(p: AuditHTMLParams): string {
   const dimensionPages = dims.map((d, idx) => {
     const dim = p.scores[d] as AuditDimensionScore;
     const grade = dim?.grade || "F";
+    const score = dim?.score ?? 0;
     const gapItems = p.gaps[d] || [];
 
-    // Determine column structure based on dimension
     let tableHeader: string;
     let tableRows: string;
 
     if (d === "content") {
       tableHeader = `<tr><th>Page</th><th>Status</th><th>What's Missing</th></tr>`;
       tableRows = gapItems.map((g, i) => `<tr class="${i % 2 === 1 ? "alt" : ""}">
-        <td>${esc(g.item || "")}</td>
-        <td style="font-weight:600;color:${(g.current_state || "").toLowerCase().includes("missing") ? "#c0392b" : "#1a1a1a"}">${esc(g.current_state || "")}</td>
+        <td class="td-bold">${esc(g.item || "")}</td>
+        <td style="color:${(g.current_state || "").toLowerCase().includes("missing") ? "#c0392b" : "#1A1A2E"}">${esc(g.current_state || "")}</td>
         <td>${esc(g.gap || g.standard || "")}</td>
       </tr>`).join("\n");
     } else if (d === "a2a_readiness") {
       tableHeader = `<tr><th>Item</th><th>Current State</th><th>Standard / Recommended</th></tr>`;
       tableRows = gapItems.map((g, i) => `<tr class="${i % 2 === 1 ? "alt" : ""}">
-        <td>${esc(g.item || "")}</td>
+        <td class="td-bold">${esc(g.item || "")}</td>
         <td>${esc(g.current_state || "")}</td>
         <td>${esc(g.standard || "")}</td>
       </tr>`).join("\n");
     } else {
       tableHeader = `<tr><th>Item</th><th>Current State</th><th>Standard</th><th>Gap</th></tr>`;
       tableRows = gapItems.map((g, i) => `<tr class="${i % 2 === 1 ? "alt" : ""}">
-        <td>${esc(g.item || "")}</td>
+        <td class="td-bold">${esc(g.item || "")}</td>
         <td>${esc(g.current_state || "")}</td>
         <td>${esc(g.standard || "")}</td>
         <td>${esc(g.gap || "")}</td>
@@ -212,16 +230,19 @@ function buildAuditHTML(p: AuditHTMLParams): string {
 
     const findings = dim?.findings || [];
     const callout = findings.length > 0
-      ? `<div class="callout"><p>${esc(findings[0])}</p></div>`
+      ? `<div class="callout callout-blue"><p>${esc(findings[0])}</p></div>`
       : "";
 
     return `<div class="page">
-      <div class="section-header">${idx + 1} &middot; ${esc(DIMENSION_FULL_LABELS[d] || d)}</div>
-      <h3 class="dimension-grade">Overall Grade: ${esc(grade)}</h3>
-      <table class="gap-table">
+      <div class="sdiv">${idx + 1}. ${esc(DIMENSION_FULL_LABELS[d] || d)}</div>
+      <div class="dim-header">
+        <span class="dim-grade" style="color:${gradeColor(grade)}">Grade: ${esc(grade)}</span>
+        <span class="dim-score">(${score}%)</span>
+      </div>
+      ${gapItems.length > 0 ? `<table class="data-table">
         <thead>${tableHeader}</thead>
         <tbody>${tableRows}</tbody>
-      </table>
+      </table>` : `<p class="body-text" style="color:#6B7280;">No gap items identified for this dimension.</p>`}
       ${callout}
     </div>`;
   }).join("\n");
@@ -230,40 +251,45 @@ function buildAuditHTML(p: AuditHTMLParams): string {
   let rebuildPage = "";
   if (p.overall.rebuild_recommended || p.platformComparison || p.pagesToBuild.length > 0) {
     const platformSection = p.platformComparison ? `
-      <h2>Platform</h2>
-      <table class="comparison-table">
-        <thead><tr><th class="current-col">Current</th><th class="recommended-col">Recommended</th></tr></thead>
-        <tbody><tr>
-          <td class="current-col">${esc(p.platformComparison.current)}</td>
-          <td class="recommended-col">${esc(p.platformComparison.recommended)}</td>
-        </tr></tbody>
-      </table>` : "";
+      <div class="sub-heading">Platform Recommendation</div>
+      <div class="platform-compare">
+        <div class="platform-col platform-current">
+          <div class="platform-label">Current</div>
+          <div class="platform-value">${esc(p.platformComparison.current)}</div>
+        </div>
+        <div class="platform-arrow">&rarr;</div>
+        <div class="platform-col platform-recommended">
+          <div class="platform-label">Recommended</div>
+          <div class="platform-value">${esc(p.platformComparison.recommended)}</div>
+        </div>
+      </div>` : "";
 
     const pagesSection = p.pagesToBuild.length > 0 ? `
-      <h2>Pages to Build — Priority Order</h2>
-      <table class="gap-table">
+      <div class="sub-heading">Pages to Build — Priority Order</div>
+      <table class="data-table">
         <thead><tr><th style="width:40px">Pri</th><th>Page</th><th>URL</th><th>Notes</th></tr></thead>
         <tbody>${p.pagesToBuild.map((pg, i) => `<tr class="${i % 2 === 1 ? "alt" : ""}">
-          <td style="font-weight:700">${esc(pg.priority || `P${i}`)}</td>
+          <td class="td-bold">${esc(pg.priority || `P${i}`)}</td>
           <td>${esc(pg.title || "")}</td>
-          <td style="font-family:monospace;font-size:8pt">${esc(pg.slug || "")}</td>
+          <td class="td-mono">${esc(pg.slug || "")}</td>
           <td>${esc(pg.notes || pg.reason || "")}</td>
         </tr>`).join("\n")}</tbody>
       </table>` : "";
 
     const timelineSection = p.rebuildTimeline.length > 0 ? `
-      <h2>Rebuild Timeline</h2>
-      <table class="gap-table">
+      <div class="sub-heading">Rebuild Timeline</div>
+      <table class="data-table">
         <thead><tr><th>Phase</th><th>Focus</th><th>Deliverables</th></tr></thead>
         <tbody>${p.rebuildTimeline.map((t, i) => `<tr class="${i % 2 === 1 ? "alt" : ""}">
-          <td style="font-weight:600">${esc(t.phase || "")}</td>
+          <td class="td-bold">${esc(t.phase || "")}</td>
           <td>${esc(t.focus || "")}</td>
           <td>${esc(t.deliverables || "")}</td>
         </tr>`).join("\n")}</tbody>
       </table>` : "";
 
     rebuildPage = `<div class="page">
-      <div class="section-header">7 &middot; Rebuild Recommendation</div>
+      <div class="sdiv">7. Rebuild Recommendation</div>
+      ${p.overall.rebuild_reason ? `<div class="callout callout-warm"><p><strong>Recommendation:</strong> ${esc(p.overall.rebuild_reason)}</p></div>` : ""}
       ${platformSection}
       ${pagesSection}
       ${timelineSection}
@@ -274,10 +300,9 @@ function buildAuditHTML(p: AuditHTMLParams): string {
   let quickWinsPage = "";
   if (p.quickWins.length > 0) {
     quickWinsPage = `<div class="page">
-      <div class="section-header">8 &middot; Quick Wins & Next Steps</div>
-      <h2>Quick wins on the current platform</h2>
-      <p class="subtitle">(if full rebuild not immediately approved)</p>
-      <table class="gap-table">
+      <div class="sdiv">8. Quick Wins &amp; Next Steps</div>
+      <p class="body-text" style="margin-bottom:12px;color:#6B7280;font-style:italic;">Actions available on the current platform if a full rebuild is not immediately approved.</p>
+      <table class="data-table">
         <thead><tr><th>Action</th><th style="width:80px">Time</th><th>Impact</th></tr></thead>
         <tbody>${p.quickWins.map((qw, i) => `<tr class="${i % 2 === 1 ? "alt" : ""}">
           <td>${esc(qw.action || qw.title || "")}</td>
@@ -285,20 +310,22 @@ function buildAuditHTML(p: AuditHTMLParams): string {
           <td>${esc(qw.impact || qw.description || "")}</td>
         </tr>`).join("\n")}</tbody>
       </table>
-      <div class="callout"><p>We recommend starting with these quick wins while planning the full rebuild. Each one improves your site's visibility and conversion immediately.</p></div>
+      <div class="callout callout-green"><p><strong>Bottom Line:</strong> We recommend starting with these quick wins while planning the full rebuild. Each one improves your site's visibility and conversion immediately.</p></div>
     </div>`;
   }
 
-  // Build brand-specific CSS overrides
-  const brandCss = `
-:root {
-  --audit-bg-dark: ${bc.bgDark};
-  --audit-bg-light: ${bc.bgLight};
-  --audit-accent: ${bc.accent};
-  --audit-primary: ${bc.primary};
-  --audit-text-on-primary: ${bc.textOnPrimary};
-}
-`;
+  // Closing callout
+  const closingSection = `<div class="page page-closing">
+    <div class="closing-box">
+      <div class="closing-title">${esc(p.agencyFullName)}</div>
+      ${p.agencyTagline ? `<div class="closing-tagline">${esc(p.agencyTagline)}</div>` : ""}
+      ${p.agencyLocation ? `<div class="closing-location">${esc(p.agencyLocation)}</div>` : ""}
+    </div>
+  </div>`;
+
+  // Footer lines
+  const footerLeft = `Confidential  |  ${esc(p.agencyFullName)}${p.agencyLocation ? `  |  ${esc(p.agencyLocation)}` : ""}`;
+  const taglineRight = p.agencyTagline ? esc(p.agencyTagline) : "";
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -307,37 +334,86 @@ function buildAuditHTML(p: AuditHTMLParams): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Site Audit — ${esc(p.orgName)}</title>
 <style>
-${brandCss}
-${AUDIT_PDF_CSS}
+:root {
+  --navy: ${bc.navy};
+  --slate: #3D5A80;
+  --accent: ${bc.accent};
+  --gold: ${bc.gold};
+  --light-bg: #F0F4F8;
+  --dark-text: #1A1A2E;
+  --light-text: #6B7280;
+  --border-gray: #D1D5DB;
+  --row-alt: #F8FAFC;
+  --highlight: #E8F0FE;
+  --green-bg: #F0FDF4;
+  --blue-bg: #EFF6FF;
+  --warm-bg: #FFFBEB;
+}
+${AUDIT_FSA_CSS}
 </style>
 </head>
 <body>
 
 <!-- Cover Page -->
 <div class="cover-page">
-  <div class="cover-eyebrow">WEBSITE AUDIT REPORT</div>
-  <div class="cover-org">${esc(p.orgName)}</div>
-  <div class="cover-domain">${esc(p.domain)}</div>
-  <div class="cover-subtitle">Gap Analysis &middot; Refactor Plan &middot; Rebuild Recommendation</div>
-  <div class="cover-badges">${gradeBadges}</div>
-  <div class="cover-footer">${esc(p.monthYear)} &middot; Prepared by ${esc(p.agencyName)}</div>
+  <!-- Top accent bar -->
+  <div class="cover-accent-top"></div>
+  <!-- Header row -->
+  <div class="cover-header">
+    <span class="cover-header-left">${esc(p.agencyFullName.toUpperCase())}</span>
+    <span class="cover-header-right">${esc(p.monthYear)}  |  Website Audit</span>
+  </div>
+  <div class="cover-divider"></div>
+
+  ${p.agencyLogoUrl ? `<div class="cover-logo"><img src="${p.agencyLogoUrl}" alt="${esc(p.agencyFullName)}" /></div>` : `<div class="cover-logo-spacer"></div>`}
+
+  <!-- Cover content -->
+  <div class="cover-content">
+    <div class="cover-label">WEBSITE AUDIT</div>
+    <div class="cover-title">${esc(p.orgName)}</div>
+    <div class="cover-subtitle">${esc(p.domain)}</div>
+    <div class="cover-desc">Gap Analysis &middot; Refactor Plan &middot; Rebuild Recommendation</div>
+
+    <div class="cover-badges">${gradeBadges}</div>
+
+    <div class="cover-prepared">
+      <div class="cover-prep-block">
+        <strong>Prepared For</strong><br/>
+        ${esc(p.orgName)}<br/>
+        ${esc(p.domain)}
+      </div>
+      <div class="cover-prep-block">
+        <strong>Prepared By</strong><br/>
+        ${esc(p.agencyName)}<br/>
+        ${esc(p.monthYear)}
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom accent bar -->
+  <div class="cover-accent-bottom"></div>
+  <div class="cover-footer">
+    <span>${footerLeft}</span>
+    <span>${taglineRight}</span>
+  </div>
 </div>
 
 <!-- Executive Summary -->
 <div class="page">
-  <h1>Executive Summary</h1>
-  <hr class="divider">
-  <p>${esc(p.summary)}</p>
-  ${p.overall.rebuild_recommended ? `<div class="callout"><p>${esc(p.overall.rebuild_reason || "Based on the overall score, a significant rebuild or refactor is recommended.")}</p></div>` : ""}
-  <h2>Overall Scores</h2>
-  <table class="score-table">
-    <thead><tr><th>Category</th><th style="width:60px;text-align:center">Grade</th><th>Key Finding</th></tr></thead>
+  <div class="sdiv">Executive Summary</div>
+  <p class="body-text">${esc(p.summary)}</p>
+  ${p.overall.rebuild_recommended ? `<div class="callout callout-warm"><p><strong>Rebuild Recommended:</strong> ${esc(p.overall.rebuild_reason || "Based on the overall score, a significant rebuild or refactor is recommended.")}</p></div>` : ""}
+  <div class="sub-heading">Overall Scores</div>
+  <table class="data-table">
+    <thead><tr><th>Category</th><th style="width:50px;text-align:center">Grade</th><th style="width:50px;text-align:center">Score</th><th>Key Finding</th></tr></thead>
     <tbody>${scoreTableRows}</tbody>
   </table>
-  <div class="overall-badge">
-    <span>Overall Grade:</span>
-    <span class="overall-grade" style="color:${gradeColor(p.overall.grade)}">${esc(p.overall.grade)}</span>
-    <span class="overall-score">(${p.overall.score}%)</span>
+  <div class="overall-badge-row">
+    <div class="overall-badge" style="background:${gradeBgColor(p.overall.grade)}">
+      <span class="overall-label">Overall Grade:</span>
+      <span class="overall-grade" style="color:${gradeColor(p.overall.grade)}">${esc(p.overall.grade)}</span>
+      <span class="overall-score">(${p.overall.score}%)</span>
+    </div>
   </div>
 </div>
 
@@ -350,16 +426,19 @@ ${rebuildPage}
 <!-- Quick Wins -->
 ${quickWinsPage}
 
+<!-- Closing -->
+${closingSection}
+
 </body>
 </html>`;
 }
 
-// ─── CSS (AUDIT_PDF_SPEC design system) ─────────────────────────────
+// ─── CSS (FSA Design System — matches COMPONENTS.md) ─────────────────
 
-const AUDIT_PDF_CSS = `
+const AUDIT_FSA_CSS = `
 @page {
   size: letter;
-  margin: 0.5in;
+  margin: 0;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -367,238 +446,328 @@ const AUDIT_PDF_CSS = `
 body {
   font-family: Helvetica, Arial, sans-serif;
   font-size: 10pt;
-  line-height: 16pt;
-  color: #1a1a1a;
+  line-height: 14.5pt;
+  color: var(--dark-text);
   background: #fff;
 }
 
 /* ── Cover Page ── */
 .cover-page {
-  background: var(--audit-bg-dark, #1c2b1e);
+  background: var(--navy);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 2in 1in;
+  position: relative;
+  padding: 0;
   page-break-after: always;
 }
 
-.cover-eyebrow {
-  color: var(--audit-accent, #c4793a);
+.cover-accent-top {
+  height: 8px;
+  background: var(--accent);
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.cover-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 55px 12px;
+  flex-shrink: 0;
+}
+
+.cover-header-left {
+  color: #B0C4DE;
+  font-size: 10pt;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+}
+
+.cover-header-right {
+  color: #8899AA;
   font-size: 9pt;
-  font-weight: 700;
-  letter-spacing: 3px;
-  margin-bottom: 24px;
 }
 
-.cover-org {
-  color: var(--audit-text-on-primary, #f0ebe0);
-  font-size: 38pt;
-  font-weight: 700;
-  line-height: 1.1;
-  margin-bottom: 12px;
+.cover-divider {
+  height: 0.5px;
+  background: var(--slate);
+  margin: 0 55px;
+  flex-shrink: 0;
 }
 
-.cover-domain {
-  color: #9aaa90;
-  font-size: 26pt;
-  margin-bottom: 16px;
+.cover-logo {
+  padding: 24px 55px 0;
+  flex-shrink: 0;
+}
+
+.cover-logo img {
+  height: 120px;
+  width: auto;
+  object-fit: contain;
+}
+
+.cover-logo-spacer {
+  height: 60px;
+  flex-shrink: 0;
+}
+
+.cover-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 20px 55px 40px;
+}
+
+.cover-label {
+  color: var(--accent);
+  font-size: 14pt;
+  font-weight: 400;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+
+.cover-title {
+  color: #ffffff;
+  font-size: 32pt;
+  font-weight: 700;
+  line-height: 1.15;
+  margin-bottom: 8px;
 }
 
 .cover-subtitle {
-  color: #9aaa90;
+  color: var(--accent);
+  font-size: 20pt;
+  font-weight: 400;
+  line-height: 1.3;
+  margin-bottom: 6px;
+}
+
+.cover-desc {
+  color: #90A4BE;
   font-size: 11pt;
-  margin-bottom: 48px;
+  margin-bottom: 30px;
 }
 
 .cover-badges {
   display: flex;
-  gap: 12px;
-  justify-content: center;
-  margin-bottom: 48px;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 30px;
 }
 
-.grade-badge {
-  width: 64px;
-  height: 52px;
-  background: color-mix(in srgb, var(--audit-bg-dark, #1c2b1e) 90%, white);
+.cover-badge {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
   border-radius: 6px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  padding: 8px 14px;
+  text-align: center;
+  min-width: 72px;
 }
 
-.grade-letter {
-  font-size: 18pt;
+.cover-badge-grade {
+  font-size: 20pt;
   font-weight: 700;
+  line-height: 1.2;
 }
 
-.grade-label {
-  font-size: 7pt;
-  color: #9aaa90;
+.cover-badge-label {
+  font-size: 7.5pt;
+  color: #90A4BE;
   margin-top: 2px;
 }
 
+.cover-badge-score {
+  font-size: 7pt;
+  color: #6B7F99;
+  margin-top: 1px;
+}
+
+.cover-prepared {
+  display: flex;
+  gap: 60px;
+  color: #90A4BE;
+  font-size: 11pt;
+  line-height: 17pt;
+}
+
+.cover-prep-block strong {
+  color: #B0C4DE;
+}
+
+.cover-accent-bottom {
+  height: 4px;
+  background: var(--accent);
+  width: 100%;
+  flex-shrink: 0;
+}
+
 .cover-footer {
-  color: #7a8874;
-  font-size: 9pt;
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 55px 16px;
+  color: #6B7F99;
+  font-size: 8pt;
+  flex-shrink: 0;
 }
 
-/* ── Content Pages ── */
+/* ── Body Pages ── */
 .page {
-  background: var(--audit-bg-light, #f5f0e8);
-  padding: 44px 0.5in 30px;
+  background: #ffffff;
+  padding: 60px 55px 55px;
   min-height: 100vh;
-  page-break-after: always;
   position: relative;
+  page-break-after: always;
 }
 
+/* Top navy line */
 .page::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 44px;
-  background: var(--audit-bg-dark, #1c2b1e);
+  height: 3px;
+  background: var(--navy);
 }
 
+/* Bottom accent line */
 .page::after {
   content: '';
   position: absolute;
-  top: 44px;
+  bottom: 0;
   left: 0;
   right: 0;
   height: 2px;
-  background: var(--audit-accent, #c4793a);
+  background: var(--accent);
 }
 
-h1 {
-  font-size: 20pt;
+.page-closing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Section Divider (sdiv) — Navy bar ── */
+.sdiv {
+  background: var(--navy);
+  color: #ffffff;
+  font-size: 12pt;
   font-weight: 700;
-  color: var(--audit-bg-dark, #1c2b1e);
-  margin: 20px 0 8px;
+  padding: 8px 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 16px;
 }
 
-h2 {
-  font-size: 14pt;
-  font-weight: 700;
-  color: var(--audit-bg-dark, #1c2b1e);
-  margin: 20px 0 10px;
+/* ── Typography ── */
+.body-text {
+  font-size: 10pt;
+  line-height: 14.5pt;
+  color: var(--dark-text);
+  margin-bottom: 12px;
+  text-align: justify;
 }
 
-h3.dimension-grade {
+.sub-heading {
   font-size: 11pt;
   font-weight: 700;
-  color: var(--audit-accent, #c4793a);
-  margin: 12px 0;
+  color: var(--slate);
+  margin: 18px 0 8px;
 }
 
-.subtitle {
-  font-size: 10pt;
-  font-style: italic;
-  color: #4a5e4c;
-  margin-bottom: 12px;
+.dim-header {
+  margin: 8px 0 12px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
 }
 
-hr.divider {
-  border: none;
-  border-top: 0.5px solid #ddd8cc;
-  margin: 8px 0 16px;
-}
-
-/* ── Section Header Bar ── */
-.section-header {
-  background: var(--audit-bg-dark, #1c2b1e);
-  color: #fff;
-  font-size: 13pt;
+.dim-grade {
+  font-size: 12pt;
   font-weight: 700;
-  padding: 10px 16px;
-  border-radius: 6px;
-  margin: 16px 0 12px;
 }
 
-/* ── Tables ── */
-.score-table, .gap-table, .comparison-table {
+.dim-score {
+  font-size: 10pt;
+  color: var(--light-text);
+}
+
+/* ── Data Tables (FSA style) ── */
+.data-table {
   width: 100%;
   border-collapse: collapse;
-  margin: 12px 0;
+  margin: 10px 0 16px;
   font-size: 9pt;
+  border: 0.5px solid var(--border-gray);
 }
 
-.score-table thead tr, .gap-table thead tr {
-  background: color-mix(in srgb, var(--audit-bg-dark, #1c2b1e) 80%, white);
+.data-table thead tr {
+  background: var(--navy);
 }
 
-.score-table th, .gap-table th {
-  color: #fff;
-  font-size: 8pt;
+.data-table th {
+  color: #ffffff;
+  font-size: 9pt;
   font-weight: 700;
   padding: 6px 8px;
   text-align: left;
+  line-height: 12pt;
 }
 
-.score-table td, .gap-table td {
+.data-table td {
   padding: 6px 8px;
-  border-bottom: 1px solid #ddd8cc;
+  border-bottom: 0.3px solid var(--border-gray);
   vertical-align: top;
+  line-height: 12.5pt;
+  color: var(--dark-text);
 }
 
-.score-table tr:nth-child(even), .gap-table tr.alt {
-  background: #f5f3ee;
+.data-table tr.alt {
+  background: var(--row-alt);
 }
 
-/* ── Comparison Table ── */
-.comparison-table {
-  border: 1px solid #ddd8cc;
-}
+.td-bold { font-weight: 600; }
+.td-center { text-align: center; }
+.td-mono { font-family: monospace; font-size: 8pt; }
 
-.comparison-table th, .comparison-table td {
-  padding: 10px 14px;
-  width: 50%;
-  vertical-align: top;
-}
-
-.comparison-table .current-col {
-  background: #fef5f5;
-}
-
-.comparison-table .recommended-col {
-  background: #f0f8f0;
-}
-
-.comparison-table th {
-  font-weight: 700;
-  font-size: 9pt;
-  border-bottom: 2px solid #ddd8cc;
-}
-
-/* ── Callout Box ── */
+/* ── Callout Boxes (FSA style) ── */
 .callout {
-  border-left: 3px solid var(--audit-accent, #c4793a);
-  background: color-mix(in srgb, var(--audit-accent, #c4793a) 15%, white);
+  border: 0.5px solid var(--border-gray);
   padding: 10px 14px;
-  margin: 16px 0;
-  border-radius: 0 4px 4px 0;
+  margin: 14px 0;
+  border-radius: 0;
 }
 
 .callout p {
-  font-style: italic;
   font-size: 10pt;
-  color: var(--audit-bg-dark, #1c2b1e);
+  line-height: 14pt;
+  color: var(--dark-text);
   margin: 0;
 }
 
+.callout-blue { background: var(--highlight); }
+.callout-green { background: var(--green-bg); }
+.callout-warm { background: var(--warm-bg); }
+
 /* ── Overall Badge ── */
+.overall-badge-row {
+  margin-top: 16px;
+}
+
 .overall-badge {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin-top: 16px;
-  font-size: 12pt;
+  padding: 10px 18px;
+  border: 0.5px solid var(--border-gray);
+}
+
+.overall-label {
+  font-size: 11pt;
+  font-weight: 600;
+  color: var(--dark-text);
 }
 
 .overall-grade {
@@ -608,21 +777,89 @@ hr.divider {
 
 .overall-score {
   font-size: 12pt;
-  color: #4a5e4c;
+  color: var(--light-text);
+}
+
+/* ── Platform Compare ── */
+.platform-compare {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 10px 0 20px;
+}
+
+.platform-col {
+  flex: 1;
+  padding: 14px 16px;
+  border: 0.5px solid var(--border-gray);
+  text-align: center;
+}
+
+.platform-current { background: #FEF2F2; }
+.platform-recommended { background: var(--green-bg); }
+
+.platform-label {
+  font-size: 8pt;
+  font-weight: 700;
+  color: var(--light-text);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.platform-value {
+  font-size: 13pt;
+  font-weight: 700;
+  color: var(--dark-text);
+}
+
+.platform-arrow {
+  font-size: 18pt;
+  color: var(--light-text);
+  flex-shrink: 0;
+}
+
+/* ── Closing Box ── */
+.closing-box {
+  text-align: center;
+  padding: 40px;
+  background: var(--blue-bg);
+  border: 0.5px solid var(--border-gray);
+  max-width: 400px;
+}
+
+.closing-title {
+  font-size: 14pt;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 6px;
+}
+
+.closing-tagline {
+  font-size: 10pt;
+  color: var(--slate);
+  font-style: italic;
+  margin-bottom: 4px;
+}
+
+.closing-location {
+  font-size: 9pt;
+  color: var(--light-text);
 }
 
 /* ── Print ── */
 @media print {
   body { background: #fff; }
   .page { min-height: auto; page-break-inside: avoid; }
+  .cover-page { min-height: 100vh; }
 }
 
 @media screen {
-  body { background: #333; }
+  body { background: #444; }
   .cover-page, .page {
     max-width: 8.5in;
     margin: 20px auto;
-    box-shadow: 0 2px 20px rgba(0,0,0,0.3);
+    box-shadow: 0 2px 20px rgba(0,0,0,0.4);
   }
 }
 `;
