@@ -60,7 +60,11 @@
 - [ ] Set up Vercel Cron for daily recurring task generation (/api/pm/series/generate)
 
 ## New Features — Planned
-- [ ] Email compose modal for sending proposals to client contacts
+- [x] Email compose modal for sending proposals to client contacts
+  - `EmailComposeModal` component: to/subject/message fields with org contact auto-fill
+  - Send route upgraded: `/api/pm/proposals/[id]/send` now sends branded email via Resend with "View Proposal" button
+  - Existing "Mark Sent" preserved as secondary action for manual tracking
+  - Branded email template matching existing email design system (dark green header, FSA branding)
 - [ ] Set up Vercel Cron for daily engagement nudge checks (/api/cron/engagement-nudge)
 - [ ] QuickBooks integration (placeholder — billing/invoicing)
 - [x] Build out full intake/discovery form wizard (multi-step discovery questionnaire)
@@ -277,7 +281,13 @@
 - [x] AI daily standup generation (`/daily/YYYY-MM-DD.md`)
 - [x] Risk radar — AI scan of escalating risks
 - [x] Natural language updates ("Set X due date to April 15")
-- [ ] Supabase realtime subscriptions for live dashboard updates
+- [x] Supabase realtime subscriptions for live dashboard updates
+  - `useRealtimeTable` hook (`src/lib/useRealtimeTable.ts`): reusable Supabase Realtime Postgres Changes subscription
+  - Integrated into 4 components: EditableTaskTable (project tasks), PipelineKanban (org pipeline), ClientTasksTab (client tasks), HomePage (my tasks)
+  - EditableTaskTable: granular INSERT/UPDATE/DELETE handling with local state updates
+  - PipelineKanban: org pipeline_status changes update Kanban cards in real time
+  - ClientTasksTab + HomePage: refetch on any task change for simplicity
+  - RLS policies automatically filter which rows each user receives
 - [x] Timeline view (Gantt-style) for phases
 - [x] Budget vs actuals tracking
 - [ ] Seed Honey Lake Digital and VakPak as sample projects
