@@ -3,9 +3,10 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { getBranding, buildPreparedBy } from "@/lib/branding";
 import type { AuditDimensionScore } from "@/types/pm";
 
-// POST /api/pm/site-audit/[id]/save-doc — Save full branded report + MD snapshot to client docs
+// POST /api/pm/site-audit/[id]/save-doc — Save PDF report + MD snapshot to client docs
+// Accepts FormData with a "pdf" file blob from client-side PDF generation
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -36,45 +37,20 @@ export async function POST(
     const domain = audit.url.replace(/^https?:\/\//, "").replace(/\/+$/, "");
     const dateStr = new Date(audit.created_at).toISOString().split("T")[0];
 
-    // ── 1. Generate the full branded HTML report (same as /pdf route) ──
-    const branding = await getBranding(audit.org_id);
-    const agencyName = buildPreparedBy(branding);
-    const now = new Date(audit.created_at);
-    const monthYear = now.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-    const overall = audit.overall || computeOverall(audit.scores || {});
+    // ── 1. Get the PDF from the request FormData ──
+    const formData = await request.formData();
+    const pdfFile = formData.get("pdf") as File | null;
 
-    const { buildAuditHTML } = await import("../pdf/route");
+    if (!pdfFile) {
+      return NextResponse.json({ error: "PDF file is required" }, { status: 400 });
+    }
 
-    const fullHtml = buildAuditHTML({
-      orgName,
-      domain,
-      url: audit.url,
-      monthYear,
-      vertical: audit.vertical,
-      scores: audit.scores || {},
-      overall,
-      gaps: audit.gaps || {},
-      quickWins: audit.quick_wins || [],
-      pagesToBuild: audit.pages_to_build || [],
-      recommendations: audit.recommendations || [],
-      rebuildTimeline: audit.rebuild_timeline || [],
-      platformComparison: audit.platform_comparison || null,
-      summary: audit.audit_summary || "",
-      agencyName,
-      agencyFullName: branding.agency_name,
-      agencyShortName: branding.agency_short_name,
-      agencyTagline: branding.agency_tagline,
-      agencyLocation: branding.location,
-      agencyLogoUrl: branding.agency_logo_url,
-      brandColors: {
-        navy: branding.primary_color,
-        accent: branding.secondary_color,
-        gold: branding.accent_color,
-        textOnPrimary: branding.text_on_primary,
-      },
-    });
+    const pdfBuffer = Buffer.from(await pdfFile.arrayBuffer());
 
     // ── 2. Generate structured markdown snapshot for comparison ──
+    const branding = await getBranding(audit.org_id);
+    const overall = audit.overall || computeOverall(audit.scores || {});
+
     const mdContent = buildAuditMarkdown({
       orgName,
       domain,
@@ -94,18 +70,17 @@ export async function POST(
       pagesMissing: audit.pages_missing || [],
     });
 
-    // ── 3. Upload both files to Supabase Storage ──
-    const htmlFileName = `${orgSlug}-site-audit-${dateStr}.html`;
+    // ── 3. Upload PDF + markdown to Supabase Storage ──
+    const pdfFileName = `${orgSlug}-site-audit-${dateStr}.pdf`;
     const mdFileName = `${orgSlug}-site-audit-${dateStr}.md`;
-    const htmlStoragePath = `documents/${orgSlug}/${htmlFileName}`;
+    const pdfStoragePath = `documents/${orgSlug}/${pdfFileName}`;
     const mdStoragePath = `${orgSlug}/audits/${id}/${mdFileName}`;
 
-    const htmlBuffer = Buffer.from(fullHtml, "utf-8");
     const mdBuffer = Buffer.from(mdContent, "utf-8");
 
-    const [htmlUpload, mdUpload] = await Promise.all([
-      supabase.storage.from("vault").upload(htmlStoragePath, htmlBuffer, {
-        contentType: "text/html",
+    const [pdfUpload, mdUpload] = await Promise.all([
+      supabase.storage.from("vault").upload(pdfStoragePath, pdfBuffer, {
+        contentType: "application/pdf",
         upsert: true,
       }),
       supabase.storage.from("vault").upload(mdStoragePath, mdBuffer, {
@@ -114,16 +89,17 @@ export async function POST(
       }),
     ]);
 
-    if (htmlUpload.error) {
-      console.error("HTML upload error:", htmlUpload.error);
+    if (pdfUpload.error) {
+      console.error("PDF upload error:", pdfUpload.error);
     }
     if (mdUpload.error) {
       console.error("MD upload error:", mdUpload.error);
     }
 
-    // ── 4. Create pm_documents record (full branded report) ──
+    // ── 4. Create pm_documents record (PDF report) ──
     const overallGrade = overall.grade || "?";
     const overallScore = overall.score || 0;
+    const agencyName = buildPreparedBy(branding);
 
     const { data: doc, error: docErr } = await supabase
       .from("pm_documents")
@@ -132,11 +108,11 @@ export async function POST(
         slug: `site-audit-${dateStr}-${domain.replace(/\./g, "-")}-${id.slice(0, 8)}`,
         title: `Site Audit: ${domain} (${overallGrade} - ${overallScore}%)`,
         category: "report",
-        description: `Full site audit report for ${audit.url} scored ${overallGrade} (${overallScore}/100). ${audit.audit_summary?.slice(0, 200) || ""}`,
-        storage_path: htmlStoragePath,
-        file_name: htmlFileName,
-        file_size: htmlBuffer.length,
-        mime_type: "text/html",
+        description: `Full site audit report for ${audit.url} scored ${overallGrade} (${overallScore}/100). Prepared by ${agencyName}. ${audit.audit_summary?.slice(0, 200) || ""}`,
+        storage_path: pdfStoragePath,
+        file_name: pdfFileName,
+        file_size: pdfBuffer.length,
+        mime_type: "application/pdf",
       })
       .select("id")
       .single();
@@ -156,7 +132,7 @@ export async function POST(
     await supabase.from("pm_audit_snapshots").insert({
       audit_id: id,
       org_id: audit.org_id,
-      html_storage_path: htmlStoragePath,
+      html_storage_path: pdfStoragePath,
       md_storage_path: mdStoragePath,
       overall_grade: overallGrade,
       overall_score: overallScore,
@@ -242,7 +218,6 @@ function buildAuditMarkdown(p: AuditMdParams): string {
   lines.push(`overall_grade: "${p.overall.grade}"`);
   lines.push(`overall_score: ${p.overall.score}`);
   lines.push(`rebuild_recommended: ${p.overall.rebuild_recommended}`);
-  // Dimension scores in frontmatter for easy parsing
   for (const d of dims) {
     const dim = p.scores[d] as AuditDimensionScore | undefined;
     lines.push(`${d}_grade: "${dim?.grade || "F"}"`);
@@ -265,12 +240,10 @@ function buildAuditMarkdown(p: AuditMdParams): string {
   }
   lines.push("");
 
-  // Executive summary
   lines.push("## Executive Summary");
   lines.push(p.summary || "_No summary available._");
   lines.push("");
 
-  // Score card
   lines.push("## Score Card");
   lines.push("| Dimension | Grade | Score | Key Finding |");
   lines.push("|-----------|-------|-------|-------------|");
@@ -283,7 +256,6 @@ function buildAuditMarkdown(p: AuditMdParams): string {
   }
   lines.push("");
 
-  // Gap analysis per dimension
   lines.push("## Gap Analysis");
   for (const d of dims) {
     const gapItems = p.gaps[d] || [];
@@ -310,7 +282,6 @@ function buildAuditMarkdown(p: AuditMdParams): string {
     lines.push("");
   }
 
-  // Recommendations
   if (p.recommendations.length > 0) {
     lines.push("## Recommendations");
     for (const r of p.recommendations) {
@@ -323,7 +294,6 @@ function buildAuditMarkdown(p: AuditMdParams): string {
     }
   }
 
-  // Quick wins
   if (p.quickWins.length > 0) {
     lines.push("## Quick Wins");
     lines.push("| Action | Time Estimate | Impact |");
@@ -334,7 +304,6 @@ function buildAuditMarkdown(p: AuditMdParams): string {
     lines.push("");
   }
 
-  // Pages to build
   if (p.pagesToBuild.length > 0) {
     lines.push("## Pages to Build");
     lines.push("| Priority | Page | URL | Notes |");
@@ -345,7 +314,6 @@ function buildAuditMarkdown(p: AuditMdParams): string {
     lines.push("");
   }
 
-  // Pages found/missing
   if (p.pagesFound.length > 0) {
     lines.push("## Pages Found");
     for (const pg of p.pagesFound) {
@@ -361,7 +329,6 @@ function buildAuditMarkdown(p: AuditMdParams): string {
     lines.push("");
   }
 
-  // Platform comparison
   if (p.platformComparison) {
     lines.push("## Platform Comparison");
     lines.push(`- **Current:** ${p.platformComparison.current}`);
@@ -369,7 +336,6 @@ function buildAuditMarkdown(p: AuditMdParams): string {
     lines.push("");
   }
 
-  // Rebuild timeline
   if (p.rebuildTimeline.length > 0) {
     lines.push("## Rebuild Timeline");
     lines.push("| Phase | Focus | Deliverables |");

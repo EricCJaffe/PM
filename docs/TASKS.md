@@ -94,6 +94,16 @@
 - [x] Onboarding project → process project handoff (create child project from onboarding)
 
 ## Recently Completed
+- [x] Site Audit v5: PDF Document Storage + Comparison Save
+  - Save-to-docs now generates actual PDF files (was saving raw HTML that showed source code in viewer)
+  - Client-side PDF generation using jsPDF + html2canvas — captures each page individually for multi-page PDFs
+  - New shared library `src/lib/audit-html.ts` — extracted `buildAuditHTML()` from route file (Next.js export restriction)
+  - New utility `src/lib/html-to-pdf.ts` — client-side HTML-to-PDF converter with shadow DOM isolation
+  - Save-doc endpoint now accepts PDF upload via FormData (was generating HTML server-side)
+  - Documents stored as `application/pdf` with `.pdf` extension in Supabase Storage
+  - Comparison report now has "Save to Client Docs" button — generates comparison PDF and saves to documents
+  - New API route: `POST /api/pm/site-audit/compare/save-doc` — saves comparison PDF to client docs
+  - Dependencies added: `jspdf`, `html2canvas`
 - [x] Site Audit v4: Full Report Storage, Snapshots, and Comparison
   - Save-to-docs now stores the full branded HTML report (was saving lightweight summary)
   - Also saves a structured markdown snapshot with YAML frontmatter for all scores/gaps/recommendations

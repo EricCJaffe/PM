@@ -210,7 +210,23 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
     setSaving(true);
     setSaveSuccess(false);
     try {
-      const res = await fetch(`/api/pm/site-audit/${auditId}/save-doc`, { method: "POST" });
+      // 1. Fetch the branded HTML report
+      const htmlRes = await fetch(`/api/pm/site-audit/${auditId}/pdf`, { method: "POST" });
+      if (!htmlRes.ok) throw new Error("Failed to generate report HTML");
+      const htmlString = await htmlRes.text();
+
+      // 2. Convert HTML to PDF client-side
+      const { htmlToPdfBlob } = await import("@/lib/html-to-pdf");
+      const pdfBlob = await htmlToPdfBlob(htmlString);
+
+      // 3. Upload PDF to save-doc endpoint
+      const formData = new FormData();
+      formData.append("pdf", pdfBlob, "report.pdf");
+
+      const res = await fetch(`/api/pm/site-audit/${auditId}/save-doc`, {
+        method: "POST",
+        body: formData,
+      });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Failed to save document");

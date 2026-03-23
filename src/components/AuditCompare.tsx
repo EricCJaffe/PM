@@ -71,6 +71,8 @@ export function AuditCompare({ audits, orgId, onClose }: Props) {
   const [result, setResult] = useState<CompareResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   const runComparison = useCallback(async () => {
     if (!beforeId || !afterId || beforeId === afterId) return;
@@ -91,17 +93,22 @@ export function AuditCompare({ audits, orgId, onClose }: Props) {
     }
   }, [beforeId, afterId]);
 
+  // Fetch comparison HTML (shared between export and save)
+  const fetchComparisonHtml = useCallback(async (): Promise<string> => {
+    const res = await fetch("/api/pm/site-audit/compare/export", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ audit_id_before: beforeId, audit_id_after: afterId }),
+    });
+    if (!res.ok) throw new Error("Export failed");
+    return res.text();
+  }, [beforeId, afterId]);
+
   const exportReport = useCallback(async () => {
     if (!result) return;
     setExportLoading(true);
     try {
-      const res = await fetch("/api/pm/site-audit/compare/export", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ audit_id_before: beforeId, audit_id_after: afterId }),
-      });
-      if (!res.ok) throw new Error("Export failed");
-      const html = await res.text();
+      const html = await fetchComparisonHtml();
       const blob = new Blob([html], { type: "text/html" });
       const blobUrl = URL.createObjectURL(blob);
       window.open(blobUrl, "_blank");
@@ -110,7 +117,41 @@ export function AuditCompare({ audits, orgId, onClose }: Props) {
     } finally {
       setExportLoading(false);
     }
-  }, [result, beforeId, afterId]);
+  }, [result, fetchComparisonHtml]);
+
+  const saveToClientDocs = useCallback(async () => {
+    if (!result) return;
+    setSaveLoading(true);
+    setSaveSuccess(false);
+    try {
+      // 1. Fetch the comparison HTML
+      const html = await fetchComparisonHtml();
+
+      // 2. Convert to PDF client-side
+      const { htmlToPdfBlob } = await import("@/lib/html-to-pdf");
+      const pdfBlob = await htmlToPdfBlob(html);
+
+      // 3. Upload to save-doc endpoint
+      const formData = new FormData();
+      formData.append("pdf", pdfBlob, "comparison.pdf");
+      formData.append("audit_id_before", beforeId);
+      formData.append("audit_id_after", afterId);
+
+      const res = await fetch("/api/pm/site-audit/compare/save-doc", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to save document");
+      }
+      setSaveSuccess(true);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to save comparison");
+    } finally {
+      setSaveLoading(false);
+    }
+  }, [result, fetchComparisonHtml, beforeId, afterId]);
 
   return (
     <div className="p-6">
@@ -316,8 +357,8 @@ export function AuditCompare({ audits, orgId, onClose }: Props) {
             </div>
           )}
 
-          {/* Export button */}
-          <div className="flex gap-3">
+          {/* Export + Save buttons */}
+          <div className="flex gap-3 items-center">
             <button
               onClick={exportReport}
               disabled={exportLoading}
@@ -325,6 +366,16 @@ export function AuditCompare({ audits, orgId, onClose }: Props) {
             >
               {exportLoading ? "Generating..." : "Export Comparison Report"}
             </button>
+            <button
+              onClick={saveToClientDocs}
+              disabled={saveLoading || saveSuccess}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors"
+            >
+              {saveLoading ? "Saving..." : saveSuccess ? "Saved" : "Save to Client Docs"}
+            </button>
+            {saveSuccess && (
+              <span className="text-green-400 text-sm">Saved to client documents</span>
+            )}
           </div>
         </div>
       )}
