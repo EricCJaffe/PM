@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { ShareButton } from "@/components/dashboard/ShareButton";
+import { ClientActions } from "@/components/dashboard/ClientActions";
 import { getUserOrgFilter } from "@/lib/auth";
 import type { PipelineStatus } from "@/types/pm";
 
@@ -86,6 +87,7 @@ export default async function ClientDetailPage({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <ClientActions clientId={org.id} clientSlug={org.slug} />
           <Link
             href={`/projects/new?org=${org.id}`}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
