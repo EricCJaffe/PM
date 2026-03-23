@@ -33,6 +33,17 @@ interface KanbanClient {
   state: string | null;
 }
 
+interface StageRevenue {
+  mrr: number;
+  one_time: number;
+}
+
+function formatCurrency(n: number): string {
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}k`;
+  return `$${n.toLocaleString()}`;
+}
+
 const COLUMNS: { value: PipelineStatus; label: string; headerColor: string; dotColor: string }[] = [
   { value: "lead", label: "Lead", headerColor: "text-slate-300", dotColor: "bg-slate-400" },
   { value: "qualified", label: "Qualified", headerColor: "text-blue-400", dotColor: "bg-blue-400" },
@@ -89,24 +100,43 @@ function SortableCard({ client }: { client: KanbanClient }) {
   );
 }
 
-function KanbanColumn({ status, label, headerColor, dotColor, clients }: {
+function KanbanColumn({ status, label, headerColor, dotColor, clients, revenue }: {
   status: PipelineStatus;
   label: string;
   headerColor: string;
   dotColor: string;
   clients: KanbanClient[];
+  revenue?: StageRevenue;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
+  const mrr = revenue?.mrr ?? 0;
+  const oneTime = revenue?.one_time ?? 0;
 
   return (
     <div
       ref={setNodeRef}
       className={`flex flex-col min-w-[220px] w-[220px] bg-pm-card rounded-xl border ${isOver ? "border-pm-accent bg-pm-accent/5" : "border-pm-border"} transition-colors`}
     >
-      <div className="px-3 py-2.5 border-b border-pm-border flex items-center gap-2">
-        <span className={`w-2 h-2 rounded-full ${dotColor}`} />
-        <span className={`text-sm font-semibold ${headerColor}`}>{label}</span>
-        <span className="text-xs text-pm-muted ml-auto">{clients.length}</span>
+      <div className="px-3 py-2.5 border-b border-pm-border">
+        <div className="flex items-center gap-2">
+          <span className={`w-2 h-2 rounded-full ${dotColor}`} />
+          <span className={`text-sm font-semibold ${headerColor}`}>{label}</span>
+          <span className="text-xs text-pm-muted ml-auto">{clients.length}</span>
+        </div>
+        {(mrr > 0 || oneTime > 0) && (
+          <div className="mt-1.5 flex flex-col gap-0.5">
+            {mrr > 0 && (
+              <div className="text-xs font-semibold text-emerald-400">
+                {formatCurrency(mrr)}<span className="text-pm-muted font-normal">/mo MRR</span>
+              </div>
+            )}
+            {oneTime > 0 && (
+              <div className="text-xs text-blue-400">
+                {formatCurrency(oneTime)} <span className="text-pm-muted font-normal">one-time</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
       <div className="p-2 flex-1 space-y-2 min-h-[80px] overflow-y-auto max-h-[calc(100vh-280px)]">
         <SortableContext items={clients.map((c) => c.id)} strategy={verticalListSortingStrategy}>
@@ -122,9 +152,10 @@ function KanbanColumn({ status, label, headerColor, dotColor, clients }: {
   );
 }
 
-export function PipelineKanban({ clients: initialClients, onStatusChange }: {
+export function PipelineKanban({ clients: initialClients, onStatusChange, stageRevenue }: {
   clients: KanbanClient[];
   onStatusChange: (clientId: string, newStatus: PipelineStatus) => void;
+  stageRevenue?: Record<PipelineStatus, StageRevenue> | null;
 }) {
   const [clients, setClients] = useState(initialClients);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -215,6 +246,7 @@ export function PipelineKanban({ clients: initialClients, onStatusChange }: {
             headerColor={col.headerColor}
             dotColor={col.dotColor}
             clients={grouped[col.value]}
+            revenue={stageRevenue?.[col.value]}
           />
         ))}
       </div>

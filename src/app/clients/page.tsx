@@ -53,11 +53,23 @@ function PipelineBadge({ status }: { status: PipelineStatus }) {
   );
 }
 
+interface StageRevenue {
+  mrr: number;
+  one_time: number;
+}
+
+function formatCurrency(n: number): string {
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}k`;
+  return `$${n.toLocaleString()}`;
+}
+
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [tableError, setTableError] = useState<TableError | null>(null);
   const [pipelineFilter, setPipelineFilter] = useState<PipelineStatus | "all">("all");
+  const [stageRevenue, setStageRevenue] = useState<Record<PipelineStatus, StageRevenue> | null>(null);
 
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -103,6 +115,15 @@ export default function ClientsPage() {
       .finally(() => setLoading(false));
   };
 
+  const loadRevenue = () => {
+    fetch("/api/pm/organizations/pipeline")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.revenue) setStageRevenue(data.revenue);
+      })
+      .catch(() => {});
+  };
+
   useEffect(() => {
     fetch("/api/pm/organizations")
       .then((r) => r.json())
@@ -123,6 +144,7 @@ export default function ClientsPage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
+    loadRevenue();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -304,6 +326,9 @@ export default function ClientsPage() {
           {PIPELINE_STAGES.map((stage) => {
             const count = pipelineCounts[stage.value] || 0;
             const isActive = pipelineFilter === stage.value;
+            const rev = stageRevenue?.[stage.value];
+            const mrr = rev?.mrr ?? 0;
+            const oneTime = rev?.one_time ?? 0;
             return (
               <button
                 key={stage.value}
@@ -317,6 +342,20 @@ export default function ClientsPage() {
                 <div className={`w-2.5 h-2.5 rounded-full ${stage.dot} mb-2`} />
                 <div className="text-2xl font-bold text-pm-text">{count}</div>
                 <div className="text-xs text-pm-muted mt-0.5 truncate">{stage.label}</div>
+                {(mrr > 0 || oneTime > 0) && (
+                  <div className="mt-2 pt-2 border-t border-pm-border space-y-0.5">
+                    {mrr > 0 && (
+                      <div className="text-xs font-semibold text-emerald-400">
+                        {formatCurrency(mrr)}<span className="text-pm-muted font-normal">/mo</span>
+                      </div>
+                    )}
+                    {oneTime > 0 && (
+                      <div className="text-xs text-blue-400">
+                        {formatCurrency(oneTime)} <span className="text-pm-muted font-normal">one-time</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </button>
             );
           })}
@@ -519,7 +558,7 @@ export default function ClientsPage() {
           <p className="text-sm">Create your first client to get started.</p>
         </div>
       ) : viewMode === "kanban" ? (
-        <PipelineKanban clients={clients} onStatusChange={handlePipelineChange} />
+        <PipelineKanban clients={clients} onStatusChange={handlePipelineChange} stageRevenue={stageRevenue} />
       ) : (
         <>
           {/* Search bar */}

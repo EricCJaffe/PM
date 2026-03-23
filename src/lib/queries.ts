@@ -381,6 +381,46 @@ export async function getOrganizationsByPipeline(): Promise<Record<PipelineStatu
   return grouped;
 }
 
+/** Revenue totals per pipeline stage (summed from active engagements) */
+export interface PipelineRevenue {
+  mrr: number;
+  one_time: number;
+}
+
+export async function getPipelineRevenue(): Promise<Record<PipelineStatus, PipelineRevenue>> {
+  const supabase = createServiceClient();
+  // Join engagements → org pipeline_status, exclude closed_lost engagements
+  const { data: engagements } = await supabase
+    .from("pm_engagements")
+    .select("org_id, projected_mrr, projected_one_time, deal_stage")
+    .not("deal_stage", "eq", "closed_lost");
+
+  // Also need org pipeline_status to group by
+  const { data: orgs } = await supabase
+    .from("pm_organizations")
+    .select("id, pipeline_status");
+
+  const orgMap = new Map<string, PipelineStatus>((orgs ?? []).map((o: { id: string; pipeline_status: string }) => [o.id, o.pipeline_status as PipelineStatus]));
+
+  const result: Record<PipelineStatus, PipelineRevenue> = {
+    lead: { mrr: 0, one_time: 0 },
+    qualified: { mrr: 0, one_time: 0 },
+    discovery_complete: { mrr: 0, one_time: 0 },
+    proposal_sent: { mrr: 0, one_time: 0 },
+    negotiation: { mrr: 0, one_time: 0 },
+    closed_won: { mrr: 0, one_time: 0 },
+    closed_lost: { mrr: 0, one_time: 0 },
+  };
+
+  for (const eng of engagements ?? []) {
+    const stage: PipelineStatus = orgMap.get(eng.org_id) ?? "lead";
+    result[stage].mrr += Number(eng.projected_mrr) || 0;
+    result[stage].one_time += Number(eng.projected_one_time) || 0;
+  }
+
+  return result;
+}
+
 // ─── Proposals ──────────────────────────────────────────────────────
 
 export async function getProposals(orgId: string): Promise<Proposal[]> {

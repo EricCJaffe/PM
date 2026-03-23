@@ -93,6 +93,8 @@ export function EngagementOverview({ org }: { org: Organization }) {
     type: "new_prospect" as "new_prospect" | "existing_client",
     assigned_to: "",
     estimated_value: "",
+    projected_mrr: "",
+    projected_one_time: "",
     expected_close_date: "",
     engagement_type: "",
     referral_source: "",
@@ -244,6 +246,8 @@ export function EngagementOverview({ org }: { org: Organization }) {
           type: form.type,
           assigned_to: form.assigned_to || null,
           estimated_value: form.estimated_value ? parseFloat(form.estimated_value) : null,
+          projected_mrr: form.projected_mrr ? parseFloat(form.projected_mrr) : 0,
+          projected_one_time: form.projected_one_time ? parseFloat(form.projected_one_time) : 0,
           expected_close_date: form.expected_close_date || null,
           engagement_type: form.engagement_type || null,
           referral_source: form.referral_source || null,
@@ -254,7 +258,7 @@ export function EngagementOverview({ org }: { org: Organization }) {
       setEngagements((prev) => [data, ...prev]);
       setActiveEngId(data.id);
       setShowCreate(false);
-      setForm({ title: "", type: "new_prospect", assigned_to: "", estimated_value: "", expected_close_date: "", engagement_type: "", referral_source: "" });
+      setForm({ title: "", type: "new_prospect", assigned_to: "", estimated_value: "", projected_mrr: "", projected_one_time: "", expected_close_date: "", engagement_type: "", referral_source: "" });
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to create");
     } finally {
@@ -474,6 +478,28 @@ export function EngagementOverview({ org }: { org: Organization }) {
               />
             </div>
             <div>
+              <label className="block text-xs font-medium text-pm-muted mb-1">Projected MRR</label>
+              <input
+                type="number"
+                step="0.01"
+                value={form.projected_mrr}
+                onChange={(e) => setForm((f) => ({ ...f, projected_mrr: e.target.value }))}
+                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text"
+                placeholder="$0.00/mo"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-pm-muted mb-1">One-Time Revenue</label>
+              <input
+                type="number"
+                step="0.01"
+                value={form.projected_one_time}
+                onChange={(e) => setForm((f) => ({ ...f, projected_one_time: e.target.value }))}
+                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text"
+                placeholder="$0.00"
+              />
+            </div>
+            <div>
               <label className="block text-xs font-medium text-pm-muted mb-1">Expected Close</label>
               <input
                 type="date"
@@ -603,6 +629,19 @@ export function EngagementOverview({ org }: { org: Organization }) {
                   ? `$${Number(activeEng.estimated_value).toLocaleString()}`
                   : "\u2014"}
               </div>
+            </div>
+            <div className="card">
+              <div className="text-xs text-pm-muted mb-1">Projected MRR</div>
+              <div className="text-xl font-bold text-emerald-400">
+                {Number(activeEng.projected_mrr) > 0
+                  ? `$${Number(activeEng.projected_mrr).toLocaleString()}/mo`
+                  : "\u2014"}
+              </div>
+              {Number(activeEng.projected_one_time) > 0 && (
+                <div className="text-xs text-blue-400 mt-0.5">
+                  + ${Number(activeEng.projected_one_time).toLocaleString()} one-time
+                </div>
+              )}
             </div>
             <div className="card">
               <div className="text-xs text-pm-muted mb-1">Expected Close</div>

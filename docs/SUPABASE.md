@@ -492,6 +492,12 @@ Migration: 035
 - `pm_projects.parent_project_id` — FK → pm_projects (SET NULL)
 - `pm_projects.onboarding_status` — TEXT: not-started, discovery, gap-analysis, planning, active, complete
 
+### Additional columns added by migration 041 (Projected Revenue)
+- `pm_engagements.projected_mrr` — DECIMAL(12,2), default 0, monthly recurring revenue
+- `pm_engagements.projected_one_time` — DECIMAL(12,2), default 0, one-time project revenue
+- `pm_projects.projected_mrr` — DECIMAL(12,2), default 0, monthly recurring revenue
+- `pm_projects.projected_one_time` — DECIMAL(12,2), default 0, one-time project revenue
+
 ### Storage
 - Bucket: `documents` (private, for PDF storage)
 - Bucket: `vault` (private, engagement attachments stored at `{org-slug}/engagements/{engagement-id}/...`)

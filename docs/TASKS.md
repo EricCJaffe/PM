@@ -83,6 +83,13 @@
   - Send route upgraded: `/api/pm/proposals/[id]/send` now sends branded email via Resend with "View Proposal" button
   - Existing "Mark Sent" preserved as secondary action for manual tracking
   - Branded email template matching existing email design system (dark green header, FSA branding)
+- [x] Projected revenue / MRR tracking on pipeline
+  - Migration 041: adds `projected_mrr` and `projected_one_time` columns to `pm_engagements` and `pm_projects`
+  - Pipeline stage summary boxes now display MRR and one-time revenue totals per stage
+  - Kanban columns show MRR/one-time revenue in headers
+  - Engagement create form adds Projected MRR and One-Time Revenue inputs
+  - Engagement detail summary cards show MRR alongside deal value
+  - Pipeline API (`/api/pm/organizations/pipeline`) returns per-stage revenue aggregates
 - [ ] Set up Vercel Cron for daily engagement nudge checks (/api/cron/engagement-nudge)
 - [ ] QuickBooks integration (placeholder — billing/invoicing)
 - [x] Build out full intake/discovery form wizard (multi-step discovery questionnaire)

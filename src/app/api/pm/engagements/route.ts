@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { org_id, title, type, deal_stage, assigned_to, estimated_value, expected_close_date, engagement_type, referral_source, discovery_notes } = body;
+    const { org_id, title, type, deal_stage, assigned_to, estimated_value, projected_mrr, projected_one_time, expected_close_date, engagement_type, referral_source, discovery_notes } = body;
 
     if (!org_id) return NextResponse.json({ error: "org_id is required" }, { status: 400 });
 
@@ -40,6 +40,8 @@ export async function POST(request: NextRequest) {
         deal_stage: startStage,
         assigned_to: assigned_to || null,
         estimated_value: estimated_value || null,
+        projected_mrr: projected_mrr ?? 0,
+        projected_one_time: projected_one_time ?? 0,
         expected_close_date: expected_close_date || null,
         engagement_type: engagement_type || null,
         referral_source: referral_source || null,

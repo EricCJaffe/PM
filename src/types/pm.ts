@@ -100,6 +100,8 @@ export interface Project {
   start_date: string;
   target_date: string | null;
   budget: number | null;
+  projected_mrr: number | null;
+  projected_one_time: number | null;
   status: ProjectStatus;
   is_personal: boolean;
   personal_member_slug: string | null;
@@ -317,6 +319,8 @@ export interface Engagement {
   deal_stage: DealStage;
   assigned_to: string | null;
   estimated_value: number | null;
+  projected_mrr: number | null;
+  projected_one_time: number | null;
   probability_override: number | null;
   expected_close_date: string | null;
   closed_reason: string | null;

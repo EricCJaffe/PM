@@ -38,6 +38,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const updates: Record<string, unknown> = {};
   const allowedFields = [
     "title", "type", "deal_stage", "assigned_to", "estimated_value",
+    "projected_mrr", "projected_one_time",
     "probability_override", "expected_close_date", "closed_reason",
     "discovery_notes", "engagement_type", "referral_source",
   ];
