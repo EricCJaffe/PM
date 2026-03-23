@@ -78,10 +78,39 @@ Write polished, professional content suitable for client-facing business documen
 Use clear, concise business language. Format with HTML tags (p, ul, ol, li, table, tr, th, td, strong, em).
 Do NOT include the section title as an h2 — just the body content.${kbContext}`;
 
+    // Build line items context if present
+    let lineItemsContext = "";
+    if (intakeData.line_items) {
+      try {
+        const items = JSON.parse(intakeData.line_items);
+        if (Array.isArray(items) && items.length > 0) {
+          const monthly = items.filter((i: Record<string, unknown>) => i.billing_type === "monthly");
+          const oneTime = items.filter((i: Record<string, unknown>) => i.billing_type === "one-time");
+          lineItemsContext = "\n\nLINE ITEMS (use these for the pricing section):\n";
+          if (monthly.length > 0) {
+            lineItemsContext += "Monthly Recurring Items:\n";
+            for (const item of monthly) {
+              lineItemsContext += `  - ${item.description}: $${item.amount} x ${item.quantity} = $${item.amount * item.quantity}/mo\n`;
+            }
+            const monthlyTotal = monthly.reduce((s: number, i: Record<string, number>) => s + (i.amount * i.quantity), 0);
+            lineItemsContext += `  Monthly Total: $${monthlyTotal}\n`;
+          }
+          if (oneTime.length > 0) {
+            lineItemsContext += "One-Time Cost Items:\n";
+            for (const item of oneTime) {
+              lineItemsContext += `  - ${item.description}: $${item.amount} x ${item.quantity} = $${item.amount * item.quantity}\n`;
+            }
+            const oneTimeTotal = oneTime.reduce((s: number, i: Record<string, number>) => s + (i.amount * i.quantity), 0);
+            lineItemsContext += `  One-Time Total: $${oneTimeTotal}\n`;
+          }
+        }
+      } catch { /* ignore parse errors */ }
+    }
+
     const userPrompt = `Generate content for the following sections of a "${docType?.name ?? "Document"}" based on the intake data below.
 
 INTAKE DATA:
-${fieldHints}
+${fieldHints}${lineItemsContext}
 
 SECTIONS TO GENERATE:
 ${sectionList}
@@ -92,9 +121,13 @@ Example: { "executive_summary": "<p>Content here...</p>", "scope_of_work": "<ul>
 Important:
 - Write professional, polished content appropriate for a formal business document
 - Use the intake data to inform the content — expand abbreviations, add professional context
-- For pricing sections, create HTML tables with clear formatting
+- For the PRICING section: If line items are provided, create TWO separate tables:
+  1. "Monthly Recurring Costs" table with columns: Service/Product, Unit Price, Qty, Monthly Cost
+  2. "One-Time Costs" table with columns: Service/Product, Unit Price, Qty, Total
+  Include subtotals for each table. Include payment terms and any payment notes.
 - For timeline sections, create milestone tables
 - For scope sections, use bulleted lists
+- For the Terms & Conditions section: Use the terms_conditions_text as the basis. Include contract length, cancellation terms, payment terms, and standard professional clauses (intellectual property, confidentiality, limitation of liability). Format with clear subsections.
 - Each section should be substantive (2-4 paragraphs or equivalent structured content)
 - Return ONLY valid JSON, no markdown fences`;
 

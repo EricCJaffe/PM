@@ -100,6 +100,18 @@
 - [x] Onboarding project → process project handoff (create child project from onboarding)
 
 ## Recently Completed
+- [x] SOW Builder billing enhancements
+  - **Bug fix**: Print dialog no longer reopens after saving PDF — window closes after print completes
+  - **Payment Notes**: New textarea field under payment schedule for additional billing notes
+  - **Line Items Editor**: New component for adding product/service line items with billing type (monthly recurring vs one-time)
+    - Separate sections for monthly recurring and one-time costs with subtotals
+    - Add/remove individual items with description, amount, quantity
+    - Combined total summary when both types present
+  - **Payment Terms dropdown**: QuickBooks-compatible pick list (Due on Receipt, Net 15, Net 30, Net 60, 50% Upfront / 50% on Completion, Custom)
+  - **Terms & Conditions**: New intake section with default cancellation language and contract length selector (Month-to-Month through 24 Months)
+    - Default: "month-to-month agreement cancelable with 30 days written notice"
+  - **AI generation updated**: Pricing section now generates separate tables for Monthly Recurring Costs and One-Time Costs; T&C section uses intake text as basis
+  - Migration: `042_sow_billing_enhancements.sql`
 - [x] Consolidate document generation: eliminate duplicate Proposals and Engagements features
   - ProposalsTab rewritten to embed full docgen functionality (MSA, SOW, etc.) inline, filtered by client org
   - Engagements tab removed from client dashboard (UI, API routes, engagement-engine.ts, cron)

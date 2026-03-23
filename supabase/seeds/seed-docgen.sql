@@ -256,6 +256,36 @@ BEGIN
   INSERT INTO document_intake_fields (document_type_id, field_key, label, field_type, section, sort_order, is_required, placeholder, ai_hint)
   VALUES (_type_id, 'payment_schedule', 'Payment Schedule', 'textarea', 'Pricing & Payment', 44, false, 'e.g., 50% upfront, 25% at midpoint, 25% on completion...', 'Create a payment schedule table with milestone, amount, and due date columns.');
 
+  INSERT INTO document_intake_fields (document_type_id, field_key, label, field_type, section, sort_order, is_required, ai_hint, options, help_text)
+  VALUES (_type_id, 'payment_terms', 'Payment Terms', 'select', 'Pricing & Payment', 45, true,
+    'Use as the payment terms in the pricing section and Terms & Conditions.',
+    '["Due on Receipt","Net 15","Net 30","Net 60","50% Upfront / 50% on Completion","Custom"]'::jsonb,
+    'QuickBooks-compatible payment terms. Select "Custom" to specify in notes.');
+
+  INSERT INTO document_intake_fields (document_type_id, field_key, label, field_type, section, sort_order, is_required, ai_hint, help_text, placeholder)
+  VALUES (_type_id, 'line_items', 'Products & Services', 'textarea', 'Pricing & Payment', 46, false,
+    'Parse as JSON array of line items. Group by billing_type: "monthly" items go in Monthly Recurring Costs table, "one-time" items go in One-Time Costs table. Each item has: description, amount, quantity, billing_type.',
+    'Add individual product/service line items with billing type (monthly recurring or one-time).', '[]');
+
+  INSERT INTO document_intake_fields (document_type_id, field_key, label, field_type, section, sort_order, is_required, placeholder, ai_hint)
+  VALUES (_type_id, 'payment_notes', 'Payment Notes', 'textarea', 'Pricing & Payment', 47, false,
+    'Additional notes about payment schedule, billing details, or special arrangements...',
+    'Include these notes in the payment section of the document.');
+
+  -- ── Terms & Conditions ──
+  INSERT INTO document_intake_fields (document_type_id, field_key, label, field_type, section, sort_order, is_required, ai_hint, help_text, default_value, placeholder)
+  VALUES (_type_id, 'terms_conditions_text', 'Terms & Conditions', 'textarea', 'Terms & Conditions', 70, false,
+    'Use this text as the basis for the Terms & Conditions section. Expand into professional legal language while preserving the intent. Include the contract length and cancellation terms specified.',
+    'Default language for the agreement terms. Edit as needed for specific engagements.',
+    'This is a month-to-month agreement that may be canceled at any time by either party with 30 days written notice. All fees for services rendered through the cancellation date remain due and payable.',
+    'Enter terms and conditions for this agreement...');
+
+  INSERT INTO document_intake_fields (document_type_id, field_key, label, field_type, section, sort_order, is_required, ai_hint, options, help_text)
+  VALUES (_type_id, 'contract_length', 'Contract Length', 'select', 'Terms & Conditions', 71, false,
+    'Reference the contract length in the Terms & Conditions section. If "Month-to-Month", emphasize cancellation flexibility. If annual or multi-year, note the commitment period and any early termination provisions.',
+    '["Month-to-Month","3 Months","6 Months","12 Months (Annual)","24 Months","Custom"]'::jsonb,
+    'Length of the service agreement. Affects cancellation terms and commitment language.');
+
   -- ── Provider Details ──
   INSERT INTO document_intake_fields (document_type_id, field_key, label, field_type, section, sort_order, is_required, placeholder, default_value)
   VALUES (_type_id, 'prepared_by', 'Prepared By', 'text', 'Provider Details', 50, true, 'Select team member', '');
@@ -282,7 +312,7 @@ BEGIN
 END $$;
 
 -- ─── Done ─────────────────────────────────────────────────────────────────────
--- SOW document type seeded with FSA branding + 27 intake fields across 7 sections:
+-- SOW document type seeded with FSA branding + 33 intake fields across 8 sections:
 --   Client Information (4), Project Details (3), Scope & Deliverables (4),
---   Timeline (3), Pricing & Payment (5), Provider Details (3),
---   Document Settings (4)
+--   Timeline (3), Pricing & Payment (9), Terms & Conditions (2),
+--   Provider Details (3), Document Settings (4)

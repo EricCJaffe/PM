@@ -40,14 +40,18 @@ export function DocumentPreview({ compiledHtml, documentTitle }: DocumentPreview
     if (printWindow) {
       printWindow.document.write(compiledHtml);
       printWindow.document.close();
-      // Wait for content to render before triggering print
-      printWindow.onload = () => {
+      let printed = false;
+      const doPrint = () => {
+        if (printed) return;
+        printed = true;
         printWindow.print();
+        // Close the print window after the dialog is dismissed
+        printWindow.onafterprint = () => printWindow.close();
       };
+      // Wait for content to render before triggering print
+      printWindow.onload = doPrint;
       // Fallback for browsers that don't fire onload for document.write
-      setTimeout(() => {
-        printWindow.print();
-      }, 500);
+      setTimeout(doPrint, 500);
     }
     setMenuOpen(false);
   }
