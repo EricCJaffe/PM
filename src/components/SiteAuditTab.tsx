@@ -8,6 +8,7 @@ import type {
   AuditDimensionScore,
   AuditGapItem,
 } from "@/types/pm";
+import { AuditCompare } from "./AuditCompare";
 
 interface Props {
   engagementId?: string;
@@ -58,6 +59,7 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [view, setView] = useState<"form" | "results" | "history">("form");
   const [expandedDim, setExpandedDim] = useState<string | null>(null);
+  const [showCompare, setShowCompare] = useState(false);
 
   // Load existing audits
   const loadAudits = useCallback(async () => {
@@ -276,18 +278,50 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
     );
   }
 
+  // ── Compare View ──
+  if (showCompare) {
+    const completeAudits = audits
+      .filter((a) => a.status === "complete" && a.overall)
+      .map((a) => ({
+        id: a.id,
+        date: new Date(a.created_at).toLocaleDateString(),
+        grade: a.overall?.grade || "?",
+        score: a.overall?.score || 0,
+      }));
+
+    return (
+      <AuditCompare
+        audits={completeAudits}
+        orgId={orgId}
+        onClose={() => setShowCompare(false)}
+      />
+    );
+  }
+
   // ── History View ──
   if (view === "history") {
+    const completedCount = audits.filter((a) => a.status === "complete").length;
+
     return (
       <div className="p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-pm-text">Past Audits</h3>
-          <button
-            onClick={() => setView("form")}
-            className="text-sm text-blue-400 hover:text-blue-300"
-          >
-            New audit
-          </button>
+          <div className="flex gap-3">
+            {completedCount >= 2 && (
+              <button
+                onClick={() => setShowCompare(true)}
+                className="text-sm text-orange-400 hover:text-orange-300"
+              >
+                Compare audits
+              </button>
+            )}
+            <button
+              onClick={() => setView("form")}
+              className="text-sm text-blue-400 hover:text-blue-300"
+            >
+              New audit
+            </button>
+          </div>
         </div>
         {audits.length === 0 ? (
           <p className="text-pm-muted text-sm">No audits yet.</p>
@@ -399,6 +433,14 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
           </p>
         </div>
         <div className="flex gap-2">
+          {audits.filter((a) => a.status === "complete").length >= 2 && (
+            <button
+              onClick={() => setShowCompare(true)}
+              className="text-sm text-orange-400 hover:text-orange-300"
+            >
+              Compare
+            </button>
+          )}
           <button
             onClick={() => setView("history")}
             className="text-sm text-pm-muted hover:text-pm-text"

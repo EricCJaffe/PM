@@ -129,6 +129,7 @@ docs/                       # Project documentation
 | `pm_gap_analysis` | Discovery gap findings (category, severity, resolution tracking) |
 | `pm_discovery_interviews` | Structured interview records during discovery |
 | `pm_onboarding_checklists` | Template-driven onboarding steps per project |
+| `pm_audit_snapshots` | Historical audit snapshots with denormalized scores for comparison |
 | `pm_platform_branding` | Singleton platform-level branding (name, logos, colors, fonts, email settings) |
 | `pm_org_branding` | Per-org branding overrides (client logo, co-brand mode, color overrides) |
 
@@ -202,6 +203,9 @@ vault/[org-slug]/[project-slug]/
 | `/api/pm/site-audit` | GET, POST | List / run site audits (rubric-based scoring) |
 | `/api/pm/site-audit/[id]` | GET, POST, DELETE | View / generate doc / delete audit |
 | `/api/pm/site-audit/[id]/pdf` | POST | Generate printable HTML audit report |
+| `/api/pm/site-audit/[id]/save-doc` | POST | Save full branded report + MD snapshot to client docs |
+| `/api/pm/site-audit/compare` | GET, POST | List snapshots / AI-compare two audits |
+| `/api/pm/site-audit/compare/export` | POST | Export comparison report as branded HTML |
 | `/api/pm/departments` | GET, POST | List / create departments (by org_id) |
 | `/api/pm/departments/[id]` | GET, PATCH, DELETE | View / update / delete department |
 | `/api/pm/departments/vocab` | GET, POST | Get resolved vocab labels / set overrides |

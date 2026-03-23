@@ -134,7 +134,7 @@ const DIMENSION_FULL_LABELS: Record<string, string> = {
 
 // ─── HTML Builder (FSA Design System) ────────────────────────────────
 
-interface AuditHTMLParams {
+export interface AuditHTMLParams {
   orgName: string;
   domain: string;
   url: string;
@@ -163,7 +163,7 @@ interface AuditHTMLParams {
   };
 }
 
-function buildAuditHTML(p: AuditHTMLParams): string {
+export function buildAuditHTML(p: AuditHTMLParams): string {
   const dims = ["seo", "entity", "ai_discoverability", "conversion", "content", "a2a_readiness"];
   const bc = p.brandColors;
 

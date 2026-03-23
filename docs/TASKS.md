@@ -94,6 +94,17 @@
 - [x] Onboarding project → process project handoff (create child project from onboarding)
 
 ## Recently Completed
+- [x] Site Audit v4: Full Report Storage, Snapshots, and Comparison
+  - Save-to-docs now stores the full branded HTML report (was saving lightweight summary)
+  - Also saves a structured markdown snapshot with YAML frontmatter for all scores/gaps/recommendations
+  - New `pm_audit_snapshots` table stores denormalized score data for quick comparison queries
+  - New comparison UI: select any two past audits and run AI-powered comparison analysis
+  - Comparison shows side-by-side dimension scores with visual bar chart trends
+  - AI analysis highlights improvements, declines, still-needs-work, and recommended next steps
+  - Export comparison to branded PDF/HTML with cover page and full analysis
+  - API routes: `GET/POST /api/pm/site-audit/compare`, `POST /api/pm/site-audit/compare/export`
+  - Migration: `040_audit_snapshots.sql`
+  - Compare button appears in history and results views when 2+ completed audits exist
 - [x] Fix "Save to Client Docs" button — was failing with "fetch failed"
   - Removed dead `await fetch()` to `http://localhost:3000` that crashed the route in production (Vercel)
   - Migration 039: fixed FK on `pm_site_audits.document_id` — was referencing `generated_documents` but code inserts into `pm_documents`

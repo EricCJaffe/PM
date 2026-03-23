@@ -780,6 +780,21 @@ export interface SiteAudit {
   updated_at: string;
 }
 
+export interface AuditSnapshot {
+  id: string;
+  audit_id: string;
+  org_id: string;
+  html_storage_path: string | null;
+  md_storage_path: string | null;
+  overall_grade: string | null;
+  overall_score: number | null;
+  dimension_scores: Record<string, number> | null;
+  url: string;
+  vertical: string;
+  audit_date: string;
+  created_at: string;
+}
+
 // ─── Knowledge Base Types ────────────────────────────────────────────
 
 export type KBCategory =
