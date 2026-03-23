@@ -90,7 +90,6 @@
   - Engagement create form adds Projected MRR and One-Time Revenue inputs
   - Engagement detail summary cards show MRR alongside deal value
   - Pipeline API (`/api/pm/organizations/pipeline`) returns per-stage revenue aggregates
-- [ ] Set up Vercel Cron for daily engagement nudge checks (/api/cron/engagement-nudge)
 - [ ] QuickBooks integration (placeholder — billing/invoicing)
 - [x] Build out full intake/discovery form wizard (multi-step discovery questionnaire)
 - [ ] Discovery findings summary — AI-generated brief from notes + attachments
@@ -101,6 +100,12 @@
 - [x] Onboarding project → process project handoff (create child project from onboarding)
 
 ## Recently Completed
+- [x] Consolidate document generation: eliminate duplicate Proposals and Engagements features
+  - ProposalsTab rewritten to embed full docgen functionality (MSA, SOW, etc.) inline, filtered by client org
+  - Engagements tab removed from client dashboard (UI, API routes, engagement-engine.ts, cron)
+  - Old proposals feature removed (API routes, proposal templates, public share page)
+  - Documents shortcut removed from main NavBar (accessible via Proposals tab in client view)
+  - Default client tab changed from Engagements → Overview
 - [x] Site Audit v5: PDF Document Storage + Comparison Save
   - Save-to-docs now generates actual PDF files (was saving raw HTML that showed source code in viewer)
   - Client-side PDF generation using jsPDF + html2canvas — captures each page individually for multi-page PDFs

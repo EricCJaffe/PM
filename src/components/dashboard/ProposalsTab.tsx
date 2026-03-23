@@ -2,395 +2,335 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import type { Organization, Proposal, ProposalTemplate, ProposalStatus } from "@/types/pm";
+import type { Organization, GeneratedDocument, DocumentType, DocumentStatus } from "@/types/pm";
+import { DocStatusBadge } from "@/components/documents/DocStatusBadge";
 
-const STATUS_COLORS: Record<ProposalStatus, string> = {
-  draft: "bg-slate-500/20 text-slate-300",
-  sent: "bg-blue-500/20 text-blue-400",
-  viewed: "bg-purple-500/20 text-purple-400",
-  accepted: "bg-emerald-500/20 text-emerald-400",
-  rejected: "bg-red-500/20 text-red-400",
-  expired: "bg-amber-500/20 text-amber-400",
-};
-
-const DOC_STATUS_COLORS: Record<string, string> = {
-  draft: "bg-slate-500/20 text-slate-300",
-  review: "bg-purple-500/20 text-purple-400",
-  approved: "bg-emerald-500/20 text-emerald-400",
-  sent: "bg-blue-500/20 text-blue-400",
-  signed: "bg-emerald-500/20 text-emerald-400",
-  archived: "bg-amber-500/20 text-amber-400",
-};
-
-interface GeneratedDoc {
-  id: string;
-  title: string;
-  status: string;
-  document_type_name: string;
-  document_type_slug: string;
-  version: number;
-  created_at: string;
-  updated_at: string;
-  sent_at: string | null;
-  compiled_html: string | null;
-}
+const STATUS_FILTERS: { value: string; label: string }[] = [
+  { value: "", label: "All" },
+  { value: "draft", label: "Drafts" },
+  { value: "review", label: "In Review" },
+  { value: "approved", label: "Approved" },
+  { value: "sent", label: "Sent" },
+  { value: "signed", label: "Signed" },
+  { value: "archived", label: "Archived" },
+];
 
 export function ProposalsTab({ org }: { org: Organization }) {
-  const [proposals, setProposals] = useState<Proposal[]>([]);
-  const [generatedDocs, setGeneratedDocs] = useState<GeneratedDoc[]>([]);
-  const [templates, setTemplates] = useState<ProposalTemplate[]>([]);
+  const [docs, setDocs] = useState<GeneratedDocument[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showBuilder, setShowBuilder] = useState(false);
-  const [showPreview, setShowPreview] = useState<Proposal | null>(null);
-  const [showEmailCompose, setShowEmailCompose] = useState<Proposal | null>(null);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [search, setSearch] = useState("");
+  const [showNewDoc, setShowNewDoc] = useState(false);
 
   useEffect(() => {
-    Promise.all([
-      fetch(`/api/pm/proposals?org_id=${org.id}`).then((r) => r.json()),
-      fetch("/api/pm/proposal-templates").then((r) => r.json()),
-      fetch(`/api/pm/docgen?org_id=${org.id}`).then((r) => r.json()),
-    ])
-      .then(([p, t, d]) => {
-        if (Array.isArray(p)) setProposals(p);
-        if (Array.isArray(t)) setTemplates(t);
-        if (Array.isArray(d)) setGeneratedDocs(d);
-      })
-      .finally(() => setLoading(false));
-  }, [org.id]);
+    loadDocs();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [org.id, statusFilter]);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this proposal?")) return;
-    const res = await fetch(`/api/pm/proposals/${id}`, { method: "DELETE" });
-    const data = await res.json();
-    if (data.error) { alert(data.error); return; }
-    setProposals((prev) => prev.filter((p) => p.id !== id));
-  };
+  async function loadDocs() {
+    setLoading(true);
+    const params = new URLSearchParams({ org_id: org.id });
+    if (statusFilter) params.set("status", statusFilter);
+    const res = await fetch(`/api/pm/docgen?${params}`);
+    if (res.ok) setDocs(await res.json());
+    setLoading(false);
+  }
 
-  const handleSendEmail = async (id: string, emailData: { to: string; subject: string; message: string }) => {
-    const res = await fetch(`/api/pm/proposals/${id}/send`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(emailData),
-    });
-    const data = await res.json();
-    if (data.error) { alert(data.error); return false; }
-    setProposals((prev) => prev.map((p) => (p.id === id ? data : p)));
-    return true;
-  };
+  async function handleDelete(id: string) {
+    if (!confirm("Delete this document?")) return;
+    const res = await fetch(`/api/pm/docgen/${id}`, { method: "DELETE" });
+    if (res.ok) setDocs((prev) => prev.filter((d) => d.id !== id));
+  }
 
-  const handleMarkSent = async (id: string) => {
-    const res = await fetch(`/api/pm/proposals/${id}/send`, { method: "POST" });
-    const data = await res.json();
-    if (data.error) { alert(data.error); return; }
-    setProposals((prev) => prev.map((p) => (p.id === id ? data : p)));
-  };
-
-  const copyShareLink = (token: string) => {
-    const url = `${window.location.origin}/proposals/view/${token}`;
-    navigator.clipboard.writeText(url);
-    alert("Share link copied!");
-  };
-
-  if (loading) return <div className="text-pm-muted py-8">Loading proposals...</div>;
+  const filtered = search
+    ? docs.filter(
+        (d) =>
+          d.title.toLowerCase().includes(search.toLowerCase()) ||
+          (d.document_type_name ?? "").toLowerCase().includes(search.toLowerCase())
+      )
+    : docs;
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="font-semibold text-pm-text">Proposals</h3>
-          <p className="text-sm text-pm-muted">{proposals.length} proposal{proposals.length !== 1 ? "s" : ""}</p>
+          <h3 className="font-semibold text-pm-text">Proposals &amp; Documents</h3>
+          <p className="text-sm text-pm-muted">
+            {docs.length} document{docs.length !== 1 ? "s" : ""} for {org.name}
+          </p>
         </div>
         <button
-          onClick={() => setShowBuilder(true)}
+          onClick={() => setShowNewDoc(true)}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
         >
-          + New Proposal
+          + New Document
         </button>
       </div>
 
-      {proposals.length === 0 ? (
-        <div className="card text-center py-12">
-          <p className="text-pm-muted mb-2">No proposals yet</p>
-          <p className="text-sm text-pm-muted">Create your first proposal to get started.</p>
+      {/* Filters */}
+      <div className="flex items-center gap-4">
+        <input
+          type="text"
+          placeholder="Search documents..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="flex-1 max-w-xs bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text text-sm focus:outline-none focus:border-blue-500"
+        />
+        <div className="flex gap-1 flex-wrap">
+          {STATUS_FILTERS.map((sf) => (
+            <button
+              key={sf.value}
+              onClick={() => setStatusFilter(sf.value)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                statusFilter === sf.value
+                  ? "bg-blue-600/20 text-blue-400"
+                  : "text-pm-muted hover:text-pm-text hover:bg-pm-card"
+              }`}
+            >
+              {sf.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Document list */}
+      {loading ? (
+        <div className="text-pm-muted text-sm py-12 text-center">Loading documents...</div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-16 bg-pm-card border border-pm-border rounded-xl">
+          <p className="text-pm-muted mb-2">No documents found</p>
+          <p className="text-sm text-pm-muted">
+            Create your first document to get started.
+          </p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {proposals.map((proposal) => (
-            <div key={proposal.id} className="card">
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3">
-                    <span className="font-medium text-pm-text">{proposal.title}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[proposal.status]}`}>
-                      {proposal.status.charAt(0).toUpperCase() + proposal.status.slice(1)}
-                    </span>
-                  </div>
-                  <div className="flex gap-4 mt-1 text-xs text-pm-muted">
-                    {proposal.template_slug && <span>Template: {proposal.template_slug}</span>}
-                    <span>Created: {new Date(proposal.created_at).toLocaleDateString()}</span>
-                    {proposal.sent_at && <span>Sent: {new Date(proposal.sent_at).toLocaleDateString()}</span>}
-                    {proposal.viewed_at && <span>Viewed: {new Date(proposal.viewed_at).toLocaleDateString()}</span>}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 ml-4 shrink-0">
-                  {proposal.generated_content && (
-                    <button
-                      onClick={() => setShowPreview(proposal)}
-                      className="px-3 py-1.5 border border-pm-border text-pm-text hover:bg-pm-card rounded-md text-xs font-medium transition-colors"
+        <div className="bg-pm-card border border-pm-border rounded-xl overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-pm-border text-left">
+                <th className="px-4 py-3 text-xs font-medium text-pm-muted uppercase">Title</th>
+                <th className="px-4 py-3 text-xs font-medium text-pm-muted uppercase">Type</th>
+                <th className="px-4 py-3 text-xs font-medium text-pm-muted uppercase">Status</th>
+                <th className="px-4 py-3 text-xs font-medium text-pm-muted uppercase">Version</th>
+                <th className="px-4 py-3 text-xs font-medium text-pm-muted uppercase">Updated</th>
+                <th className="px-4 py-3 text-xs font-medium text-pm-muted uppercase">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((doc) => (
+                <tr key={doc.id} className="border-b border-pm-border last:border-0 hover:bg-pm-bg/50">
+                  <td className="px-4 py-3">
+                    <Link
+                      href={`/documents/${doc.id}`}
+                      className="text-sm font-medium text-pm-text hover:text-blue-400"
                     >
-                      Preview
-                    </button>
-                  )}
-                  {proposal.share_token && (
-                    <button
-                      onClick={() => copyShareLink(proposal.share_token)}
-                      className="px-3 py-1.5 border border-pm-border text-pm-text hover:bg-pm-card rounded-md text-xs font-medium transition-colors"
-                    >
-                      Copy Link
-                    </button>
-                  )}
-                  {proposal.status === "draft" && proposal.generated_content && (
-                    <>
-                      <button
-                        onClick={() => setShowEmailCompose(proposal)}
-                        className="px-3 py-1.5 bg-pm-accent hover:bg-pm-accent-hover text-white rounded-md text-xs font-medium transition-colors"
+                      {doc.title}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-pm-muted">
+                    {doc.document_type_name}
+                  </td>
+                  <td className="px-4 py-3">
+                    <DocStatusBadge status={doc.status as DocumentStatus} />
+                  </td>
+                  <td className="px-4 py-3 text-sm text-pm-muted">v{doc.version}</td>
+                  <td className="px-4 py-3 text-sm text-pm-muted">
+                    {new Date(doc.updated_at).toLocaleDateString()}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/documents/${doc.id}`}
+                        className="text-xs text-blue-400 hover:text-blue-300"
                       >
-                        Send Email
-                      </button>
+                        Edit
+                      </Link>
                       <button
-                        onClick={() => handleMarkSent(proposal.id)}
-                        className="px-3 py-1.5 border border-pm-border text-pm-muted hover:text-pm-text hover:bg-pm-card rounded-md text-xs font-medium transition-colors"
+                        onClick={() => handleDelete(doc.id)}
+                        className="text-xs text-red-400 hover:text-red-300"
                       >
-                        Mark Sent
+                        Delete
                       </button>
-                    </>
-                  )}
-                  {proposal.status === "draft" && (
-                    <button
-                      onClick={() => handleDelete(proposal.id)}
-                      className="px-3 py-1.5 border border-red-600/30 text-red-400 hover:bg-red-600/10 rounded-md text-xs font-medium transition-colors"
-                    >
-                      Delete
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {/* Generated Documents (SOWs, etc.) */}
-      {generatedDocs.length > 0 && (
-        <div className="space-y-3 mt-8">
-          <div>
-            <h3 className="font-semibold text-pm-text">Documents</h3>
-            <p className="text-sm text-pm-muted">{generatedDocs.length} generated document{generatedDocs.length !== 1 ? "s" : ""}</p>
-          </div>
-          {generatedDocs.map((doc) => (
-            <div key={doc.id} className="card">
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3">
-                    <span className="font-medium text-pm-text">{doc.title}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${DOC_STATUS_COLORS[doc.status] || DOC_STATUS_COLORS.draft}`}>
-                      {doc.status.charAt(0).toUpperCase() + doc.status.slice(1)}
-                    </span>
-                    <span className="text-xs text-pm-muted">{doc.document_type_name}</span>
-                  </div>
-                  <div className="flex gap-4 mt-1 text-xs text-pm-muted">
-                    <span>v{doc.version}</span>
-                    <span>Created: {new Date(doc.created_at).toLocaleDateString()}</span>
-                    {doc.sent_at && <span>Sent: {new Date(doc.sent_at).toLocaleDateString()}</span>}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 ml-4 shrink-0">
-                  <Link
-                    href={`/documents/${doc.id}`}
-                    className="px-3 py-1.5 bg-pm-accent hover:bg-pm-accent-hover text-white rounded-md text-xs font-medium transition-colors"
-                  >
-                    Open
-                  </Link>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Proposal Builder Modal */}
-      {showBuilder && (
-        <ProposalBuilder
+      {/* New Document Modal */}
+      {showNewDoc && (
+        <NewDocumentModal
           org={org}
-          templates={templates}
-          onClose={() => setShowBuilder(false)}
-          onCreated={(p) => {
-            setProposals((prev) => [p, ...prev]);
-            setShowBuilder(false);
+          onClose={() => setShowNewDoc(false)}
+          onCreated={(doc) => {
+            setDocs((prev) => [doc, ...prev]);
+            setShowNewDoc(false);
           }}
-        />
-      )}
-
-      {/* Proposal Preview Modal */}
-      {showPreview && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-pm-card rounded-xl border border-pm-border max-w-3xl w-full max-h-[80vh] overflow-auto p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-pm-text">{showPreview.title}</h3>
-              <button onClick={() => setShowPreview(null)} className="text-pm-muted hover:text-pm-text text-xl">&times;</button>
-            </div>
-            <div className="prose prose-invert max-w-none text-sm whitespace-pre-wrap text-pm-text">
-              {showPreview.generated_content}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Email Compose Modal */}
-      {showEmailCompose && (
-        <EmailComposeModal
-          proposal={showEmailCompose}
-          org={org}
-          onClose={() => setShowEmailCompose(null)}
-          onSent={(updatedProposal) => {
-            setProposals((prev) => prev.map((p) => (p.id === updatedProposal.id ? updatedProposal : p)));
-            setShowEmailCompose(null);
-          }}
-          onSendEmail={handleSendEmail}
         />
       )}
     </div>
   );
 }
 
-function EmailComposeModal({
-  proposal,
+/* ------------------------------------------------------------------ */
+/* New Document Modal                                                  */
+/* ------------------------------------------------------------------ */
+
+function NewDocumentModal({
   org,
   onClose,
-  onSent,
-  onSendEmail,
+  onCreated,
 }: {
-  proposal: Proposal;
   org: Organization;
   onClose: () => void;
-  onSent: (p: Proposal) => void;
-  onSendEmail: (id: string, data: { to: string; subject: string; message: string }) => Promise<boolean>;
+  onCreated: (doc: GeneratedDocument) => void;
 }) {
-  const [to, setTo] = useState(org.contact_email || "");
-  const [subject, setSubject] = useState(`Proposal: ${proposal.title}`);
-  const [message, setMessage] = useState(
-    `We've prepared a proposal for ${org.name}. Please click the link below to review the details and let us know if you have any questions.`
-  );
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [docTypes, setDocTypes] = useState<DocumentType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [title, setTitle] = useState("");
 
-  const handleSend = async () => {
-    if (!to || !to.includes("@")) {
-      alert("Please enter a valid email address");
-      return;
+  useEffect(() => {
+    fetch("/api/pm/document-types")
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d)) setDocTypes(d);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  async function handleCreate() {
+    if (!selectedType || !title.trim()) return;
+    setCreating(true);
+
+    const res = await fetch("/api/pm/docgen", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        document_type_id: selectedType,
+        org_id: org.id,
+        title: title.trim(),
+      }),
+    });
+
+    if (res.ok) {
+      const doc = await res.json();
+      // Enrich with type name for display
+      const dt = docTypes.find((t) => t.id === selectedType);
+      doc.document_type_name = dt?.name ?? "";
+      doc.document_type_slug = dt?.slug ?? "";
+      onCreated(doc);
+    } else {
+      setCreating(false);
+      alert("Failed to create document");
     }
-    setSending(true);
-    const success = await onSendEmail(proposal.id, { to, subject, message });
-    setSending(false);
-    if (success) setSent(true);
+  }
+
+  const categoryLabels: Record<string, string> = {
+    proposal: "Proposals",
+    contract: "Contracts",
+    report: "Reports",
+    internal: "Internal",
   };
+
+  const byCategory = new Map<string, DocumentType[]>();
+  for (const dt of docTypes) {
+    const cat = dt.category || "other";
+    const group = byCategory.get(cat) ?? [];
+    group.push(dt);
+    byCategory.set(cat, group);
+  }
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-pm-card rounded-xl border border-pm-border max-w-xl w-full max-h-[85vh] overflow-auto">
+      <div className="bg-pm-card rounded-xl border border-pm-border max-w-2xl w-full max-h-[85vh] overflow-auto">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-pm-text">
-              {sent ? "Email Sent" : "Send Proposal"}
-            </h3>
-            <button onClick={onClose} className="text-pm-muted hover:text-pm-text text-xl">&times;</button>
+            <h3 className="text-lg font-semibold text-pm-text">New Document</h3>
+            <button onClick={onClose} className="text-pm-muted hover:text-pm-text text-xl">
+              &times;
+            </button>
           </div>
 
-          {sent ? (
-            <div className="space-y-4">
-              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4">
-                <p className="text-sm text-emerald-400 font-medium">
-                  Proposal sent to {to}
-                </p>
-                <p className="text-xs text-emerald-400/70 mt-1">
-                  The recipient will receive an email with a link to view and respond to the proposal.
-                </p>
-              </div>
-              <button
-                onClick={onClose}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
-              >
-                Done
-              </button>
+          {loading ? (
+            <div className="text-pm-muted text-sm py-8 text-center">Loading document types...</div>
+          ) : docTypes.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-pm-muted mb-2">No document types available</p>
+              <p className="text-xs text-pm-muted">
+                Run <code className="bg-pm-bg px-1 py-0.5 rounded">npm run seed:docgen</code> to add
+                document types.
+              </p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {/* Proposal info */}
-              <div className="bg-pm-bg rounded-lg p-3 border border-pm-border">
-                <p className="text-xs text-pm-muted">Proposal</p>
-                <p className="text-sm text-pm-text font-medium">{proposal.title}</p>
+            <>
+              {/* Document type selection */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-pm-muted mb-3">
+                  Document Type
+                </label>
+                <div className="space-y-5">
+                  {Array.from(byCategory.entries()).map(([cat, types]) => (
+                    <div key={cat}>
+                      <h4 className="text-xs font-semibold text-pm-muted uppercase mb-2">
+                        {categoryLabels[cat] ?? cat}
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {types.map((dt) => (
+                          <button
+                            key={dt.id}
+                            onClick={() => {
+                              setSelectedType(dt.id);
+                              if (!title) setTitle(`${dt.name} — ${org.name}`);
+                            }}
+                            className={`text-left p-3 rounded-lg border transition-colors ${
+                              selectedType === dt.id
+                                ? "border-blue-500 bg-blue-500/10"
+                                : "border-pm-border bg-pm-bg hover:border-pm-muted"
+                            }`}
+                          >
+                            <div className="font-medium text-sm text-pm-text">{dt.name}</div>
+                            {dt.description && (
+                              <div className="text-xs text-pm-muted mt-1 line-clamp-2">
+                                {dt.description}
+                              </div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              {/* To field */}
-              <div>
-                <label className="block text-sm font-medium text-pm-muted mb-1">To *</label>
-                <input
-                  type="email"
-                  value={to}
-                  onChange={(e) => setTo(e.target.value)}
-                  placeholder="client@example.com"
-                  className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text text-sm focus:outline-none focus:border-blue-500"
-                />
-                {org.contact_email && to !== org.contact_email && (
-                  <button
-                    onClick={() => setTo(org.contact_email!)}
-                    className="text-xs text-blue-400 hover:text-blue-300 mt-1"
-                  >
-                    Use {org.contact_name || "client"}&apos;s email ({org.contact_email})
-                  </button>
-                )}
-              </div>
-
-              {/* Subject */}
-              <div>
-                <label className="block text-sm font-medium text-pm-muted mb-1">Subject</label>
+              {/* Title */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-pm-muted mb-1">
+                  Document Title
+                </label>
                 <input
                   type="text"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder={`e.g., SOW - ${org.name} Website Redesign`}
                   className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text text-sm focus:outline-none focus:border-blue-500"
                 />
-              </div>
-
-              {/* Message body */}
-              <div>
-                <label className="block text-sm font-medium text-pm-muted mb-1">Message</label>
-                <textarea
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  rows={5}
-                  className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text text-sm focus:outline-none focus:border-blue-500"
-                />
-                <p className="text-xs text-pm-muted mt-1">
-                  A &quot;View Proposal&quot; button with the share link will be included automatically.
-                </p>
               </div>
 
               {/* Actions */}
-              <div className="flex gap-2 pt-2">
+              <div className="flex gap-2">
                 <button
-                  onClick={handleSend}
-                  disabled={sending || !to}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                  onClick={handleCreate}
+                  disabled={!selectedType || !title.trim() || creating}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
                 >
-                  {sending ? (
-                    <>
-                      <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-                      Sending...
-                    </>
-                  ) : (
-                    "Send Email"
-                  )}
+                  {creating ? "Creating..." : "Create Document"}
                 </button>
                 <button
                   onClick={onClose}
@@ -399,242 +339,7 @@ function EmailComposeModal({
                   Cancel
                 </button>
               </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ProposalBuilder({
-  org,
-  templates,
-  onClose,
-  onCreated,
-}: {
-  org: Organization;
-  templates: ProposalTemplate[];
-  onClose: () => void;
-  onCreated: (p: Proposal) => void;
-}) {
-  const [step, setStep] = useState<"template" | "form" | "generating" | "done">("template");
-  const [selectedTemplate, setSelectedTemplate] = useState<ProposalTemplate | null>(null);
-  const [title, setTitle] = useState("");
-  const [formData, setFormData] = useState<Record<string, string>>({});
-  const [generating, setGenerating] = useState(false);
-  const [createdProposal, setCreatedProposal] = useState<Proposal | null>(null);
-
-  const selectTemplate = (t: ProposalTemplate) => {
-    setSelectedTemplate(t);
-    setTitle(`${t.name} — ${org.name}`);
-    // Pre-fill with client data
-    const prefill: Record<string, string> = {};
-    for (const field of t.variable_fields || []) {
-      if (field.name === "client_name") prefill[field.name] = org.name;
-      else if (field.name === "contact_name") prefill[field.name] = org.contact_name || "";
-      else if (field.name === "contact_email") prefill[field.name] = org.contact_email || "";
-      else prefill[field.name] = "";
-    }
-    setFormData(prefill);
-    setStep("form");
-  };
-
-  const handleGenerate = async () => {
-    if (!title) return;
-    setGenerating(true);
-    setStep("generating");
-
-    try {
-      // Create proposal
-      const createRes = await fetch("/api/pm/proposals", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          org_id: org.id,
-          template_slug: selectedTemplate?.slug || null,
-          title,
-          form_data: formData,
-        }),
-      });
-      const proposal = await createRes.json();
-      if (proposal.error) throw new Error(proposal.error);
-
-      // Generate content with AI
-      const genRes = await fetch(`/api/pm/proposals/${proposal.id}/generate`, {
-        method: "POST",
-      });
-      const generated = await genRes.json();
-      if (generated.error) throw new Error(generated.error);
-
-      setCreatedProposal(generated);
-      setStep("done");
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to generate proposal");
-      setStep("form");
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-pm-card rounded-xl border border-pm-border max-w-2xl w-full max-h-[85vh] overflow-auto">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-pm-text">
-              {step === "template" && "Choose Template"}
-              {step === "form" && "Fill in Details"}
-              {step === "generating" && "Generating..."}
-              {step === "done" && "Proposal Ready"}
-            </h3>
-            <button onClick={onClose} className="text-pm-muted hover:text-pm-text text-xl">&times;</button>
-          </div>
-
-          {/* Step 1: Template Selection */}
-          {step === "template" && (
-            <div className="space-y-3">
-              {templates.length === 0 ? (
-                <p className="text-sm text-pm-muted py-4">No templates available. Create one first.</p>
-              ) : (
-                templates.map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => selectTemplate(t)}
-                    className="w-full text-left card hover:border-pm-accent/50 transition-colors"
-                  >
-                    <div className="font-medium text-pm-text">{t.name}</div>
-                    {t.description && <p className="text-sm text-pm-muted mt-1">{t.description}</p>}
-                    <div className="text-xs text-pm-muted mt-2">
-                      {(t.variable_fields || []).length} fields &middot; {t.output_format}
-                    </div>
-                  </button>
-                ))
-              )}
-              {/* Quick create without template */}
-              <button
-                onClick={() => {
-                  setTitle(`Proposal — ${org.name}`);
-                  setStep("form");
-                }}
-                className="w-full text-left card hover:border-pm-accent/50 transition-colors border-dashed"
-              >
-                <div className="font-medium text-pm-text">Blank Proposal</div>
-                <p className="text-sm text-pm-muted mt-1">Start from scratch — AI will generate based on your inputs</p>
-              </button>
-            </div>
-          )}
-
-          {/* Step 2: Form */}
-          {step === "form" && (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-pm-muted mb-1">Proposal Title *</label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              {selectedTemplate?.variable_fields?.map((field) => (
-                <div key={field.name}>
-                  <label className="block text-sm font-medium text-pm-muted mb-1">
-                    {field.label} {field.required && "*"}
-                  </label>
-                  {field.type === "textarea" ? (
-                    <textarea
-                      value={formData[field.name] || ""}
-                      onChange={(e) => setFormData((f) => ({ ...f, [field.name]: e.target.value }))}
-                      rows={3}
-                      placeholder={field.placeholder}
-                      className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text text-sm focus:outline-none focus:border-blue-500"
-                    />
-                  ) : field.type === "select" ? (
-                    <select
-                      value={formData[field.name] || ""}
-                      onChange={(e) => setFormData((f) => ({ ...f, [field.name]: e.target.value }))}
-                      className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text text-sm focus:outline-none focus:border-blue-500"
-                    >
-                      <option value="">Select...</option>
-                      {field.options?.map((o) => (
-                        <option key={o} value={o}>{o}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      type={field.type === "date" ? "date" : field.type === "number" ? "number" : "text"}
-                      value={formData[field.name] || ""}
-                      onChange={(e) => setFormData((f) => ({ ...f, [field.name]: e.target.value }))}
-                      placeholder={field.placeholder}
-                      className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text text-sm focus:outline-none focus:border-blue-500"
-                    />
-                  )}
-                </div>
-              ))}
-
-              {!selectedTemplate && (
-                <div>
-                  <label className="block text-sm font-medium text-pm-muted mb-1">Describe what this proposal should cover</label>
-                  <textarea
-                    value={formData.description || ""}
-                    onChange={(e) => setFormData((f) => ({ ...f, description: e.target.value }))}
-                    rows={4}
-                    placeholder="Describe the project scope, deliverables, timeline, and pricing..."
-                    className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text text-sm focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-              )}
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  onClick={handleGenerate}
-                  disabled={!title}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
-                >
-                  Generate with AI
-                </button>
-                <button
-                  onClick={() => setStep("template")}
-                  className="px-4 py-2 text-pm-muted hover:text-pm-text text-sm"
-                >
-                  Back
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Generating */}
-          {step === "generating" && (
-            <div className="text-center py-12">
-              <div className="animate-spin w-8 h-8 border-2 border-pm-accent border-t-transparent rounded-full mx-auto mb-4" />
-              <p className="text-pm-muted">AI is generating your proposal...</p>
-            </div>
-          )}
-
-          {/* Step 4: Done */}
-          {step === "done" && createdProposal && (
-            <div className="space-y-4">
-              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4">
-                <p className="text-sm text-emerald-400 font-medium">Proposal generated successfully!</p>
-              </div>
-              <div className="max-h-[40vh] overflow-auto bg-pm-bg rounded-lg p-4 border border-pm-border">
-                <div className="prose prose-invert max-w-none text-sm whitespace-pre-wrap text-pm-text">
-                  {createdProposal.generated_content}
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    onCreated(createdProposal);
-                  }}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
-                >
-                  Done
-                </button>
-              </div>
-            </div>
+            </>
           )}
         </div>
       </div>
