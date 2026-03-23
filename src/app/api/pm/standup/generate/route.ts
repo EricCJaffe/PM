@@ -70,58 +70,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Failed to generate standup" }, { status: 500 });
   }
 
-  // Save to pm_daily_logs — upsert to handle regeneration
-  const { error: upsertErr } = await supabase
+  // Save to pm_daily_logs — delete-then-insert to avoid partial unique index issues
+  // (PostgREST upsert doesn't work with partial unique indexes like WHERE org_id IS NOT NULL)
+  await supabase
     .from("pm_daily_logs")
-    .upsert(
-      {
-        project_id: null,
-        org_id,
-        date: dateStr,
-        content,
-        generated_by: "standup-agent",
-        log_type: "standup",
-      },
-      { onConflict: "org_id,date,log_type", ignoreDuplicates: false }
+    .delete()
+    .eq("org_id", org_id)
+    .eq("date", dateStr)
+    .eq("log_type", "standup");
+
+  const { error: insertErr } = await supabase.from("pm_daily_logs").insert({
+    org_id,
+    date: dateStr,
+    content,
+    generated_by: "standup-agent",
+    log_type: "standup",
+  });
+
+  if (insertErr) {
+    console.error("[Standup] Insert failed:", insertErr.message);
+    return NextResponse.json(
+      { error: `Standup generated but failed to save: ${insertErr.message}`, content },
+      { status: 500 }
     );
-
-  // Fallback: if upsert fails (e.g. unique index not yet applied), try plain insert
-  if (upsertErr) {
-    console.warn("[Standup] Upsert failed, trying insert:", upsertErr.message);
-
-    // Delete any existing standup for today first (manual dedup)
-    await supabase
-      .from("pm_daily_logs")
-      .delete()
-      .eq("org_id", org_id)
-      .eq("date", dateStr)
-      .eq("generated_by", "standup-agent");
-
-    const { error: insertErr } = await supabase.from("pm_daily_logs").insert({
-      project_id: null,
-      org_id,
-      date: dateStr,
-      content,
-      generated_by: "standup-agent",
-      log_type: "standup",
-    });
-
-    if (insertErr) {
-      console.error("[Standup] Insert also failed:", insertErr.message);
-      // Last resort: try minimal insert without optional columns
-      const { error: minimalErr } = await supabase.from("pm_daily_logs").insert({
-        date: dateStr,
-        content,
-        generated_by: "standup-agent",
-      });
-      if (minimalErr) {
-        console.error("[Standup] Minimal insert failed:", minimalErr.message);
-        return NextResponse.json(
-          { error: `Standup generated but failed to save: ${minimalErr.message}`, content },
-          { status: 500 }
-        );
-      }
-    }
   }
 
   // Send email if requested
