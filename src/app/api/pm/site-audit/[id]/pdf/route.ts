@@ -229,9 +229,41 @@ function buildAuditHTML(p: AuditHTMLParams): string {
     }
 
     const findings = dim?.findings || [];
-    const callout = findings.length > 0
-      ? `<div class="callout callout-blue"><p>${esc(findings[0])}</p></div>`
-      : "";
+    const criteriaBreakdown = (dim as unknown as Record<string, unknown>)?.criteria_breakdown as Array<{
+      criterion: string; points_possible: number; points_earned: number; status: string; detail: string;
+    }> | undefined;
+
+    // Build criteria scorecard if available
+    let criteriaSection = "";
+    if (criteriaBreakdown && criteriaBreakdown.length > 0) {
+      const criteriaRows = criteriaBreakdown.map((c, i) => {
+        const statusColor = c.status === "pass" ? "#1e8449" : c.status === "partial" ? "#d68910" : "#c0392b";
+        const statusLabel = c.status === "pass" ? "PASS" : c.status === "partial" ? "PARTIAL" : "FAIL";
+        return `<tr class="${i % 2 === 1 ? "alt" : ""}">
+          <td class="td-bold">${esc(c.criterion)}</td>
+          <td class="td-center" style="color:${statusColor};font-weight:700">${statusLabel}</td>
+          <td class="td-center">${c.points_earned}/${c.points_possible}</td>
+          <td>${esc(c.detail)}</td>
+        </tr>`;
+      }).join("\n");
+
+      criteriaSection = `
+        <div class="sub-heading">Criterion-by-Criterion Scorecard</div>
+        <table class="data-table">
+          <thead><tr><th>Criterion</th><th style="width:55px;text-align:center">Status</th><th style="width:50px;text-align:center">Pts</th><th>Detail</th></tr></thead>
+          <tbody>${criteriaRows}</tbody>
+        </table>`;
+    }
+
+    // Build findings list
+    let findingsSection = "";
+    if (findings.length > 0) {
+      findingsSection = `
+        <div class="sub-heading">Key Findings</div>
+        <div style="margin-bottom:12px;">
+          ${findings.map(f => `<p class="body-text" style="margin-bottom:4px;padding-left:12px;border-left:2px solid var(--accent);">${esc(f)}</p>`).join("\n")}
+        </div>`;
+    }
 
     return `<div class="page">
       <div class="sdiv">${idx + 1}. ${esc(DIMENSION_FULL_LABELS[d] || d)}</div>
@@ -239,11 +271,14 @@ function buildAuditHTML(p: AuditHTMLParams): string {
         <span class="dim-grade" style="color:${gradeColor(grade)}">Grade: ${esc(grade)}</span>
         <span class="dim-score">(${score}%)</span>
       </div>
-      ${gapItems.length > 0 ? `<table class="data-table">
+      ${criteriaSection}
+      ${gapItems.length > 0 ? `
+      <div class="sub-heading">Gap Analysis</div>
+      <table class="data-table">
         <thead>${tableHeader}</thead>
         <tbody>${tableRows}</tbody>
-      </table>` : `<p class="body-text" style="color:#6B7280;">No gap items identified for this dimension.</p>`}
-      ${callout}
+      </table>` : ""}
+      ${findingsSection}
     </div>`;
   }).join("\n");
 

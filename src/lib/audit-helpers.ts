@@ -149,12 +149,19 @@ export function buildSystemPrompt(vertical: string, rubricContent: string, kbCon
     : "businesses";
 
   const rubricSection = rubricContent
-    ? `\n\nSCORING RUBRIC (use these EXACT criteria and point values):\n${rubricContent}`
+    ? `\n\nSCORING RUBRIC (use these EXACT criteria and point values — score EVERY criterion listed):\n${rubricContent}`
     : `\n\nNo specific rubric file for this vertical. Use general web standards for each dimension.`;
 
-  return `You are a professional website auditor and digital strategist specializing in ${verticalLabel}.
+  return `You are an expert website auditor and digital strategist specializing in ${verticalLabel}. You produce extremely thorough, criterion-by-criterion audits that clients can act on immediately.
 
-Score the website against the rubric criteria below. Each dimension is scored 0–100 based on the specific criteria and point values in the rubric.
+SCORING INSTRUCTIONS:
+- Score EVERY criterion listed in the rubric individually. Do not skip or combine criteria.
+- For each dimension, provide a finding for EVERY criterion in the rubric (not just 2-3 generic statements).
+- Each finding must reference the specific criterion from the rubric and explain exactly what was found or missing.
+- Only give full credit when a criterion is CLEARLY and FULLY met in the extracted signals.
+- Give partial credit (50% of points) when a criterion is partially met.
+- Give zero credit when a criterion is not met at all.
+- Calculate each dimension score by summing the points earned across all criteria (out of 100).
 
 GRADE THRESHOLDS (apply these consistently):
 A = 90–100 (Best practice — minor polish only)
@@ -163,23 +170,33 @@ C = 70–79 (Adequate — structural improvements needed)
 D = 60–69 (Weak — significant rebuild or refactor needed)
 D- = 50–59 (Poor — foundational problems throughout)
 F = Below 50 (Critical — not competitive, recommend full rebuild)
-
-Be conservative — only give full credit when a criterion is clearly met in the extracted signals.
 ${rubricSection}
 
 Return your analysis as a JSON object with this EXACT structure:
 {
-  "summary": "2-3 sentence executive summary of the site's overall state",
+  "summary": "4-6 sentence executive summary covering: overall state, biggest strengths, critical gaps, and recommended next steps",
   "scores": {
-    "seo": { "grade": "A-F or D-", "score": 0-100, "findings": ["finding 1", "finding 2", ...] },
-    "entity": { "grade": "...", "score": 0-100, "findings": [...] },
-    "ai_discoverability": { "grade": "...", "score": 0-100, "findings": [...] },
-    "conversion": { "grade": "...", "score": 0-100, "findings": [...] },
-    "content": { "grade": "...", "score": 0-100, "findings": [], "pages_found": ["/about", "/contact", ...], "pages_missing": ["/beliefs", "/visit", ...] },
-    "a2a_readiness": { "grade": "...", "score": 0-100, "findings": [...] }
+    "seo": {
+      "grade": "A-F or D-",
+      "score": 0-100,
+      "findings": [
+        "Page title (10 pts): [PASS/PARTIAL/FAIL] — Specific observation about what was found",
+        "Meta description (10 pts): [PASS/PARTIAL/FAIL] — Specific observation",
+        "... one finding per rubric criterion ..."
+      ],
+      "criteria_breakdown": [
+        {"criterion": "Page title includes org name + location", "points_possible": 10, "points_earned": 10, "status": "pass", "detail": "Title is 'Church Name — City, State' — full credit"},
+        {"criterion": "Meta description exists", "points_possible": 10, "points_earned": 0, "status": "fail", "detail": "No meta description tag found"}
+      ]
+    },
+    "entity": { "grade": "...", "score": 0-100, "findings": [...], "criteria_breakdown": [...] },
+    "ai_discoverability": { "grade": "...", "score": 0-100, "findings": [...], "criteria_breakdown": [...] },
+    "conversion": { "grade": "...", "score": 0-100, "findings": [...], "criteria_breakdown": [...] },
+    "content": { "grade": "...", "score": 0-100, "findings": [...], "criteria_breakdown": [...], "pages_found": ["/about", "/contact", ...], "pages_missing": ["/beliefs", "/visit", ...] },
+    "a2a_readiness": { "grade": "...", "score": 0-100, "findings": [...], "criteria_breakdown": [...] }
   },
   "gaps": {
-    "seo": [{"item": "Page title", "current_state": "Missing location in title", "standard": "Title must include org name + location", "gap": "Add city name to title tag"}],
+    "seo": [{"item": "Page title", "current_state": "Missing location — title is just 'Church Name'", "standard": "Title must include org name + city/location for local SEO", "gap": "Add city name to title tag — should be 'Church Name — City, State'"}],
     "entity": [...],
     "ai_discoverability": [...],
     "conversion": [...],
@@ -187,29 +204,40 @@ Return your analysis as a JSON object with this EXACT structure:
     "a2a_readiness": [...]
   },
   "recommendations": [
-    {"title": "...", "priority": "high|medium|low", "effort": "quick|moderate|significant", "impact": "high|medium|low", "description": "..."}
+    {"title": "...", "priority": "high|medium|low", "effort": "quick|moderate|significant", "impact": "high|medium|low", "description": "Detailed 2-3 sentence description of what to do and why it matters"}
   ],
   "quick_wins": [
-    {"action": "Change CTA to Plan Your Visit", "time_estimate": "15 min", "impact": "Immediate conversion improvement"}
+    {"action": "Change primary CTA to 'Plan Your Visit'", "time_estimate": "15 min", "impact": "Immediate conversion improvement — visitor-focused CTA outperforms generic 'Contact Us' by 3-5x"}
   ],
   "pages_found": ["/about", "/contact"],
   "pages_missing": ["/beliefs", "/visit"],
   "pages_to_build": [
-    {"slug": "/visit", "title": "Plan Your Visit", "priority": "P0", "notes": "Critical for conversion — must have visit form"}
+    {"slug": "/visit", "title": "Plan Your Visit", "priority": "P0", "notes": "Critical for conversion — must have visit form with name, email, and family size fields"}
   ],
   "rebuild_recommended": true,
-  "rebuild_reason": "Overall score below 60 with critical AI discoverability gaps",
+  "rebuild_reason": "Overall score below 60 with critical AI discoverability gaps — the current platform cannot support schema markup or custom page structures needed for modern web presence",
   "platform_comparison": {
-    "current": "The Church Co template — limited SEO control, no schema support",
-    "recommended": "Next.js + headless CMS — full schema control, AI-optimized structure"
+    "current": "The Church Co template — limited SEO control, no schema support, cannot add custom pages",
+    "recommended": "Next.js + headless CMS — full schema control, AI-optimized structure, custom pages, fast load times"
   },
   "rebuild_timeline": [
-    {"phase": "Phase 1 (Week 1-2)", "focus": "Foundation", "deliverables": "Domain, hosting, CMS setup, design system"},
-    {"phase": "Phase 2 (Week 3-4)", "focus": "Core Pages", "deliverables": "Home, About, Visit, Beliefs, Contact"}
+    {"phase": "Phase 1 (Week 1-2)", "focus": "Foundation", "deliverables": "Domain, hosting, CMS setup, design system, analytics"},
+    {"phase": "Phase 2 (Week 3-4)", "focus": "Core Pages", "deliverables": "Home, About, Visit, Beliefs, Contact with full schema"},
+    {"phase": "Phase 3 (Week 5-6)", "focus": "Content & Conversion", "deliverables": "Sermons archive, ministries pages, CTAs, forms, giving integration"},
+    {"phase": "Phase 4 (Week 7-8)", "focus": "AI & SEO", "deliverables": "llms.txt, FAQ sections, structured data, GMB optimization, sitemap"}
   ]
 }
 
-Provide 3-6 gap items per dimension, 5-8 recommendations, 3-5 quick wins from the rubric trigger rules, and rebuild timeline if applicable.${kbContext}`;
+DETAIL REQUIREMENTS:
+- Findings: One finding per rubric criterion (8-10+ findings per dimension). Each must state the criterion, points, and pass/fail with specific evidence.
+- Criteria breakdown: Score every single criterion from the rubric with points earned and specific detail.
+- Gaps: 5-10 gap items per dimension, each with specific current state and actionable fix.
+- Recommendations: 8-12 recommendations prioritized by impact, with detailed descriptions.
+- Quick wins: 5-8 quick wins from the rubric trigger rules with realistic time estimates and specific impact.
+- Pages to build: List ALL missing pages from the content inventory rubric, with specific notes for each.
+- Rebuild timeline: 4-6 phases with specific deliverables if rebuild is recommended.
+
+Be specific, not generic. Reference actual content found (or not found) on the site. Quote titles, CTAs, and page content where relevant.${kbContext}`;
 }
 
 export function buildUserPrompt(signals: SiteSignals, url: string, extraContext?: string | null, subpagesSummary?: string): string {

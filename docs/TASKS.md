@@ -94,6 +94,26 @@
 - [x] Onboarding project → process project handoff (create child project from onboarding)
 
 ## Recently Completed
+- [x] Site Audit v3: Client Integration, Detail Enhancement, and Report Fixes
+  - Fixed download report button to always use the active audit's ID (was sometimes pulling stale data)
+  - Audit list now refreshes after a new audit completes (audits list was stale after running new audit)
+  - Added "Site Audit" tab to client dashboard — run before/after audits directly from a client's page
+  - Added "Save to Client Docs" button — saves audit report HTML to the client's Docs & SOPs with org association
+  - New API route: `POST /api/pm/site-audit/[id]/save-doc` — generates and stores report as pm_documents record
+  - Enhanced AI prompt for dramatically more detailed reports:
+    - Criterion-by-criterion scoring (every rubric item individually scored with pass/partial/fail)
+    - `criteria_breakdown` array per dimension with points_possible, points_earned, status, and detail
+    - 8-10+ findings per dimension (was 2-3 generic)
+    - 5-10 gap items per dimension (was 3-6)
+    - 8-12 recommendations with detailed descriptions (was 5-8)
+    - 5-8 quick wins (was 3-5)
+    - 4-6 sentence executive summary (was 2-3)
+  - Increased max_tokens from 6000 to 12000 for richer AI output
+  - PDF report now includes criterion scorecard tables with pass/fail/partial status and point breakdowns
+  - UI improvements: clickable dimension badges expand to show findings and gap analysis inline
+  - Recommendations section added to results view with priority badges
+  - Pages found vs missing comparison grid added to results view
+  - Results view renamed "Download Report" to "Open Report" for clarity
 - [x] Timeline/Gantt view for phases
   - `TimelineTab` component: horizontal bar chart with phases as colored bars along a time axis
   - Phase bars colored by status, filled proportionally by progress percentage

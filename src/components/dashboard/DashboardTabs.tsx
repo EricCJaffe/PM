@@ -21,6 +21,7 @@ import { GapAnalysisTab } from "./GapAnalysisTab";
 import { PortalSettingsTab } from "./PortalSettingsTab";
 import { OrgBrandingTab } from "./OrgBrandingTab";
 import { OnboardingTab } from "./OnboardingTab";
+import { SiteAuditTab } from "@/components/SiteAuditTab";
 
 const tabs = [
   { id: "engagements", label: "Engagements" },
@@ -34,6 +35,7 @@ const tabs = [
   { id: "opportunities", label: "Opportunities" },
   { id: "implementation", label: "Implementation Plan" },
   { id: "kpis", label: "KPIs" },
+  { id: "site-audit", label: "Site Audit" },
   { id: "docs", label: "Docs & SOPs" },
   { id: "kb", label: "Knowledge Base" },
   { id: "departments", label: "Departments" },
@@ -146,6 +148,7 @@ export function DashboardTabs({
       {active === "opportunities" && <OpportunitiesTab org={org} opportunities={filteredOpportunities} projects={projects} selectedProjectId={selectedProjectId} />}
       {active === "implementation" && <ImplementationTab allPhases={filteredPhases} />}
       {active === "kpis" && <KPIsTab org={org} kpis={filteredKpis} projects={projects} selectedProjectId={selectedProjectId} />}
+      {active === "site-audit" && <SiteAuditTab orgId={org.id} />}
       {active === "docs" && <DocsTab org={org} documents={filteredDocs} projects={projects} selectedProjectId={selectedProjectId} />}
       {active === "kb" && <KBTab org={org} scope="org" />}
       {active === "departments" && <DepartmentsTab org={org} />}

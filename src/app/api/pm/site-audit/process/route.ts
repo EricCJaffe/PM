@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
       ],
       temperature: 0.3,
       response_format: { type: "json_object" },
-      max_tokens: 6000,
+      max_tokens: 12000,
     });
 
     const content = completion.choices[0]?.message?.content;
@@ -107,6 +107,7 @@ export async function POST(request: NextRequest) {
         score: typeof raw.score === "number" ? raw.score : 0,
         weight: w,
         findings: Array.isArray(raw.findings) ? raw.findings : [],
+        criteria_breakdown: Array.isArray(raw.criteria_breakdown) ? raw.criteria_breakdown : [],
       };
     }
 
