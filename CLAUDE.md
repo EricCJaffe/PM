@@ -213,6 +213,7 @@ vault/[org-slug]/[project-slug]/
 | `/api/pm/portal/invites` | GET, POST, DELETE | List / create / revoke portal invites |
 | `/api/pm/gap-analysis` | GET, POST | List / create gap analysis items |
 | `/api/pm/gap-analysis/[id]` | GET, PATCH, DELETE | View / update / delete gap item |
+| `/api/pm/discovery-findings` | GET, POST | List / generate AI discovery briefs |
 | `/api/pm/discovery-interviews` | GET, POST | List / create discovery interviews |
 | `/api/pm/onboarding` | POST | Create onboarding project with discovery tasks |
 | `/api/pm/branding` | GET, POST | Get / update platform branding (singleton) |

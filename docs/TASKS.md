@@ -92,7 +92,14 @@
   - Pipeline API (`/api/pm/organizations/pipeline`) returns per-stage revenue aggregates
 - [ ] QuickBooks integration (placeholder — billing/invoicing)
 - [x] Build out full intake/discovery form wizard (multi-step discovery questionnaire)
-- [ ] Discovery findings summary — AI-generated brief from notes + attachments
+- [x] Discovery findings summary — AI-generated brief from notes + attachments
+  - `src/lib/discovery-assembler.ts`: assembles interviews, gap analysis, notes, site audits, engagement data for an org
+  - `POST /api/pm/discovery-findings`: AI-generates comprehensive discovery brief via GPT-4o
+  - `GET /api/pm/discovery-findings`: list past discovery summaries (stored as pinned client notes)
+  - AI prompt generates 9-section brief: executive summary, client profile, key findings, gap analysis, digital presence, risks, opportunities, next steps, proposal recommendations
+  - Saves output as pinned internal client note (author: "AI Discovery") for historical reference
+  - Integrated into OnboardingTab with "Generate Brief" button, expandable summary cards, markdown rendering
+  - Assembles KB context via `assembleKBContext()` for institutional knowledge awareness
 - [x] Client portal UI pages (external user views with portal settings filtering)
 - [x] Department management UI (create/edit departments, assign to tasks/phases)
 - [x] Vocabulary customization UI (org-level renaming of base terms)
