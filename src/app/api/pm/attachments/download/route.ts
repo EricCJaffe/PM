@@ -14,11 +14,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "type and id are required" }, { status: 400 });
   }
 
-  const tableMap: Record<string, { table: string; pathCol: string; nameCol: string }> = {
-    task: { table: "pm_task_attachments", pathCol: "storage_path", nameCol: "file_name" },
-    note: { table: "pm_client_note_attachments", pathCol: "storage_path", nameCol: "file_name" },
-    document: { table: "pm_documents", pathCol: "storage_path", nameCol: "file_name" },
-    engagement: { table: "pm_engagement_attachments", pathCol: "storage_path", nameCol: "file_name" },
+  const tableMap: Record<string, { table: string; pathCol: string; nameCol: string; typeCol: string }> = {
+    task: { table: "pm_task_attachments", pathCol: "storage_path", nameCol: "file_name", typeCol: "content_type" },
+    note: { table: "pm_client_note_attachments", pathCol: "storage_path", nameCol: "file_name", typeCol: "content_type" },
+    document: { table: "pm_documents", pathCol: "storage_path", nameCol: "file_name", typeCol: "mime_type" },
+    engagement: { table: "pm_engagement_attachments", pathCol: "storage_path", nameCol: "file_name", typeCol: "content_type" },
   };
 
   const mapping = tableMap[type];
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
 
   const { data: att } = await supabase
     .from(mapping.table)
-    .select(`${mapping.pathCol}, ${mapping.nameCol}, content_type, mime_type`)
+    .select(`${mapping.pathCol}, ${mapping.nameCol}, ${mapping.typeCol}`)
     .eq("id", id)
     .single();
 
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
 
   const storagePath = att[mapping.pathCol];
   const fileName = att[mapping.nameCol];
-  const contentType = att.content_type || att.mime_type || "application/octet-stream";
+  const contentType = att[mapping.typeCol] || "application/octet-stream";
 
   const { data: signedUrl } = await supabase.storage
     .from("vault")
