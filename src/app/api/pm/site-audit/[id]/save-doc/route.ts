@@ -29,14 +29,7 @@ export async function POST(
       return NextResponse.json({ error: "Report already saved to documents" }, { status: 409 });
     }
 
-    // Generate the HTML report by calling the PDF endpoint internally
-    const pdfRes = await fetch(
-      new URL(`/api/pm/site-audit/${id}/pdf`, process.env.NEXT_PUBLIC_SUPABASE_URL ? "http://localhost:3000" : "http://localhost:3000"),
-      { method: "POST" }
-    );
-
-    // Instead of calling the PDF route (which may not be reachable internally),
-    // generate a simple reference and store the audit data as a document
+    // Generate a lightweight HTML summary and store as a client document
     const orgSlug = audit.pm_organizations?.slug || "org";
     const orgName = audit.pm_organizations?.name || "Organization";
     const domain = audit.url.replace(/^https?:\/\//, "").replace(/\/+$/, "");
@@ -78,7 +71,7 @@ export async function POST(
       .from("pm_documents")
       .insert({
         org_id: audit.org_id,
-        slug: `site-audit-${dateStr}-${domain.replace(/\./g, "-")}`,
+        slug: `site-audit-${dateStr}-${domain.replace(/\./g, "-")}-${id.slice(0, 8)}`,
         title: `Site Audit: ${domain} (${overallGrade} - ${overallScore}%)`,
         category: "report",
         description: `Site audit for ${audit.url} scored ${overallGrade} (${overallScore}/100). ${audit.audit_summary?.slice(0, 200) || ""}`,

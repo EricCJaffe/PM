@@ -94,6 +94,10 @@
 - [x] Onboarding project → process project handoff (create child project from onboarding)
 
 ## Recently Completed
+- [x] Fix "Save to Client Docs" button — was failing with "fetch failed"
+  - Removed dead `await fetch()` to `http://localhost:3000` that crashed the route in production (Vercel)
+  - Migration 039: fixed FK on `pm_site_audits.document_id` — was referencing `generated_documents` but code inserts into `pm_documents`
+  - Added audit ID suffix to document slug to prevent unique constraint violations on repeat audits
 - [x] Site Audit v3: Client Integration, Detail Enhancement, and Report Fixes
   - Fixed download report button to always use the active audit's ID (was sometimes pulling stale data)
   - Audit list now refreshes after a new audit completes (audits list was stale after running new audit)
