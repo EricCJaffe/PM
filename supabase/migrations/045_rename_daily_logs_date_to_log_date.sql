@@ -3,15 +3,35 @@
 -- Avoids PostgreSQL reserved word conflict and aligns with actual DB schema.
 -- =============================================================================
 
--- Rename the column (idempotent: will fail if already renamed, wrapped in DO block)
+-- Handle three possible states:
+-- 1. Only "date" exists → rename it
+-- 2. Both "date" and "log_date" exist → migrate data, drop old column
+-- 3. Only "log_date" exists → nothing to do
 DO $$
+DECLARE
+  has_date BOOLEAN;
+  has_log_date BOOLEAN;
 BEGIN
-  IF EXISTS (
+  SELECT EXISTS (
     SELECT 1 FROM information_schema.columns
     WHERE table_name = 'pm_daily_logs' AND column_name = 'date'
-  ) THEN
+  ) INTO has_date;
+
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'pm_daily_logs' AND column_name = 'log_date'
+  ) INTO has_log_date;
+
+  IF has_date AND has_log_date THEN
+    -- Both columns exist: copy any non-null date values into log_date where log_date is null
+    UPDATE pm_daily_logs SET log_date = "date" WHERE log_date IS NULL AND "date" IS NOT NULL;
+    ALTER TABLE pm_daily_logs DROP COLUMN "date";
+  ELSIF has_date AND NOT has_log_date THEN
     ALTER TABLE pm_daily_logs RENAME COLUMN "date" TO log_date;
   END IF;
+
+  -- Ensure NOT NULL constraint
+  ALTER TABLE pm_daily_logs ALTER COLUMN log_date SET NOT NULL;
 END $$;
 
 -- Recreate indexes that referenced the old column name
