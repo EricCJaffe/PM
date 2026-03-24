@@ -165,17 +165,31 @@ export function SiteAuditTab({ engagementId, orgId, prospectName, defaultUrl }: 
         });
         if (!processRes.ok) {
           const errData = await processRes.json().catch(() => ({}));
+          const detail = errData.error || "Audit processing failed (no detail returned)";
+          console.error("Audit process error:", errData);
           setActiveAudit((prev) =>
             prev && prev.id === data.id
-              ? { ...prev, status: "failed" as const, audit_summary: errData.error || "Audit processing failed" }
+              ? { ...prev, status: "failed" as const, audit_summary: detail }
               : prev
           );
           setRunning(false);
         }
-      } catch {
+      } catch (processErr) {
+        const msg = processErr instanceof Error ? processErr.message : "unknown network error";
+        console.error("Audit process fetch error:", msg);
+        // Try to fetch the audit record from DB — it may have a more detailed error
+        try {
+          const fallback = await fetch(`/api/pm/site-audit/${data.id}`);
+          const fallbackData = await fallback.json();
+          if (fallbackData?.status === "failed" && fallbackData.audit_summary) {
+            setActiveAudit(fallbackData);
+            setRunning(false);
+            return;
+          }
+        } catch { /* fallback failed too */ }
         setActiveAudit((prev) =>
           prev && prev.id === data.id
-            ? { ...prev, status: "failed" as const, audit_summary: "Processing failed — please try again" }
+            ? { ...prev, status: "failed" as const, audit_summary: `Processing failed: ${msg}` }
             : prev
         );
         setRunning(false);
@@ -400,22 +414,58 @@ export function SiteAuditTab({ engagementId, orgId, prospectName, defaultUrl }: 
 
   // ── Failed State ──
   if (activeAudit?.status === "failed") {
+    const summary = activeAudit.audit_summary || "Unknown error";
+    // Extract step from [step] prefix if present
+    const stepMatch = summary.match(/^\[([^\]]+)\]\s*/);
+    const failedStep = stepMatch ? stepMatch[1] : null;
+    const errorDetail = stepMatch ? summary.slice(stepMatch[0].length) : summary;
+
+    const stepLabels: Record<string, string> = {
+      "init": "Initialization",
+      "fetch-homepage": "Fetching website",
+      "extract-signals": "Extracting page signals",
+      "fetch-subpages": "Fetching additional pages",
+      "ai-scoring": "AI analysis (GPT-4o)",
+      "parse-response": "Parsing AI response",
+      "calculate-scores": "Calculating scores",
+      "generate-mockup": "Generating mockup",
+      "build-metadata": "Building metadata",
+      "save-results": "Saving results to database",
+    };
+
     return (
       <div className="p-6">
-        <div className="bg-red-900/20 border border-red-800 rounded-lg p-4">
-          <p className="text-red-400 text-sm">
-            Audit failed: {activeAudit.audit_summary || "Unknown error"}
+        <div className="bg-red-900/20 border border-red-800 rounded-lg p-4 space-y-2">
+          <p className="text-red-400 font-medium text-sm">Audit failed</p>
+          {failedStep && (
+            <p className="text-red-400/80 text-xs">
+              Failed at step: <span className="font-mono">{stepLabels[failedStep] || failedStep}</span>
+            </p>
+          )}
+          <p className="text-red-300 text-sm font-mono bg-red-950/40 rounded px-2 py-1.5 break-words">
+            {errorDetail}
           </p>
         </div>
-        <button
-          onClick={() => {
-            setActiveAudit(null);
-            setView("form");
-          }}
-          className="mt-4 text-pm-muted text-sm hover:text-pm-text"
-        >
-          Try again
-        </button>
+        <div className="flex gap-3 mt-4">
+          <button
+            onClick={() => {
+              setActiveAudit(null);
+              setView("form");
+            }}
+            className="text-pm-muted text-sm hover:text-pm-text"
+          >
+            &larr; Back to form
+          </button>
+          <button
+            onClick={() => {
+              setActiveAudit(null);
+              runAudit();
+            }}
+            className="text-orange-400 text-sm hover:text-orange-300"
+          >
+            Retry audit
+          </button>
+        </div>
       </div>
     );
   }

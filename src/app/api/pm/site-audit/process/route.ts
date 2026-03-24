@@ -51,19 +51,29 @@ export async function POST(request: NextRequest) {
 
     // 1. Fetch the website HTML (15s timeout)
     step = "fetch-homepage";
-    const siteResponse = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; BusinessOS-SiteAudit/1.0)",
-        Accept: "text/html",
-      },
-      signal: AbortSignal.timeout(15000),
-    });
+    let siteResponse: Response;
+    try {
+      siteResponse = await fetch(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; BusinessOS-SiteAudit/1.0)",
+          Accept: "text/html",
+        },
+        signal: AbortSignal.timeout(15000),
+      });
+    } catch (fetchErr) {
+      const reason = fetchErr instanceof Error ? fetchErr.message : "unknown";
+      throw new Error(`Could not reach ${url} — ${reason.includes("timeout") || reason.includes("abort") ? "site took too long to respond (>15s)" : reason}`);
+    }
 
     if (!siteResponse.ok) {
-      throw new Error(`Failed to fetch site: HTTP ${siteResponse.status}`);
+      const statusText = siteResponse.statusText || "unknown";
+      throw new Error(`Site returned HTTP ${siteResponse.status} (${statusText}) — check the URL is correct and publicly accessible`);
     }
 
     const html = await siteResponse.text();
+    if (!html || html.length < 100) {
+      throw new Error(`Site returned very little content (${html.length} chars) — may be a redirect, paywall, or bot-blocker`);
+    }
 
     // 2. Extract signals from homepage HTML
     step = "extract-signals";
@@ -100,10 +110,12 @@ export async function POST(request: NextRequest) {
     const finishReason = completion.choices[0]?.finish_reason;
     const content = completion.choices[0]?.message?.content;
 
-    if (!content) throw new Error("AI returned empty response");
+    if (!content) {
+      throw new Error(`AI returned empty response (finish_reason=${finishReason || "unknown"}, model=gpt-4o) — this usually means the prompt was rejected or a rate limit was hit`);
+    }
 
     if (finishReason === "length") {
-      console.warn(`Audit ${audit_id}: AI response truncated (finish_reason=length)`);
+      console.warn(`Audit ${audit_id}: AI response truncated (finish_reason=length), content length=${content.length}`);
     }
 
     // 5. Parse AI response
@@ -226,29 +238,35 @@ export async function POST(request: NextRequest) {
       })
       .eq("id", audit_id);
 
-    if (updateErr) throw new Error(`DB update failed: ${updateErr.message}`);
+    if (updateErr) throw new Error(`DB update failed: ${updateErr.message} (code: ${updateErr.code || "unknown"}, details: ${updateErr.details || "none"})`);
     if (safetyTimer) clearTimeout(safetyTimer);
     return NextResponse.json({ success: true });
 
   } catch (err) {
     if (safetyTimer) clearTimeout(safetyTimer);
     const errMsg = err instanceof Error ? err.message : "Unknown error";
-    console.error(`Audit processing failed at step [${step}]:`, errMsg, err);
+    const errStack = err instanceof Error ? err.stack?.split("\n").slice(0, 3).join(" | ") : "";
+    const verboseMsg = `[${step}] ${errMsg}`;
+    console.error(`Audit processing failed:`, verboseMsg, errStack);
 
     // Mark audit as failed so the frontend stops polling
     if (auditId) {
-      const supabase = createServiceClient();
-      await supabase
-        .from("pm_site_audits")
-        .update({
-          status: "failed",
-          audit_summary: `[${step}] ${errMsg}`,
-        })
-        .eq("id", auditId);
+      try {
+        const supabase = createServiceClient();
+        await supabase
+          .from("pm_site_audits")
+          .update({
+            status: "failed",
+            audit_summary: verboseMsg,
+          })
+          .eq("id", auditId);
+      } catch (dbErr) {
+        console.error(`Failed to mark audit ${auditId} as failed:`, dbErr);
+      }
     }
 
     return NextResponse.json(
-      { error: errMsg },
+      { error: verboseMsg, step },
       { status: 500 }
     );
   }
