@@ -27,15 +27,15 @@ export async function POST(
       return NextResponse.json({ error: "Audit is not complete" }, { status: 400 });
     }
 
-    const orgName = audit.pm_organizations?.name || "Organization";
-    const orgSlug = audit.pm_organizations?.slug || "org";
+    const orgName = audit.pm_organizations?.name || audit.prospect_name || "Organization";
+    const orgSlug = audit.pm_organizations?.slug || "prospect";
     const domain = audit.url.replace(/^https?:\/\//, "").replace(/\/+$/, "");
     const now = new Date();
     const monthYear = now.toLocaleDateString("en-US", { month: "long", year: "numeric" });
     const dateStr = now.toISOString().split("T")[0];
 
-    // Resolve branding for this org
-    const branding = await getBranding(audit.org_id);
+    // Resolve branding — use org-specific if available, otherwise platform defaults
+    const branding = await getBranding(audit.org_id || undefined);
     const agencyName = buildPreparedBy(branding);
 
     const html = buildAuditHTML({

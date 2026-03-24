@@ -32,10 +32,18 @@ export async function POST(
       return NextResponse.json({ error: "Report already saved to documents" }, { status: 409 });
     }
 
-    const orgSlug = audit.pm_organizations?.slug || "org";
-    const orgName = audit.pm_organizations?.name || "Organization";
+    const orgSlug = audit.pm_organizations?.slug || "prospect";
+    const orgName = audit.pm_organizations?.name || audit.prospect_name || "Organization";
     const domain = audit.url.replace(/^https?:\/\//, "").replace(/\/+$/, "");
     const dateStr = new Date(audit.created_at).toISOString().split("T")[0];
+
+    // Block save-to-docs for prospect audits (no org to file under)
+    if (!audit.org_id) {
+      return NextResponse.json(
+        { error: "Cannot save to client docs for prospect audits — no organization linked" },
+        { status: 400 }
+      );
+    }
 
     // ── 1. Get the PDF from the request FormData ──
     const formData = await request.formData();
@@ -48,7 +56,7 @@ export async function POST(
     const pdfBuffer = Buffer.from(await pdfFile.arrayBuffer());
 
     // ── 2. Generate structured markdown snapshot for comparison ──
-    const branding = await getBranding(audit.org_id);
+    const branding = await getBranding(audit.org_id || undefined);
     const overall = audit.overall || computeOverall(audit.scores || {});
 
     const mdContent = buildAuditMarkdown({

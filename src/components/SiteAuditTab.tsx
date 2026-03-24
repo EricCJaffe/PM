@@ -12,7 +12,8 @@ import { AuditCompare } from "./AuditCompare";
 
 interface Props {
   engagementId?: string;
-  orgId: string;
+  orgId: string | null;
+  prospectName?: string | null;
   defaultUrl?: string;
 }
 
@@ -48,7 +49,7 @@ function gradeBg(grade: string | undefined): string {
   return "border-red-700/30";
 }
 
-export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
+export function SiteAuditTab({ engagementId, orgId, prospectName, defaultUrl }: Props) {
   const [audits, setAudits] = useState<SiteAudit[]>([]);
   const [activeAudit, setActiveAudit] = useState<SiteAudit | null>(null);
   const [url, setUrl] = useState(defaultUrl ?? "");
@@ -64,7 +65,10 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
   // Load existing audits
   const loadAudits = useCallback(async () => {
     try {
-      const res = await fetch(`/api/pm/site-audit?org_id=${orgId}`);
+      const params = new URLSearchParams();
+      if (orgId) params.set("org_id", orgId);
+      if (prospectName) params.set("prospect_name", prospectName);
+      const res = await fetch(`/api/pm/site-audit?${params}`);
       const data = await res.json();
       if (Array.isArray(data)) {
         setAudits(data);
@@ -72,7 +76,7 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
       }
     } catch { /* ignore */ }
     return [];
-  }, [orgId]);
+  }, [orgId, prospectName]);
 
   useEffect(() => {
     loadAudits().then((data) => {
@@ -134,7 +138,8 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
         body: JSON.stringify({
           url: url.trim(),
           vertical,
-          org_id: orgId,
+          org_id: orgId || null,
+          prospect_name: prospectName || null,
           engagement_id: engagementId || null,
         }),
       });
@@ -153,7 +158,8 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
             audit_id: data.id,
             url: data.url,
             vertical,
-            org_id: orgId,
+            org_id: orgId || null,
+            prospect_name: prospectName || null,
             extra_context: null,
           }),
         });
@@ -179,7 +185,7 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
       setView("form");
       alert(err instanceof Error ? err.message : "Failed to start audit");
     }
-  }, [url, vertical, orgId, engagementId]);
+  }, [url, vertical, orgId, prospectName, engagementId]);
 
   const downloadReport = useCallback(async (auditId: string) => {
     setPdfLoading(true);
@@ -649,7 +655,7 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
         >
           {pdfLoading ? "Generating..." : "Open Report"}
         </button>
-        {!activeAudit.document_id && (
+        {!activeAudit.document_id && orgId && (
           <button
             onClick={() => saveToClientDocs(activeAudit.id)}
             disabled={saving}

@@ -38,7 +38,7 @@ interface AuditOption {
 
 interface Props {
   audits: AuditOption[];
-  orgId: string;
+  orgId: string | null;
   onClose: () => void;
 }
 

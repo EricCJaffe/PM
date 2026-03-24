@@ -20,10 +20,11 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const orgId = searchParams.get("org_id");
+    const prospectName = searchParams.get("prospect_name");
     const url = searchParams.get("url");
 
-    if (!orgId) {
-      return NextResponse.json({ error: "org_id required" }, { status: 400 });
+    if (!orgId && !prospectName) {
+      return NextResponse.json({ error: "org_id or prospect_name required" }, { status: 400 });
     }
 
     const supabase = createServiceClient();
@@ -31,8 +32,13 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("pm_audit_snapshots")
       .select("*")
-      .eq("org_id", orgId)
       .order("audit_date", { ascending: true });
+
+    if (orgId) {
+      query = query.eq("org_id", orgId);
+    } else {
+      query = query.is("org_id", null).eq("prospect_name", prospectName!);
+    }
 
     if (url) {
       query = query.eq("url", url);
@@ -174,7 +180,7 @@ Return ONLY valid JSON, no markdown fences.`,
     }
 
     // Resolve branding for export
-    const branding = await getBranding(after.org_id);
+    const branding = await getBranding(after.org_id || undefined);
 
     return NextResponse.json({
       before: {
@@ -192,7 +198,7 @@ Return ONLY valid JSON, no markdown fences.`,
       dimensions,
       ai_analysis: aiAnalysis,
       org: {
-        name: after.pm_organizations?.name || "",
+        name: after.pm_organizations?.name || after.prospect_name || "",
         slug: after.pm_organizations?.slug || "",
       },
       url: after.url,

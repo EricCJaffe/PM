@@ -23,11 +23,15 @@ export async function POST(request: NextRequest) {
   let safetyTimer: ReturnType<typeof setTimeout> | null = null;
 
   try {
-    const { audit_id, url, vertical, org_id, extra_context } = await request.json();
+    const { audit_id, url, vertical, org_id, prospect_name, extra_context } = await request.json();
     auditId = audit_id;
 
-    if (!audit_id || !url || !vertical || !org_id) {
+    if (!audit_id || !url || !vertical) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    if (!org_id && !prospect_name) {
+      return NextResponse.json({ error: "org_id or prospect_name required" }, { status: 400 });
     }
 
     const supabase = createServiceClient();
@@ -65,7 +69,7 @@ export async function POST(request: NextRequest) {
     // 3. Fetch subpages + KB context + rubric in parallel
     const [subpageContent, kbContext, rubricContent] = await Promise.all([
       fetchSiteContent(url),
-      assembleKBContext(org_id, null),
+      org_id ? assembleKBContext(org_id, null) : Promise.resolve(""),
       Promise.resolve(loadRubric(vertical)),
     ]);
 

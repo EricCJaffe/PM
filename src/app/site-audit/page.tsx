@@ -24,18 +24,7 @@ export default async function SiteAuditPage() {
         </p>
       </div>
 
-      {orgs && orgs.length > 0 ? (
-        <SiteAuditStandalone orgs={orgs} />
-      ) : (
-        <div className="bg-pm-card border border-pm-border rounded-xl p-6">
-          <p className="text-pm-muted text-sm">
-            No organizations found. Create one first at{" "}
-            <a href="/clients" className="text-blue-400 hover:text-blue-300">
-              /clients
-            </a>.
-          </p>
-        </div>
-      )}
+      <SiteAuditStandalone orgs={orgs ?? []} />
     </div>
   );
 }

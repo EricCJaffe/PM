@@ -1,5 +1,8 @@
 # Tasks
 
+## Migrations — Pending
+- [ ] Apply migration 043_site_audit_prospect_support.sql to Supabase
+
 ## Migrations — All Applied
 - [x] Apply migration 005_auth_user_roles.sql to Supabase
 - [x] Apply migration 006_org_contact_fields.sql to Supabase

@@ -40,11 +40,19 @@ export async function POST(request: NextRequest) {
 
     const before = beforeRes.data;
     const after = afterRes.data;
-    const orgSlug = after.pm_organizations?.slug || "org";
-    const orgName = after.pm_organizations?.name || "Organization";
+    const orgSlug = after.pm_organizations?.slug || "prospect";
+    const orgName = after.pm_organizations?.name || after.prospect_name || "Organization";
     const domain = after.url.replace(/^https?:\/\//, "").replace(/\/+$/, "");
     const beforeDate = new Date(before.created_at).toISOString().split("T")[0];
     const afterDate = new Date(after.created_at).toISOString().split("T")[0];
+
+    // Block save-to-docs for prospect audits
+    if (!after.org_id) {
+      return NextResponse.json(
+        { error: "Cannot save to client docs for prospect audits — no organization linked" },
+        { status: 400 }
+      );
+    }
 
     const branding = await getBranding(after.org_id);
     const agencyName = buildPreparedBy(branding);

@@ -37,13 +37,13 @@ export async function POST(request: NextRequest) {
 
     const before = beforeRes.data;
     const after = afterRes.data;
-    const orgName = after.pm_organizations?.name || "Organization";
-    const orgSlug = after.pm_organizations?.slug || "org";
+    const orgName = after.pm_organizations?.name || after.prospect_name || "Organization";
+    const orgSlug = after.pm_organizations?.slug || "prospect";
     const domain = after.url.replace(/^https?:\/\//, "").replace(/\/+$/, "");
     const beforeDate = new Date(before.created_at).toISOString().split("T")[0];
     const afterDate = new Date(after.created_at).toISOString().split("T")[0];
 
-    const branding = await getBranding(after.org_id);
+    const branding = await getBranding(after.org_id || undefined);
     const agencyName = buildPreparedBy(branding);
     const bc = {
       navy: branding.primary_color,

@@ -761,7 +761,8 @@ export interface AuditPlatformComparison {
 
 export interface SiteAudit {
   id: string;
-  org_id: string;
+  org_id: string | null;
+  prospect_name: string | null;
   engagement_id: string | null;
   url: string;
   vertical: AuditVertical;
@@ -787,7 +788,8 @@ export interface SiteAudit {
 export interface AuditSnapshot {
   id: string;
   audit_id: string;
-  org_id: string;
+  org_id: string | null;
+  prospect_name: string | null;
   html_storage_path: string | null;
   md_storage_path: string | null;
   overall_grade: string | null;
