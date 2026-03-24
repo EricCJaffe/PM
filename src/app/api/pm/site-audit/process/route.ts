@@ -13,8 +13,8 @@ import {
   buildUserPrompt,
 } from "@/lib/audit-helpers";
 
-// Allow up to 60s on Vercel Pro (default is 10s)
-export const maxDuration = 60;
+// Allow up to 120s on Vercel Pro (default is 10s)
+export const maxDuration = 120;
 
 // POST /api/pm/site-audit/process — Background audit processing
 // Called by the frontend after creating the audit record.
@@ -37,17 +37,17 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServiceClient();
 
-    // Safety timeout: mark as failed before Vercel kills us (maxDuration=60)
+    // Safety timeout: mark as failed before Vercel kills us (maxDuration=120)
     safetyTimer = setTimeout(async () => {
-      console.error(`Audit ${audit_id}: safety timeout reached (55s), last step: ${step}`);
+      console.error(`Audit ${audit_id}: safety timeout reached (110s), last step: ${step}`);
       try {
         await createServiceClient()
           .from("pm_site_audits")
-          .update({ status: "failed", audit_summary: `Audit processing timed out at step: ${step} — please try again` })
+          .update({ status: "failed", audit_summary: `[${step}] Audit processing timed out — please try again` })
           .eq("id", audit_id)
           .eq("status", "running");
       } catch { /* last resort */ }
-    }, 55_000);
+    }, 110_000);
 
     // 1. Fetch the website HTML (15s timeout)
     step = "fetch-homepage";

@@ -149,51 +149,25 @@ export function SiteAuditTab({ engagementId, orgId, prospectName, defaultUrl }: 
       // POST returns immediately with status "running" — polling takes over
       setActiveAudit(data);
 
-      // Trigger processing
-      try {
-        const processRes = await fetch("/api/pm/site-audit/process", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            audit_id: data.id,
-            url: data.url,
-            vertical,
-            org_id: orgId || null,
-            prospect_name: prospectName || null,
-            extra_context: null,
-          }),
-        });
-        if (!processRes.ok) {
-          const errData = await processRes.json().catch(() => ({}));
-          const detail = errData.error || "Audit processing failed (no detail returned)";
-          console.error("Audit process error:", errData);
-          setActiveAudit((prev) =>
-            prev && prev.id === data.id
-              ? { ...prev, status: "failed" as const, audit_summary: detail }
-              : prev
-          );
-          setRunning(false);
-        }
-      } catch (processErr) {
-        const msg = processErr instanceof Error ? processErr.message : "unknown network error";
-        console.error("Audit process fetch error:", msg);
-        // Try to fetch the audit record from DB — it may have a more detailed error
-        try {
-          const fallback = await fetch(`/api/pm/site-audit/${data.id}`);
-          const fallbackData = await fallback.json();
-          if (fallbackData?.status === "failed" && fallbackData.audit_summary) {
-            setActiveAudit(fallbackData);
-            setRunning(false);
-            return;
-          }
-        } catch { /* fallback failed too */ }
-        setActiveAudit((prev) =>
-          prev && prev.id === data.id
-            ? { ...prev, status: "failed" as const, audit_summary: `Processing failed: ${msg}` }
-            : prev
-        );
-        setRunning(false);
-      }
+      // Fire-and-forget: trigger processing in the background.
+      // Polling (useEffect above) detects completion/failure via DB status.
+      // We intentionally do NOT await this — Vercel may kill long-running
+      // functions and return HTML error pages that break .json() parsing.
+      fetch("/api/pm/site-audit/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          audit_id: data.id,
+          url: data.url,
+          vertical,
+          org_id: orgId || null,
+          prospect_name: prospectName || null,
+          extra_context: null,
+        }),
+      }).catch((processErr) => {
+        // Network-level failure only — log it, polling will pick up DB status
+        console.error("Audit process fetch error:", processErr);
+      });
     } catch (err) {
       setRunning(false);
       setView("form");
