@@ -124,13 +124,13 @@ This module shares a Supabase project with FSA. Auth and org/tenant schema are r
 | id | UUID | PK |
 | project_id | UUID | FK → pm_projects (nullable — null for org-level standups) |
 | org_id | UUID | FK → pm_organizations (migration 029) |
-| date | DATE | Unique per project or per org+log_type |
+| log_date | DATE | Unique per project or per org+log_type (renamed from `date` in migration 045) |
 | content | TEXT | Markdown |
 | generated_by | TEXT | ai, manual, or standup-agent |
 | log_type | TEXT | daily, standup, rollup, blocker, hub, decisions (migration 029) |
 | created_at | TIMESTAMPTZ | Auto |
 
-Migrations: 001 (base), 029 (org_id, log_type, nullable project_id)
+Migrations: 001 (base), 029 (org_id, log_type, nullable project_id), 045 (rename date → log_date)
 
 ### pm_files
 | Column | Type | Notes |

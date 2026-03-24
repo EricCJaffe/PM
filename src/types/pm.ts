@@ -250,7 +250,7 @@ export interface DailyLog {
   id: string;
   project_id: string | null;
   org_id: string | null;
-  date: string;
+  log_date: string;
   content: string;
   generated_by: "ai" | "manual" | "standup-agent";
   log_type: DailyLogType;

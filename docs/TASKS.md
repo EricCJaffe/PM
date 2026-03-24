@@ -2,6 +2,7 @@
 
 ## Migrations — Pending
 - [ ] Apply migration 043_site_audit_prospect_support.sql to Supabase
+- [ ] Apply migration 045_rename_daily_logs_date_to_log_date.sql to Supabase
 
 ## Migrations — All Applied
 - [x] Apply migration 005_auth_user_roles.sql to Supabase
@@ -31,6 +32,11 @@
 - [x] Onboarding notes: new users are added via admin console, which creates auth user + links to pm_members with org access. Each user gets a role per org: admin, user, or external (read-only)
 
 ## Bug Fixes
+- [x] Fix standup generation 500 error — `pm_daily_logs.date` was renamed to `log_date` in live DB but code still used `date`, causing NOT NULL violation on insert
+  - Updated all Supabase queries in standup/generate, standup list, reports/standup routes
+  - Updated StandupWidget and AIReportsPanel components to use `log_date`
+  - Updated DailyLog TypeScript type
+  - Added migration 045 to formalize the column rename
 - [x] Fix intake wizard applying to all templates — was showing web-specific 6-step wizard (Toolstack, Flags, Integrations) for every template
   - Replaced two buttons ("Quick create" + "+ New client project") with single "+ New Project" button
   - Added "Web Project" template card on new project page — only this template routes to the intake wizard

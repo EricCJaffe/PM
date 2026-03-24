@@ -76,12 +76,12 @@ export async function POST(req: NextRequest) {
     .from("pm_daily_logs")
     .delete()
     .eq("org_id", org_id)
-    .eq("date", dateStr)
+    .eq("log_date", dateStr)
     .eq("log_type", "standup");
 
   const { error: insertErr } = await supabase.from("pm_daily_logs").insert({
     org_id,
-    date: dateStr,
+    log_date: dateStr,
     content,
     generated_by: "standup-agent",
     log_type: "standup",

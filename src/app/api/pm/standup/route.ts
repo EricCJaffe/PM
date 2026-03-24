@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     .select("*")
     .eq("org_id", orgId)
     .eq("log_type", "standup")
-    .order("date", { ascending: false })
+    .order("log_date", { ascending: false })
     .limit(limit);
 
   if (!error && data) {
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     .select("*")
     .eq("org_id", orgId)
     .eq("generated_by", "standup-agent")
-    .order("date", { ascending: false })
+    .order("log_date", { ascending: false })
     .limit(limit);
 
   if (!fb1Err && fb1) {

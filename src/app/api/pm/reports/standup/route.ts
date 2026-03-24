@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
         .from("pm_daily_logs")
         .select("*")
         .eq("project_id", project_id)
-        .order("date", { ascending: false })
+        .order("log_date", { ascending: false })
         .limit(3),
     ]);
 
@@ -90,7 +90,7 @@ Open Risks (${risks?.length ?? 0}):
 ${risks?.map((r: { title: string; probability: string; impact: string }) => `  - ${r.title} [P:${r.probability} I:${r.impact}]`).join("\n") ?? "  None"}
 
 Previous Standups:
-${recentLogs?.map((l: { date: string; content: string }) => `  [${l.date}] ${l.content.slice(0, 200)}...`).join("\n") ?? "  None"}
+${recentLogs?.map((l: { log_date: string; content: string }) => `  [${l.log_date}] ${l.content.slice(0, 200)}...`).join("\n") ?? "  None"}
 `;
 
     const kbContext = await assembleKBContext(project?.org_id, project_id);
@@ -134,11 +134,11 @@ Keep it concise — this is a daily update, not a full report. Use bullet points
     await supabase.from("pm_daily_logs").upsert(
       {
         project_id,
-        date: today,
+        log_date: today,
         content: standupContent,
         generated_by: "ai",
       },
-      { onConflict: "project_id,date" }
+      { onConflict: "project_id,log_date" }
     );
 
     // Save to vault
@@ -185,7 +185,7 @@ export async function GET(request: NextRequest) {
       .from("pm_daily_logs")
       .select("*")
       .eq("project_id", projectId)
-      .order("date", { ascending: false })
+      .order("log_date", { ascending: false })
       .limit(limit);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

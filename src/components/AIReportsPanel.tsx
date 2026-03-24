@@ -13,7 +13,7 @@ type ReportType = "standup" | "risk-radar";
 export function AIReportsPanel({ projectId, orgSlug, projectSlug }: AIReportsPanelProps) {
   const [generating, setGenerating] = useState<ReportType | null>(null);
   const [report, setReport] = useState<{ type: ReportType; content: string; date: string } | null>(null);
-  const [history, setHistory] = useState<Array<{ date: string; content: string }>>([]);
+  const [history, setHistory] = useState<Array<{ log_date: string; content: string }>>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -139,9 +139,9 @@ export function AIReportsPanel({ projectId, orgSlug, projectSlug }: AIReportsPan
             <p className="text-xs text-pm-muted">No previous standups found.</p>
           )}
           {history.map((log) => (
-            <details key={log.date} className="card">
+            <details key={log.log_date} className="card">
               <summary className="text-sm font-medium text-pm-text cursor-pointer">
-                {log.date}
+                {log.log_date}
               </summary>
               <div
                 className="mt-2 prose prose-sm prose-invert max-w-none text-pm-text [&_h2]:text-base [&_h2]:font-semibold [&_h3]:text-sm [&_h3]:font-semibold [&_ul]:space-y-1 [&_li]:text-sm [&_p]:text-sm"
