@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Organization, GeneratedDocument, DocumentType, DocumentStatus } from "@/types/pm";
 import { DocStatusBadge } from "@/components/documents/DocStatusBadge";
@@ -16,6 +17,7 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
 ];
 
 export function ProposalsTab({ org }: { org: Organization }) {
+  const router = useRouter();
   const [docs, setDocs] = useState<GeneratedDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("");
@@ -167,8 +169,8 @@ export function ProposalsTab({ org }: { org: Organization }) {
           org={org}
           onClose={() => setShowNewDoc(false)}
           onCreated={(doc) => {
-            setDocs((prev) => [doc, ...prev]);
-            setShowNewDoc(false);
+            // Navigate directly to the editor instead of staying on the list
+            router.push(`/documents/${doc.id}`);
           }}
         />
       )}
@@ -209,6 +211,14 @@ function NewDocumentModal({
     if (!selectedType || !title.trim()) return;
     setCreating(true);
 
+    // Pre-populate intake data with org context so the editor doesn't ask again
+    const intakeData: Record<string, string> = {
+      _org_id: org.id,
+      client_name: org.name,
+    };
+    if (org.contact_name) intakeData.client_contact_name = org.contact_name;
+    if (org.contact_email) intakeData.client_contact_email = org.contact_email;
+
     const res = await fetch("/api/pm/docgen", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -216,6 +226,7 @@ function NewDocumentModal({
         document_type_id: selectedType,
         org_id: org.id,
         title: title.trim(),
+        intake_data: intakeData,
       }),
     });
 
