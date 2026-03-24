@@ -64,6 +64,7 @@
   - Integrated into task create/update routes (notify_assignee flag) and admin invite route
   - Graceful degradation when RESEND_API_KEY not set
 - [ ] Set up Vercel Cron for daily recurring task generation (/api/pm/series/generate)
+- [ ] Final configuration of DocuSeal (document signing/e-signature integration)
 
 ## New Features — Planned
 - [x] Centralized branding system (ADR 0002)
@@ -385,7 +386,6 @@
   - RLS policies automatically filter which rows each user receives
 - [x] Timeline view (Gantt-style) for phases
 - [x] Budget vs actuals tracking
-- [ ] Seed Honey Lake Digital and VakPak as sample projects
 - [ ] Asana import: support CSV format in addition to JSON
 - [ ] Asana import: connect via Asana API for live import (requires PAT)
 
