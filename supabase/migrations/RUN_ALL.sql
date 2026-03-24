@@ -88,12 +88,14 @@ CREATE TABLE IF NOT EXISTS pm_risks (
 
 CREATE TABLE IF NOT EXISTS pm_daily_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id UUID NOT NULL REFERENCES pm_projects(id) ON DELETE CASCADE,
-  date DATE NOT NULL,
+  project_id UUID REFERENCES pm_projects(id) ON DELETE CASCADE,
+  org_id UUID REFERENCES pm_organizations(id) ON DELETE CASCADE,
+  log_date DATE NOT NULL,
   content TEXT NOT NULL DEFAULT '',
-  generated_by TEXT DEFAULT 'ai' CHECK (generated_by IN ('ai','manual')),
+  generated_by TEXT DEFAULT 'ai' CHECK (generated_by IN ('ai','manual','standup-agent')),
+  log_type TEXT NOT NULL DEFAULT 'daily' CHECK (log_type IN ('daily','standup','rollup','blocker','hub','decisions')),
   created_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(project_id, date)
+  UNIQUE(project_id, log_date)
 );
 
 CREATE TABLE IF NOT EXISTS pm_files (

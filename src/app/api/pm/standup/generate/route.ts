@@ -99,18 +99,21 @@ export async function POST(req: NextRequest) {
     .eq("log_date", dateStr)
     .eq("log_type", "standup");
 
-  const { error: insertErr } = await supabase.from("pm_daily_logs").insert({
+  const insertPayload = {
     org_id: resolvedOrgId,
+    project_id: null,
     log_date: dateStr,
     content,
     generated_by: "standup-agent",
     log_type: "standup",
-  });
+  };
+  console.log("[Standup] Inserting daily log with org_id:", resolvedOrgId);
+  const { error: insertErr } = await supabase.from("pm_daily_logs").insert(insertPayload);
 
   if (insertErr) {
-    console.error("[Standup] Insert failed:", insertErr.message);
+    console.error("[Standup] Insert failed:", insertErr.message, "| org_id:", resolvedOrgId, "| code:", insertErr.code, "| details:", insertErr.details);
     return NextResponse.json(
-      { error: `Standup generated but failed to save: ${insertErr.message}`, content },
+      { error: `Standup generated but failed to save: ${insertErr.message}`, content, debug: { org_id: resolvedOrgId, code: insertErr.code, details: insertErr.details } },
       { status: 500 }
     );
   }
