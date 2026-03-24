@@ -37,18 +37,38 @@ export async function POST(req: NextRequest) {
   const targetDate = date ? new Date(date) : new Date();
   const dateStr = targetDate.toISOString().split("T")[0];
 
-  // Get org name for context
-  const { data: org } = await supabase
+  // Get org — try by id first, then by slug as fallback
+  let { data: org } = await supabase
     .from("pm_organizations")
-    .select("name")
+    .select("id, name")
     .eq("id", org_id)
     .single();
 
+  if (!org) {
+    // Fallback: maybe org_id is actually a slug
+    const { data: orgBySlug } = await supabase
+      .from("pm_organizations")
+      .select("id, name")
+      .eq("slug", org_id)
+      .single();
+    org = orgBySlug;
+  }
+
+  if (!org) {
+    return NextResponse.json(
+      { error: `Organization not found for org_id: ${org_id}` },
+      { status: 404 }
+    );
+  }
+
+  // Use the validated org.id (resolves slug→id if needed)
+  const resolvedOrgId = org.id;
+
   // Assemble live data
-  const standupData = await assembleStandupData(org_id, targetDate);
+  const standupData = await assembleStandupData(resolvedOrgId, targetDate);
 
   // Build GPT-4o prompt
-  const prompt = buildStandupPrompt(org?.name ?? "your organization", dateStr, standupData);
+  const prompt = buildStandupPrompt(org.name, dateStr, standupData);
 
   // Generate standup content
   const openai = getOpenAI();
@@ -75,12 +95,12 @@ export async function POST(req: NextRequest) {
   await supabase
     .from("pm_daily_logs")
     .delete()
-    .eq("org_id", org_id)
+    .eq("org_id", resolvedOrgId)
     .eq("log_date", dateStr)
     .eq("log_type", "standup");
 
   const { error: insertErr } = await supabase.from("pm_daily_logs").insert({
-    org_id,
+    org_id: resolvedOrgId,
     log_date: dateStr,
     content,
     generated_by: "standup-agent",
@@ -97,7 +117,7 @@ export async function POST(req: NextRequest) {
 
   // Send email if requested
   if (send_email && email_to) {
-    const orgName = org?.name ?? "Team";
+    const orgName = org.name;
     sendEmail({
       to: email_to,
       subject: `Morning Standup — ${orgName} — ${dateStr}`,
@@ -110,7 +130,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     content,
     date: dateStr,
-    org_id,
+    org_id: resolvedOrgId,
     projects_covered: standupData.project_summaries.length,
     blocked_count: standupData.blocked.length,
     overdue_count: standupData.overdue.length,
