@@ -37,18 +37,38 @@ export async function POST(req: NextRequest) {
   const targetDate = date ? new Date(date) : new Date();
   const dateStr = targetDate.toISOString().split("T")[0];
 
-  // Get org name for context
-  const { data: org } = await supabase
+  // Get org — try by id first, then by slug as fallback
+  let { data: org } = await supabase
     .from("pm_organizations")
-    .select("name")
+    .select("id, name")
     .eq("id", org_id)
     .single();
 
+  if (!org) {
+    // Fallback: maybe org_id is actually a slug
+    const { data: orgBySlug } = await supabase
+      .from("pm_organizations")
+      .select("id, name")
+      .eq("slug", org_id)
+      .single();
+    org = orgBySlug;
+  }
+
+  if (!org) {
+    return NextResponse.json(
+      { error: `Organization not found for org_id: ${org_id}` },
+      { status: 404 }
+    );
+  }
+
+  // Use the validated org.id (resolves slug→id if needed)
+  const resolvedOrgId = org.id;
+
   // Assemble live data
-  const standupData = await assembleStandupData(org_id, targetDate);
+  const standupData = await assembleStandupData(resolvedOrgId, targetDate);
 
   // Build GPT-4o prompt
-  const prompt = buildStandupPrompt(org?.name ?? "your organization", dateStr, standupData);
+  const prompt = buildStandupPrompt(org.name, dateStr, standupData);
 
   // Generate standup content
   const openai = getOpenAI();
@@ -70,63 +90,37 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Failed to generate standup" }, { status: 500 });
   }
 
-  // Save to pm_daily_logs — upsert to handle regeneration
-  const { error: upsertErr } = await supabase
+  // Save to pm_daily_logs — delete-then-insert to avoid partial unique index issues
+  // (PostgREST upsert doesn't work with partial unique indexes like WHERE org_id IS NOT NULL)
+  await supabase
     .from("pm_daily_logs")
-    .upsert(
-      {
-        project_id: null,
-        org_id,
-        date: dateStr,
-        content,
-        generated_by: "standup-agent",
-        log_type: "standup",
-      },
-      { onConflict: "org_id,date,log_type", ignoreDuplicates: false }
+    .delete()
+    .eq("org_id", resolvedOrgId)
+    .eq("log_date", dateStr)
+    .eq("log_type", "standup");
+
+  const insertPayload = {
+    org_id: resolvedOrgId,
+    project_id: null,
+    log_date: dateStr,
+    content,
+    generated_by: "standup-agent",
+    log_type: "standup",
+  };
+  console.log("[Standup] Inserting daily log with org_id:", resolvedOrgId);
+  const { error: insertErr } = await supabase.from("pm_daily_logs").insert(insertPayload);
+
+  if (insertErr) {
+    console.error("[Standup] Insert failed:", insertErr.message, "| org_id:", resolvedOrgId, "| code:", insertErr.code, "| details:", insertErr.details);
+    return NextResponse.json(
+      { error: `Standup generated but failed to save: ${insertErr.message}`, content, debug: { org_id: resolvedOrgId, code: insertErr.code, details: insertErr.details } },
+      { status: 500 }
     );
-
-  // Fallback: if upsert fails (e.g. unique index not yet applied), try plain insert
-  if (upsertErr) {
-    console.warn("[Standup] Upsert failed, trying insert:", upsertErr.message);
-
-    // Delete any existing standup for today first (manual dedup)
-    await supabase
-      .from("pm_daily_logs")
-      .delete()
-      .eq("org_id", org_id)
-      .eq("date", dateStr)
-      .eq("generated_by", "standup-agent");
-
-    const { error: insertErr } = await supabase.from("pm_daily_logs").insert({
-      project_id: null,
-      org_id,
-      date: dateStr,
-      content,
-      generated_by: "standup-agent",
-      log_type: "standup",
-    });
-
-    if (insertErr) {
-      console.error("[Standup] Insert also failed:", insertErr.message);
-      // Last resort: try minimal insert without optional columns
-      const { error: minimalErr } = await supabase.from("pm_daily_logs").insert({
-        date: dateStr,
-        content,
-        generated_by: "standup-agent",
-      });
-      if (minimalErr) {
-        console.error("[Standup] Minimal insert failed:", minimalErr.message);
-        return NextResponse.json(
-          { error: `Standup generated but failed to save: ${minimalErr.message}`, content },
-          { status: 500 }
-        );
-      }
-    }
   }
 
   // Send email if requested
   if (send_email && email_to) {
-    const orgName = org?.name ?? "Team";
+    const orgName = org.name;
     sendEmail({
       to: email_to,
       subject: `Morning Standup — ${orgName} — ${dateStr}`,
@@ -139,7 +133,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     content,
     date: dateStr,
-    org_id,
+    org_id: resolvedOrgId,
     projects_covered: standupData.project_summaries.length,
     blocked_count: standupData.blocked.length,
     overdue_count: standupData.overdue.length,

@@ -2,7 +2,6 @@
 import { useState, useMemo } from "react";
 import type { Organization, ProjectWithStats, ProcessMap, Opportunity, KPI, PMDocument, PhaseWithTasks } from "@/types/pm";
 import { OverviewTab } from "./OverviewTab";
-import { EngagementOverview } from "./EngagementOverview";
 import { InfoTab } from "./InfoTab";
 import { ProposalsTab } from "./ProposalsTab";
 import { NotesTab } from "./NotesTab";
@@ -21,9 +20,9 @@ import { GapAnalysisTab } from "./GapAnalysisTab";
 import { PortalSettingsTab } from "./PortalSettingsTab";
 import { OrgBrandingTab } from "./OrgBrandingTab";
 import { OnboardingTab } from "./OnboardingTab";
+import { SiteAuditTab } from "@/components/SiteAuditTab";
 
 const tabs = [
-  { id: "engagements", label: "Engagements" },
   { id: "overview", label: "Overview" },
   { id: "info", label: "Info" },
   { id: "tasks", label: "Tasks" },
@@ -34,6 +33,7 @@ const tabs = [
   { id: "opportunities", label: "Opportunities" },
   { id: "implementation", label: "Implementation Plan" },
   { id: "kpis", label: "KPIs" },
+  { id: "site-audit", label: "Site Audit" },
   { id: "docs", label: "Docs & SOPs" },
   { id: "kb", label: "Knowledge Base" },
   { id: "departments", label: "Departments" },
@@ -67,7 +67,7 @@ export function DashboardTabs({
   documents: PMDocument[];
   allPhases: { project: ProjectWithStats; phases: PhaseWithTasks[] }[];
 }) {
-  const [active, setActive] = useState("engagements");
+  const [active, setActive] = useState("overview");
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
   const filteredProcessMaps = useMemo(
@@ -127,7 +127,6 @@ export function DashboardTabs({
         )}
       </div>
 
-      {active === "engagements" && <EngagementOverview org={org} />}
       {active === "info" && <InfoTab org={org} projects={projects} />}
       {active === "tasks" && <ClientTasksTab org={org} />}
       {active === "proposals" && <ProposalsTab org={org} />}
@@ -146,6 +145,7 @@ export function DashboardTabs({
       {active === "opportunities" && <OpportunitiesTab org={org} opportunities={filteredOpportunities} projects={projects} selectedProjectId={selectedProjectId} />}
       {active === "implementation" && <ImplementationTab allPhases={filteredPhases} />}
       {active === "kpis" && <KPIsTab org={org} kpis={filteredKpis} projects={projects} selectedProjectId={selectedProjectId} />}
+      {active === "site-audit" && <SiteAuditTab orgId={org.id} />}
       {active === "docs" && <DocsTab org={org} documents={filteredDocs} projects={projects} selectedProjectId={selectedProjectId} />}
       {active === "kb" && <KBTab org={org} scope="org" />}
       {active === "departments" && <DepartmentsTab org={org} />}

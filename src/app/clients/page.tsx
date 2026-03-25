@@ -34,14 +34,14 @@ interface TableError {
   migrations: string[];
 }
 
-const PIPELINE_STAGES: { value: PipelineStatus; label: string; color: string }[] = [
-  { value: "lead", label: "Lead", color: "bg-slate-500/20 text-slate-300" },
-  { value: "qualified", label: "Qualified", color: "bg-blue-500/20 text-blue-400" },
-  { value: "discovery_complete", label: "Discovery", color: "bg-cyan-500/20 text-cyan-400" },
-  { value: "proposal_sent", label: "Proposal Sent", color: "bg-purple-500/20 text-purple-400" },
-  { value: "negotiation", label: "Negotiation", color: "bg-amber-500/20 text-amber-400" },
-  { value: "closed_won", label: "Closed Won", color: "bg-emerald-500/20 text-emerald-400" },
-  { value: "closed_lost", label: "Closed Lost", color: "bg-red-500/20 text-red-400" },
+const PIPELINE_STAGES: { value: PipelineStatus; label: string; color: string; bg: string; border: string; dot: string }[] = [
+  { value: "lead", label: "Lead", color: "bg-slate-500/20 text-slate-300", bg: "bg-slate-500/10", border: "border-slate-500/30", dot: "bg-slate-400" },
+  { value: "qualified", label: "Qualified", color: "bg-blue-500/20 text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/30", dot: "bg-blue-400" },
+  { value: "discovery_complete", label: "Discovery", color: "bg-cyan-500/20 text-cyan-400", bg: "bg-cyan-500/10", border: "border-cyan-500/30", dot: "bg-cyan-400" },
+  { value: "proposal_sent", label: "Proposal Sent", color: "bg-purple-500/20 text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/30", dot: "bg-purple-400" },
+  { value: "negotiation", label: "Negotiation", color: "bg-amber-500/20 text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30", dot: "bg-amber-400" },
+  { value: "closed_won", label: "Closed Won", color: "bg-emerald-500/20 text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/30", dot: "bg-emerald-400" },
+  { value: "closed_lost", label: "Closed Lost", color: "bg-red-500/20 text-red-400", bg: "bg-red-500/10", border: "border-red-500/30", dot: "bg-red-400" },
 ];
 
 function PipelineBadge({ status }: { status: PipelineStatus }) {
@@ -53,11 +53,23 @@ function PipelineBadge({ status }: { status: PipelineStatus }) {
   );
 }
 
+interface StageRevenue {
+  mrr: number;
+  one_time: number;
+}
+
+function formatCurrency(n: number): string {
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}k`;
+  return `$${n.toLocaleString()}`;
+}
+
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [tableError, setTableError] = useState<TableError | null>(null);
   const [pipelineFilter, setPipelineFilter] = useState<PipelineStatus | "all">("all");
+  const [stageRevenue, setStageRevenue] = useState<Record<PipelineStatus, StageRevenue> | null>(null);
 
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -80,6 +92,9 @@ export default function ClientsPage() {
     contact_phone: "",
   });
 
+  // Search
+  const [search, setSearch] = useState("");
+
   // View mode: list or kanban
   const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
 
@@ -100,12 +115,54 @@ export default function ClientsPage() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { loadClients(); }, []);
+  const loadRevenue = () => {
+    fetch("/api/pm/organizations/pipeline")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.revenue) setStageRevenue(data.revenue);
+      })
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    fetch("/api/pm/organizations")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.missing) {
+          setTableError(data);
+        } else if (Array.isArray(data)) {
+          setClients(data);
+          // Auto-open edit form when navigated with ?edit=slug
+          const params = new URLSearchParams(window.location.search);
+          const editSlug = params.get("edit");
+          if (editSlug) {
+            const client = data.find((c: Client) => c.slug === editSlug);
+            if (client) startEdit(client);
+            window.history.replaceState(null, "", "/clients");
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+    loadRevenue();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const filteredClients = useMemo(() => {
-    if (pipelineFilter === "all") return clients;
-    return clients.filter((c) => c.pipeline_status === pipelineFilter);
-  }, [clients, pipelineFilter]);
+    let result = clients;
+    if (pipelineFilter !== "all") {
+      result = result.filter((c) => c.pipeline_status === pipelineFilter);
+    }
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter((c) =>
+        c.name.toLowerCase().includes(q) ||
+        (c.contact_name && c.contact_name.toLowerCase().includes(q)) ||
+        (c.contact_email && c.contact_email.toLowerCase().includes(q))
+      );
+    }
+    return result;
+  }, [clients, pipelineFilter, search]);
 
   // Pipeline counts for filter pills
   const pipelineCounts = useMemo(() => {
@@ -263,32 +320,60 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      {/* Pipeline filter pills */}
+      {/* Pipeline stage summary boxes */}
       {clients.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+          {PIPELINE_STAGES.map((stage) => {
+            const count = pipelineCounts[stage.value] || 0;
+            const isActive = pipelineFilter === stage.value;
+            const rev = stageRevenue?.[stage.value];
+            const mrr = rev?.mrr ?? 0;
+            const oneTime = rev?.one_time ?? 0;
+            return (
+              <button
+                key={stage.value}
+                onClick={() => setPipelineFilter(isActive ? "all" : stage.value)}
+                className={`relative rounded-lg border p-3 text-left transition-all hover:scale-[1.02] ${
+                  isActive
+                    ? `${stage.bg} ${stage.border} ring-1 ring-offset-1 ring-offset-pm-bg ring-current`
+                    : "bg-pm-card border-pm-border hover:border-pm-muted"
+                }`}
+              >
+                <div className={`w-2.5 h-2.5 rounded-full ${stage.dot} mb-2`} />
+                <div className="text-2xl font-bold text-pm-text">{count}</div>
+                <div className="text-xs text-pm-muted mt-0.5 truncate">{stage.label}</div>
+                {(mrr > 0 || oneTime > 0) && (
+                  <div className="mt-2 pt-2 border-t border-pm-border space-y-0.5">
+                    {mrr > 0 && (
+                      <div className="text-xs font-semibold text-emerald-400">
+                        {formatCurrency(mrr)}<span className="text-pm-muted font-normal">/mo</span>
+                      </div>
+                    )}
+                    {oneTime > 0 && (
+                      <div className="text-xs text-blue-400">
+                        {formatCurrency(oneTime)} <span className="text-pm-muted font-normal">one-time</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Active filter indicator */}
+      {pipelineFilter !== "all" && (
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-sm text-pm-muted">
+            Showing: <span className="text-pm-text font-medium">{PIPELINE_STAGES.find(s => s.value === pipelineFilter)?.label}</span>
+          </span>
           <button
             onClick={() => setPipelineFilter("all")}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-              pipelineFilter === "all"
-                ? "bg-pm-accent text-white"
-                : "bg-pm-card border border-pm-border text-pm-muted hover:text-pm-text"
-            }`}
+            className="text-xs text-pm-accent hover:underline"
           >
-            All ({pipelineCounts.all})
+            Clear filter
           </button>
-          {PIPELINE_STAGES.map((stage) => (
-            <button
-              key={stage.value}
-              onClick={() => setPipelineFilter(stage.value)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                pipelineFilter === stage.value
-                  ? "bg-pm-accent text-white"
-                  : "bg-pm-card border border-pm-border text-pm-muted hover:text-pm-text"
-              }`}
-            >
-              {stage.label} ({pipelineCounts[stage.value] || 0})
-            </button>
-          ))}
         </div>
       )}
 
@@ -473,82 +558,65 @@ export default function ClientsPage() {
           <p className="text-sm">Create your first client to get started.</p>
         </div>
       ) : viewMode === "kanban" ? (
-        <PipelineKanban clients={clients} onStatusChange={handlePipelineChange} />
-      ) : filteredClients.length === 0 ? (
-        <div className="text-center py-16 text-pm-muted">
-          <p className="text-lg mb-2">No clients in this stage</p>
-          <p className="text-sm">Try a different filter or add new clients.</p>
-        </div>
+        <PipelineKanban clients={clients} onStatusChange={handlePipelineChange} stageRevenue={stageRevenue} />
       ) : (
-        <div className="space-y-3">
-          {filteredClients.map((client) => (
-            <div key={client.id} className="card">
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3">
-                    <div className="font-semibold text-pm-text text-lg">{client.name}</div>
-                    <PipelineBadge status={client.pipeline_status} />
-                  </div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-pm-muted">
-                    {client.contact_name && (
-                      <span className="flex items-center gap-1">
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                        {client.contact_name}
-                      </span>
-                    )}
-                    {(client.contact_email || client.phone) && (
-                      <span>{client.contact_email || client.phone}</span>
-                    )}
-                    {client.website && <span>{client.website}</span>}
-                    {(client.city || client.state) && (
-                      <span className="flex items-center gap-1">
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>
-                        {[client.city, client.state].filter(Boolean).join(", ")}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 ml-4 shrink-0">
-                  <Link
-                    href={`/clients/${client.slug}`}
-                    className="px-3 py-1.5 bg-pm-accent hover:bg-pm-accent-hover text-white rounded-md text-sm font-medium transition-colors"
-                  >
-                    Dashboard
-                  </Link>
-                  <button
-                    onClick={() => startEdit(client)}
-                    className="px-3 py-1.5 border border-pm-border text-pm-text hover:bg-pm-card rounded-md text-sm font-medium transition-colors"
-                  >
-                    Edit
-                  </button>
-                  {deletingId === client.id ? (
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleDelete(client.id)}
-                        className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-medium transition-colors"
-                      >
-                        Confirm
-                      </button>
-                      <button
-                        onClick={() => setDeletingId(null)}
-                        className="px-3 py-1.5 text-pm-muted hover:text-pm-text rounded-md text-sm font-medium transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setDeletingId(client.id)}
-                      className="px-3 py-1.5 border border-red-600/30 text-red-400 hover:bg-red-600/10 rounded-md text-sm font-medium transition-colors"
-                    >
-                      Delete
-                    </button>
-                  )}
-                </div>
-              </div>
+        <>
+          {/* Search bar */}
+          <div className="relative mb-4">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-pm-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search clients..."
+              className="w-full bg-pm-card border border-pm-border rounded-lg pl-10 pr-4 py-2.5 text-sm text-pm-text placeholder-pm-muted focus:outline-none focus:border-blue-500 transition-colors"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-pm-muted hover:text-pm-text"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            )}
+          </div>
+
+          {filteredClients.length === 0 ? (
+            <div className="text-center py-16 text-pm-muted">
+              <p className="text-lg mb-2">{search ? "No clients match your search" : "No clients in this stage"}</p>
+              <p className="text-sm">{search ? "Try a different search term." : "Try a different filter or add new clients."}</p>
             </div>
-          ))}
-        </div>
+          ) : (
+            <div className="bg-pm-card border border-pm-border rounded-lg divide-y divide-pm-border">
+              {filteredClients.map((client) => {
+                const stage = PIPELINE_STAGES.find((s) => s.value === client.pipeline_status) ?? PIPELINE_STAGES[0];
+                return (
+                  <Link
+                    key={client.id}
+                    href={`/clients/${client.slug}`}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-pm-bg/50 transition-colors group"
+                  >
+                    <div className={`w-2 h-2 rounded-full shrink-0 ${stage.dot}`} />
+                    <span className="font-medium text-pm-text group-hover:text-blue-400 transition-colors truncate">
+                      {client.name}
+                    </span>
+                    {client.contact_name && (
+                      <span className="text-sm text-pm-muted hidden sm:inline truncate">{client.contact_name}</span>
+                    )}
+                    <span className="ml-auto shrink-0">
+                      <PipelineBadge status={client.pipeline_status} />
+                    </span>
+                    <svg className="w-4 h-4 text-pm-muted group-hover:text-pm-text transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

@@ -2,16 +2,16 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import type { Organization } from "@/types/pm";
+import type { PMStatus, Subtask } from "@/types/pm";
 import { StatusBadge } from "@/components/StatusBadge";
+import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { useRealtimeTable } from "@/lib/useRealtimeTable";
-
-type TaskStatus = "not-started" | "in-progress" | "complete" | "blocked" | "pending" | "on-hold";
 
 interface ClientTask {
   id: string;
   name: string;
   description: string | null;
-  status: TaskStatus;
+  status: PMStatus;
   owner: string | null;
   assigned_to: string | null;
   due_date: string | null;
@@ -20,7 +20,11 @@ interface ClientTask {
   org_id: string | null;
   org_name: string | null;
   created_at: string;
-  subtasks: { text: string; done: boolean }[] | null;
+  subtasks: Subtask[];
+  phase_id: string | null;
+  series_id: string | null;
+  series_occurrence_date: string | null;
+  is_exception: boolean;
 }
 
 interface AssignableMember {
@@ -28,23 +32,17 @@ interface AssignableMember {
   display_name: string;
 }
 
-const STATUS_OPTIONS: TaskStatus[] = ["not-started", "in-progress", "complete", "blocked", "pending", "on-hold"];
+const STATUS_OPTIONS: PMStatus[] = ["not-started", "in-progress", "complete", "blocked", "pending", "on-hold"];
 
 export function ClientTasksTab({ org }: { org: Organization }) {
   const [tasks, setTasks] = useState<ClientTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [members, setMembers] = useState<AssignableMember[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<TaskStatus | "all">("all");
-  const [form, setForm] = useState({
-    name: "",
-    description: "",
-    status: "not-started" as TaskStatus,
-    assigned_to: "",
-    due_date: "",
-  });
+  const [statusFilter, setStatusFilter] = useState<PMStatus | "all">("all");
+
+  // Modal state
+  const [showNewTask, setShowNewTask] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<ClientTask | null>(null);
 
   // Move modal state
   const [moveTaskId, setMoveTaskId] = useState<string | null>(null);
@@ -75,7 +73,12 @@ export function ClientTasksTab({ org }: { org: Organization }) {
       .then((r) => r.json())
       .then((data) => { if (Array.isArray(data)) setMembers(data); })
       .catch(() => {});
-  }, [org.id]);
+  }, [org.id, loadTasks]);
+
+  const memberMap = useMemo(() =>
+    Object.fromEntries(members.map((m) => [m.slug, m.display_name])),
+    [members]
+  );
 
   const filtered = useMemo(() => {
     let result = tasks;
@@ -93,71 +96,6 @@ export function ClientTasksTab({ org }: { org: Organization }) {
     return counts;
   }, [tasks]);
 
-  const resetForm = () => {
-    setForm({ name: "", description: "", status: "not-started", assigned_to: "", due_date: "" });
-    setEditingId(null);
-    setShowForm(false);
-  };
-
-  const startEdit = (task: ClientTask) => {
-    setForm({
-      name: task.name,
-      description: task.description || "",
-      status: task.status,
-      assigned_to: task.assigned_to || task.owner || "",
-      due_date: task.due_date || "",
-    });
-    setEditingId(task.id);
-    setShowForm(true);
-  };
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.name) return;
-    setSaving(true);
-    try {
-      if (editingId) {
-        const res = await fetch(`/api/pm/tasks/${editingId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: form.name,
-            description: form.description || null,
-            status: form.status,
-            assigned_to: form.assigned_to || null,
-            owner: form.assigned_to || null,
-            due_date: form.due_date || null,
-          }),
-        });
-        const data = await res.json();
-        if (data.error) throw new Error(data.error);
-        setTasks((prev) => prev.map((t) => (t.id === editingId ? { ...t, ...data } : t)));
-      } else {
-        const res = await fetch("/api/pm/tasks", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: form.name,
-            description: form.description || null,
-            status: form.status,
-            assigned_to: form.assigned_to || null,
-            owner: form.assigned_to || null,
-            due_date: form.due_date || null,
-            org_id: org.id,
-          }),
-        });
-        const data = await res.json();
-        if (data.error) throw new Error(data.error);
-        setTasks((prev) => [...prev, { ...data, project_name: null, org_name: org.name }]);
-      }
-      resetForm();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to save");
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this task?")) return;
     try {
@@ -166,7 +104,7 @@ export function ClientTasksTab({ org }: { org: Organization }) {
     } catch {}
   };
 
-  const quickStatus = async (id: string, status: TaskStatus) => {
+  const quickStatus = async (id: string, status: PMStatus) => {
     try {
       const res = await fetch(`/api/pm/tasks/${id}`, {
         method: "PATCH",
@@ -236,8 +174,8 @@ export function ClientTasksTab({ org }: { org: Organization }) {
           )}
         </button>
 
-        {/* Task info */}
-        <div className="flex-1 min-w-0">
+        {/* Task info — click to open detail modal */}
+        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setSelectedTask(task)}>
           <div className={`text-sm font-medium ${task.status === "complete" ? "text-pm-muted line-through" : "text-pm-text"}`}>
             {task.name}
           </div>
@@ -248,7 +186,7 @@ export function ClientTasksTab({ org }: { org: Organization }) {
 
         {/* Assignee */}
         {(task.assigned_to || task.owner) && (
-          <span className="text-xs text-pm-muted shrink-0">{task.assigned_to || task.owner}</span>
+          <span className="text-xs text-pm-muted shrink-0">{memberMap[task.assigned_to || task.owner || ""] || task.assigned_to || task.owner}</span>
         )}
 
         {/* Due date */}
@@ -270,7 +208,7 @@ export function ClientTasksTab({ org }: { org: Organization }) {
 
         {/* Actions */}
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-          <button onClick={() => startEdit(task)} className="p-1 text-pm-muted hover:text-pm-text" title="Edit">
+          <button onClick={() => setSelectedTask(task)} className="p-1 text-pm-muted hover:text-pm-text" title="Edit">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
           </button>
           <button onClick={() => openMoveModal(task.id)} className="p-1 text-pm-muted hover:text-pm-text" title="Move">
@@ -292,10 +230,10 @@ export function ClientTasksTab({ org }: { org: Organization }) {
       <div className="flex items-center justify-between">
         <div className="text-sm text-pm-muted">{tasks.length} task{tasks.length !== 1 ? "s" : ""} for this client</div>
         <button
-          onClick={() => showForm ? resetForm() : setShowForm(true)}
+          onClick={() => setShowNewTask(true)}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
         >
-          {showForm ? "Cancel" : "+ New Task"}
+          + New Task
         </button>
       </div>
 
@@ -324,78 +262,6 @@ export function ClientTasksTab({ org }: { org: Organization }) {
         </div>
       )}
 
-      {/* Add / Edit form */}
-      {showForm && (
-        <form onSubmit={handleSave} className="card space-y-4">
-          <div className="text-sm font-semibold text-pm-text">{editingId ? "Edit Task" : "New Client Task"}</div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-pm-muted mb-1">Task Name *</label>
-              <input
-                type="text"
-                required
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text focus:outline-none focus:border-blue-500"
-                placeholder="e.g. Follow up on contract review"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-pm-muted mb-1">Description</label>
-              <textarea
-                value={form.description}
-                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                rows={2}
-                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text focus:outline-none focus:border-blue-500"
-                placeholder="Optional details..."
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-pm-muted mb-1">Status</label>
-              <select
-                value={form.status}
-                onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as TaskStatus }))}
-                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text focus:outline-none focus:border-blue-500"
-              >
-                {STATUS_OPTIONS.map((s) => (
-                  <option key={s} value={s}>{s.replace("-", " ")}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-pm-muted mb-1">Assigned To</label>
-              <select
-                value={form.assigned_to}
-                onChange={(e) => setForm((f) => ({ ...f, assigned_to: e.target.value }))}
-                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text focus:outline-none focus:border-blue-500"
-              >
-                <option value="">Unassigned</option>
-                {members.map((m) => (
-                  <option key={m.slug} value={m.slug}>{m.display_name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-pm-muted mb-1">Due Date</label>
-              <input
-                type="date"
-                value={form.due_date}
-                onChange={(e) => setForm((f) => ({ ...f, due_date: e.target.value }))}
-                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-sm text-pm-text focus:outline-none focus:border-blue-500"
-              />
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <button type="submit" disabled={saving || !form.name} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors">
-              {saving ? "Saving..." : editingId ? "Save Changes" : "Create Task"}
-            </button>
-            <button type="button" onClick={resetForm} className="px-4 py-2 text-pm-muted hover:text-pm-text rounded-lg text-sm font-medium transition-colors">
-              Cancel
-            </button>
-          </div>
-        </form>
-      )}
-
       {/* Client-level tasks */}
       {clientTasks.length > 0 && (
         <div className="card">
@@ -416,7 +282,7 @@ export function ClientTasksTab({ org }: { org: Organization }) {
         </div>
       )}
 
-      {tasks.length === 0 && !showForm && (
+      {tasks.length === 0 && (
         <div className="text-center py-12 text-pm-muted">
           <p className="text-lg mb-2">No tasks for this client</p>
           <p className="text-sm">Create a task to track follow-ups, action items, and to-dos.</p>
@@ -425,6 +291,30 @@ export function ClientTasksTab({ org }: { org: Organization }) {
 
       {filtered.length === 0 && tasks.length > 0 && (
         <div className="text-center py-8 text-pm-muted text-sm">No tasks match the current filter.</div>
+      )}
+
+      {/* New task modal */}
+      {showNewTask && (
+        <TaskDetailModal
+          task={null}
+          memberMap={memberMap}
+          onClose={() => { setShowNewTask(false); loadTasks(); }}
+          orgId={org.id}
+          createContext={{
+            org_id: org.id,
+          }}
+        />
+      )}
+
+      {/* Edit task modal */}
+      {selectedTask && (
+        <TaskDetailModal
+          task={selectedTask}
+          memberMap={memberMap}
+          onDelete={loadTasks}
+          onClose={() => { setSelectedTask(null); loadTasks(); }}
+          orgId={org.id}
+        />
       )}
 
       {/* Move task modal */}

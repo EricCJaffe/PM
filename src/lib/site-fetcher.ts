@@ -4,8 +4,8 @@
  * Complements the existing single-page extractSignals() in the audit route.
  */
 
-const PAGE_TIMEOUT_MS = 5_000;
-const TOTAL_TIMEOUT_MS = 15_000;
+const PAGE_TIMEOUT_MS = 8_000;
+const TOTAL_TIMEOUT_MS = 25_000;
 const MAX_CONTENT_CHARS = 12_000;
 const MAX_CONCURRENT = 6;
 const USER_AGENT = "Mozilla/5.0 (compatible; BusinessOS-SiteAudit/1.0)";

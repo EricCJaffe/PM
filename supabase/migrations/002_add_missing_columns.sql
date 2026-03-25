@@ -57,6 +57,7 @@ EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 -- ─── pm_risks ────────────────────────────────────────────────────────
+ALTER TABLE pm_risks ADD COLUMN IF NOT EXISTS title TEXT;
 ALTER TABLE pm_risks ADD COLUMN IF NOT EXISTS description TEXT;
 ALTER TABLE pm_risks ADD COLUMN IF NOT EXISTS probability TEXT DEFAULT 'medium';
 ALTER TABLE pm_risks ADD COLUMN IF NOT EXISTS impact TEXT DEFAULT 'medium';

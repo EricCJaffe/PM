@@ -349,6 +349,7 @@ export default function HomePage() {
           createContext={{
             org_id: siteOrgId ?? undefined,
             default_owner: selectedMember || undefined,
+            allowLinkToClient: true,
           }}
         />
       )}

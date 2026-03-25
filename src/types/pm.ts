@@ -100,6 +100,8 @@ export interface Project {
   start_date: string;
   target_date: string | null;
   budget: number | null;
+  projected_mrr: number | null;
+  projected_one_time: number | null;
   status: ProjectStatus;
   is_personal: boolean;
   personal_member_slug: string | null;
@@ -248,7 +250,7 @@ export interface DailyLog {
   id: string;
   project_id: string | null;
   org_id: string | null;
-  date: string;
+  log_date: string;
   content: string;
   generated_by: "ai" | "manual" | "standup-agent";
   log_type: DailyLogType;
@@ -317,6 +319,8 @@ export interface Engagement {
   deal_stage: DealStage;
   assigned_to: string | null;
   estimated_value: number | null;
+  projected_mrr: number | null;
+  projected_one_time: number | null;
   probability_override: number | null;
   expected_close_date: string | null;
   closed_reason: string | null;
@@ -757,7 +761,8 @@ export interface AuditPlatformComparison {
 
 export interface SiteAudit {
   id: string;
-  org_id: string;
+  org_id: string | null;
+  prospect_name: string | null;
   engagement_id: string | null;
   url: string;
   vertical: AuditVertical;
@@ -778,6 +783,22 @@ export interface SiteAudit {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface AuditSnapshot {
+  id: string;
+  audit_id: string;
+  org_id: string | null;
+  prospect_name: string | null;
+  html_storage_path: string | null;
+  md_storage_path: string | null;
+  overall_grade: string | null;
+  overall_score: number | null;
+  dimension_scores: Record<string, number> | null;
+  url: string;
+  vertical: string;
+  audit_date: string;
+  created_at: string;
 }
 
 // ─── Knowledge Base Types ────────────────────────────────────────────

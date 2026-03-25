@@ -11,6 +11,35 @@ import type {
 } from "@/types/pm";
 import { Modal, Field, Input, Select, Textarea, ModalActions } from "@/components/Modal";
 
+/** Simple markdown → HTML converter for AI-generated summaries */
+function markdownToHtml(md: string): string {
+  return md
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    // Headers
+    .replace(/^### (.+)$/gm, "<h3>$1</h3>")
+    .replace(/^## (.+)$/gm, "<h2>$1</h2>")
+    .replace(/^# (.+)$/gm, "<h1>$1</h1>")
+    // Bold and italic
+    .replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>")
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.+?)\*/g, "<em>$1</em>")
+    // Unordered lists
+    .replace(/^- (.+)$/gm, "<li>$1</li>")
+    .replace(/(<li>.*<\/li>\n?)+/g, "<ul>$&</ul>")
+    // Ordered lists
+    .replace(/^\d+\.\s+(.+)$/gm, "<li>$1</li>")
+    // Horizontal rules
+    .replace(/^---$/gm, "<hr>")
+    // Paragraphs (double newlines)
+    .replace(/\n\n/g, "</p><p>")
+    .replace(/^(?!<[hulo]|<li|<hr)(.+)$/gm, "<p>$1</p>")
+    // Clean up
+    .replace(/<p><\/p>/g, "")
+    .replace(/\n/g, "<br>");
+}
+
 const ONBOARDING_STEPS: { key: OnboardingStatus; label: string }[] = [
   { key: "not-started", label: "Not Started" },
   { key: "discovery", label: "Discovery" },
@@ -78,6 +107,13 @@ function StepIndicator({ current }: { current: OnboardingStatus }) {
   );
 }
 
+interface DiscoverySummary {
+  id: string;
+  title: string;
+  body: string;
+  created_at: string;
+}
+
 export function OnboardingTab({ org }: { org: Organization }) {
   // Onboarding projects
   const [projects, setProjects] = useState<Project[]>([]);
@@ -103,6 +139,12 @@ export function OnboardingTab({ org }: { org: Organization }) {
   // Onboarding checklist
   const [checklist, setChecklist] = useState<OnboardingChecklist[]>([]);
   const [loadingChecklist, setLoadingChecklist] = useState(false);
+
+  // Discovery findings summary
+  const [summaries, setSummaries] = useState<DiscoverySummary[]>([]);
+  const [loadingSummaries, setLoadingSummaries] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [expandedSummary, setExpandedSummary] = useState<string | null>(null);
 
   // ─── Load onboarding projects ───
   const loadProjects = () => {
@@ -143,9 +185,44 @@ export function OnboardingTab({ org }: { org: Organization }) {
       .finally(() => setLoadingChecklist(false));
   };
 
+  // ─── Load discovery summaries ───
+  const loadSummaries = () => {
+    setLoadingSummaries(true);
+    fetch(`/api/pm/discovery-findings?org_id=${org.id}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.summaries) setSummaries(data.summaries);
+      })
+      .catch(() => setSummaries([]))
+      .finally(() => setLoadingSummaries(false));
+  };
+
+  // ─── Generate discovery brief ───
+  const handleGenerateBrief = async () => {
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/pm/discovery-findings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ org_id: org.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Generation failed");
+      loadSummaries();
+      if (data.saved_note_id) {
+        setExpandedSummary(data.saved_note_id);
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to generate discovery brief");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   useEffect(() => {
     loadProjects();
     loadInterviews();
+    loadSummaries();
   }, [org.id]);
 
   // Load checklist when onboarding project is available
@@ -306,6 +383,97 @@ export function OnboardingTab({ org }: { org: Organization }) {
 
   return (
     <div className="space-y-8">
+      {/* ─── Section 0: Discovery Findings Summary ─── */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-pm-text">Discovery Findings Brief</h3>
+          <button
+            onClick={handleGenerateBrief}
+            disabled={generating}
+            className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-md text-sm font-medium transition-colors flex items-center gap-2"
+          >
+            {generating ? (
+              <>
+                <span className="inline-block w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+                Generate Brief
+              </>
+            )}
+          </button>
+        </div>
+
+        {loadingSummaries ? (
+          <p className="text-pm-muted text-sm">Loading summaries...</p>
+        ) : summaries.length === 0 ? (
+          <div className="card border-dashed border-pm-border/50">
+            <div className="text-center py-8 text-pm-muted">
+              <svg className="w-10 h-10 mx-auto mb-3 text-pm-muted/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <p className="text-sm mb-1">No discovery brief generated yet</p>
+              <p className="text-xs text-pm-muted/70">
+                Add interviews, notes, gap analysis items, or run a site audit, then generate a comprehensive brief.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {summaries.map((s) => (
+              <div key={s.id} className="card">
+                <button
+                  onClick={() => setExpandedSummary(expandedSummary === s.id ? null : s.id)}
+                  className="w-full flex items-center justify-between text-left"
+                >
+                  <div>
+                    <h4 className="font-medium text-pm-text text-sm">{s.title}</h4>
+                    <p className="text-xs text-pm-muted mt-0.5">
+                      {new Date(s.created_at).toLocaleDateString("en-US", {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  </div>
+                  <svg
+                    className={`w-5 h-5 text-pm-muted transition-transform ${
+                      expandedSummary === s.id ? "rotate-180" : ""
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {expandedSummary === s.id && (
+                  <div className="mt-4 pt-4 border-t border-pm-border">
+                    <div
+                      className="prose prose-invert prose-sm max-w-none text-pm-text
+                        prose-headings:text-pm-text prose-h2:text-base prose-h2:mt-4 prose-h2:mb-2
+                        prose-h3:text-sm prose-h3:mt-3 prose-h3:mb-1
+                        prose-p:text-pm-muted prose-p:text-sm prose-p:leading-relaxed
+                        prose-li:text-pm-muted prose-li:text-sm
+                        prose-strong:text-pm-text prose-strong:font-semibold
+                        prose-ul:my-1 prose-ol:my-1"
+                      dangerouslySetInnerHTML={{ __html: markdownToHtml(s.body) }}
+                    />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* ─── Section 1: Onboarding Projects ─── */}
       <div>
         <div className="flex items-center justify-between mb-4">

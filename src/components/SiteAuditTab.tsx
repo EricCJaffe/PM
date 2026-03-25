@@ -6,11 +6,14 @@ import type {
   AuditVertical,
   AuditQuickWin,
   AuditDimensionScore,
+  AuditGapItem,
 } from "@/types/pm";
+import { AuditCompare } from "./AuditCompare";
 
 interface Props {
   engagementId?: string;
-  orgId: string;
+  orgId: string | null;
+  prospectName?: string | null;
   defaultUrl?: string;
 }
 
@@ -23,6 +26,15 @@ const DIMENSIONS: { key: string; label: string }[] = [
   { key: "a2a_readiness", label: "A2A" },
 ];
 
+const DIMENSION_FULL: Record<string, string> = {
+  seo: "SEO",
+  entity: "Entity Authority",
+  ai_discoverability: "AI Discoverability",
+  conversion: "Conversion Architecture",
+  content: "Content Inventory",
+  a2a_readiness: "A2A Readiness",
+};
+
 function gradeColor(grade: string | undefined): string {
   if (!grade) return "text-pm-muted";
   if (grade === "A" || grade === "B") return "text-green-400";
@@ -30,32 +42,52 @@ function gradeColor(grade: string | undefined): string {
   return "text-red-400";
 }
 
-export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
+function gradeBg(grade: string | undefined): string {
+  if (!grade) return "border-pm-border";
+  if (grade === "A" || grade === "B") return "border-green-700/30";
+  if (grade === "C") return "border-yellow-700/30";
+  return "border-red-700/30";
+}
+
+export function SiteAuditTab({ engagementId, orgId, prospectName, defaultUrl }: Props) {
   const [audits, setAudits] = useState<SiteAudit[]>([]);
   const [activeAudit, setActiveAudit] = useState<SiteAudit | null>(null);
   const [url, setUrl] = useState(defaultUrl ?? "");
   const [vertical, setVertical] = useState<AuditVertical>("church");
   const [running, setRunning] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const [view, setView] = useState<"form" | "results" | "history">("form");
+  const [expandedDim, setExpandedDim] = useState<string | null>(null);
+  const [showCompare, setShowCompare] = useState(false);
 
   // Load existing audits
+  const loadAudits = useCallback(async () => {
+    try {
+      const params = new URLSearchParams();
+      if (orgId) params.set("org_id", orgId);
+      if (prospectName) params.set("prospect_name", prospectName);
+      const res = await fetch(`/api/pm/site-audit?${params}`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setAudits(data);
+        return data;
+      }
+    } catch { /* ignore */ }
+    return [];
+  }, [orgId, prospectName]);
+
   useEffect(() => {
-    fetch(`/api/pm/site-audit?org_id=${orgId}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setAudits(data);
-          // Auto-show latest complete audit if available
-          const latest = data.find((a: SiteAudit) => a.status === "complete");
-          if (latest) {
-            setActiveAudit(latest);
-            setView("results");
-          }
-        }
-      })
-      .catch(() => {});
-  }, [orgId]);
+    loadAudits().then((data) => {
+      // Auto-show latest complete audit if available
+      const latest = data.find((a: SiteAudit) => a.status === "complete");
+      if (latest) {
+        setActiveAudit(latest);
+        setView("results");
+      }
+    });
+  }, [loadAudits]);
 
   // Poll for audit completion (max ~3 minutes before giving up)
   useEffect(() => {
@@ -80,7 +112,11 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
           if (data.status === "complete" || data.status === "failed") {
             clearInterval(interval);
             setRunning(false);
-            if (data.status === "complete") setView("results");
+            if (data.status === "complete") {
+              setView("results");
+              // Refresh the audits list so history is up to date
+              loadAudits();
+            }
           }
         }
       } catch {
@@ -88,12 +124,13 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
       }
     }, 2500);
     return () => clearInterval(interval);
-  }, [activeAudit?.id, activeAudit?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeAudit?.id, activeAudit?.status, loadAudits]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const runAudit = useCallback(async () => {
     if (!url.trim()) return;
     setRunning(true);
     setView("results");
+    setSaveSuccess(false);
     try {
       const res = await fetch("/api/pm/site-audit", {
         method: "POST",
@@ -101,7 +138,8 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
         body: JSON.stringify({
           url: url.trim(),
           vertical,
-          org_id: orgId,
+          org_id: orgId || null,
+          prospect_name: prospectName || null,
           engagement_id: engagementId || null,
         }),
       });
@@ -111,45 +149,31 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
       // POST returns immediately with status "running" — polling takes over
       setActiveAudit(data);
 
-      // Trigger processing — await it so we catch failures
-      // (polling runs in parallel via useEffect and will pick up "complete" status)
-      try {
-        const processRes = await fetch("/api/pm/site-audit/process", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            audit_id: data.id,
-            url: data.url,
-            vertical,
-            org_id: orgId,
-            extra_context: null,
-          }),
-        });
-        if (!processRes.ok) {
-          const errData = await processRes.json().catch(() => ({}));
-          // Process route marks audit as failed in DB — update local state too
-          setActiveAudit((prev) =>
-            prev && prev.id === data.id
-              ? { ...prev, status: "failed" as const, audit_summary: errData.error || "Audit processing failed" }
-              : prev
-          );
-          setRunning(false);
-        }
-      } catch {
-        // Network error or process route unreachable — mark failed locally
-        setActiveAudit((prev) =>
-          prev && prev.id === data.id
-            ? { ...prev, status: "failed" as const, audit_summary: "Processing failed — please try again" }
-            : prev
-        );
-        setRunning(false);
-      }
+      // Fire-and-forget: trigger processing in the background.
+      // Polling (useEffect above) detects completion/failure via DB status.
+      // We intentionally do NOT await this — Vercel may kill long-running
+      // functions and return HTML error pages that break .json() parsing.
+      fetch("/api/pm/site-audit/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          audit_id: data.id,
+          url: data.url,
+          vertical,
+          org_id: orgId || null,
+          prospect_name: prospectName || null,
+          extra_context: null,
+        }),
+      }).catch((processErr) => {
+        // Network-level failure only — log it, polling will pick up DB status
+        console.error("Audit process fetch error:", processErr);
+      });
     } catch (err) {
       setRunning(false);
       setView("form");
       alert(err instanceof Error ? err.message : "Failed to start audit");
     }
-  }, [url, vertical, orgId, engagementId]);
+  }, [url, vertical, orgId, prospectName, engagementId]);
 
   const downloadReport = useCallback(async (auditId: string) => {
     setPdfLoading(true);
@@ -173,6 +197,43 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
       alert(err instanceof Error ? err.message : "Failed to generate report");
     } finally {
       setPdfLoading(false);
+    }
+  }, []);
+
+  const saveToClientDocs = useCallback(async (auditId: string) => {
+    setSaving(true);
+    setSaveSuccess(false);
+    try {
+      // 1. Fetch the branded HTML report
+      const htmlRes = await fetch(`/api/pm/site-audit/${auditId}/pdf`, { method: "POST" });
+      if (!htmlRes.ok) throw new Error("Failed to generate report HTML");
+      const htmlString = await htmlRes.text();
+
+      // 2. Convert HTML to PDF client-side
+      const { htmlToPdfBlob } = await import("@/lib/html-to-pdf");
+      const pdfBlob = await htmlToPdfBlob(htmlString);
+
+      // 3. Upload PDF to save-doc endpoint
+      const formData = new FormData();
+      formData.append("pdf", pdfBlob, "report.pdf");
+
+      const res = await fetch(`/api/pm/site-audit/${auditId}/save-doc`, {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to save document");
+      }
+      setSaveSuccess(true);
+      // Refresh audit to get document_id
+      const auditRes = await fetch(`/api/pm/site-audit/${auditId}`);
+      const auditData = await auditRes.json();
+      if (auditData.id) setActiveAudit(auditData);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to save document");
+    } finally {
+      setSaving(false);
     }
   }, []);
 
@@ -227,18 +288,50 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
     );
   }
 
+  // ── Compare View ──
+  if (showCompare) {
+    const completeAudits = audits
+      .filter((a) => a.status === "complete" && a.overall)
+      .map((a) => ({
+        id: a.id,
+        date: new Date(a.created_at).toLocaleDateString(),
+        grade: a.overall?.grade || "?",
+        score: a.overall?.score || 0,
+      }));
+
+    return (
+      <AuditCompare
+        audits={completeAudits}
+        orgId={orgId}
+        onClose={() => setShowCompare(false)}
+      />
+    );
+  }
+
   // ── History View ──
   if (view === "history") {
+    const completedCount = audits.filter((a) => a.status === "complete").length;
+
     return (
       <div className="p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-pm-text">Past Audits</h3>
-          <button
-            onClick={() => setView("form")}
-            className="text-sm text-blue-400 hover:text-blue-300"
-          >
-            New audit
-          </button>
+          <div className="flex gap-3">
+            {completedCount >= 2 && (
+              <button
+                onClick={() => setShowCompare(true)}
+                className="text-sm text-orange-400 hover:text-orange-300"
+              >
+                Compare audits
+              </button>
+            )}
+            <button
+              onClick={() => setView("form")}
+              className="text-sm text-blue-400 hover:text-blue-300"
+            >
+              New audit
+            </button>
+          </div>
         </div>
         {audits.length === 0 ? (
           <p className="text-pm-muted text-sm">No audits yet.</p>
@@ -268,6 +361,7 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
                 </div>
                 <div className="text-xs text-pm-muted mt-1">
                   {a.vertical} &middot; {a.status}
+                  {a.document_id && <span className="ml-2 text-green-400">Saved to docs</span>}
                 </div>
               </button>
             ))}
@@ -294,22 +388,58 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
 
   // ── Failed State ──
   if (activeAudit?.status === "failed") {
+    const summary = activeAudit.audit_summary || "Unknown error";
+    // Extract step from [step] prefix if present
+    const stepMatch = summary.match(/^\[([^\]]+)\]\s*/);
+    const failedStep = stepMatch ? stepMatch[1] : null;
+    const errorDetail = stepMatch ? summary.slice(stepMatch[0].length) : summary;
+
+    const stepLabels: Record<string, string> = {
+      "init": "Initialization",
+      "fetch-homepage": "Fetching website",
+      "extract-signals": "Extracting page signals",
+      "fetch-subpages": "Fetching additional pages",
+      "ai-scoring": "AI analysis (GPT-4o)",
+      "parse-response": "Parsing AI response",
+      "calculate-scores": "Calculating scores",
+      "generate-mockup": "Generating mockup",
+      "build-metadata": "Building metadata",
+      "save-results": "Saving results to database",
+    };
+
     return (
       <div className="p-6">
-        <div className="bg-red-900/20 border border-red-800 rounded-lg p-4">
-          <p className="text-red-400 text-sm">
-            Audit failed: {activeAudit.audit_summary || "Unknown error"}
+        <div className="bg-red-900/20 border border-red-800 rounded-lg p-4 space-y-2">
+          <p className="text-red-400 font-medium text-sm">Audit failed</p>
+          {failedStep && (
+            <p className="text-red-400/80 text-xs">
+              Failed at step: <span className="font-mono">{stepLabels[failedStep] || failedStep}</span>
+            </p>
+          )}
+          <p className="text-red-300 text-sm font-mono bg-red-950/40 rounded px-2 py-1.5 break-words">
+            {errorDetail}
           </p>
         </div>
-        <button
-          onClick={() => {
-            setActiveAudit(null);
-            setView("form");
-          }}
-          className="mt-4 text-pm-muted text-sm hover:text-pm-text"
-        >
-          Try again
-        </button>
+        <div className="flex gap-3 mt-4">
+          <button
+            onClick={() => {
+              setActiveAudit(null);
+              setView("form");
+            }}
+            className="text-pm-muted text-sm hover:text-pm-text"
+          >
+            &larr; Back to form
+          </button>
+          <button
+            onClick={() => {
+              setActiveAudit(null);
+              runAudit();
+            }}
+            className="text-orange-400 text-sm hover:text-orange-300"
+          >
+            Retry audit
+          </button>
+        </div>
       </div>
     );
   }
@@ -332,6 +462,7 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
   const scores = activeAudit.scores as Record<string, AuditDimensionScore> | null;
   const overall = activeAudit.overall;
   const quickWins = (activeAudit.quick_wins ?? []) as AuditQuickWin[];
+  const gaps = (activeAudit.gaps ?? {}) as Record<string, AuditGapItem[]>;
 
   return (
     <div className="p-6">
@@ -342,9 +473,20 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
           <p className="text-xs text-pm-muted mt-1">
             {activeAudit.vertical} &middot;{" "}
             {new Date(activeAudit.created_at).toLocaleDateString()}
+            {activeAudit.document_id && (
+              <span className="ml-2 text-green-400">Saved to client docs</span>
+            )}
           </p>
         </div>
         <div className="flex gap-2">
+          {audits.filter((a) => a.status === "complete").length >= 2 && (
+            <button
+              onClick={() => setShowCompare(true)}
+              className="text-sm text-orange-400 hover:text-orange-300"
+            >
+              Compare
+            </button>
+          )}
           <button
             onClick={() => setView("history")}
             className="text-sm text-pm-muted hover:text-pm-text"
@@ -368,10 +510,12 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
         <div className="flex gap-3 flex-wrap mb-6">
           {DIMENSIONS.map((d) => {
             const dim = scores[d.key];
+            const isExpanded = expandedDim === d.key;
             return (
-              <div
+              <button
                 key={d.key}
-                className="bg-pm-bg border border-pm-border rounded-lg p-3 text-center min-w-[80px]"
+                onClick={() => setExpandedDim(isExpanded ? null : d.key)}
+                className={`bg-pm-bg border ${gradeBg(dim?.grade)} rounded-lg p-3 text-center min-w-[80px] transition-colors hover:border-blue-500/50 cursor-pointer`}
               >
                 <div className={`text-xl font-bold ${gradeColor(dim?.grade)}`}>
                   {dim?.grade ?? "?"}
@@ -380,7 +524,7 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
                 {dim?.score != null && (
                   <div className="text-[10px] text-pm-muted">{dim.score}%</div>
                 )}
-              </div>
+              </button>
             );
           })}
         </div>
@@ -410,6 +554,16 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
         </div>
       )}
 
+      {/* Expanded dimension detail */}
+      {expandedDim && scores && (
+        <DimensionDetail
+          dimKey={expandedDim}
+          dim={scores[expandedDim]}
+          gaps={gaps[expandedDim] || []}
+          onClose={() => setExpandedDim(null)}
+        />
+      )}
+
       {/* Quick wins */}
       {quickWins.length > 0 && (
         <div className="mb-6">
@@ -422,6 +576,31 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
                   <span className="text-pm-text">{w.action}</span>
                   <span className="text-pm-muted ml-2">({w.time_estimate})</span>
                   <span className="text-pm-muted ml-1">&middot; {w.impact}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Recommendations */}
+      {activeAudit.recommendations && activeAudit.recommendations.length > 0 && (
+        <div className="mb-6">
+          <h4 className="text-sm font-semibold text-pm-text mb-3">Recommendations</h4>
+          <div className="space-y-2">
+            {(activeAudit.recommendations as Array<{ title: string; priority: string; effort: string; impact: string; description: string }>).map((r, i) => (
+              <div key={i} className="bg-pm-bg border border-pm-border rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                    r.priority === "high" ? "bg-red-900/30 text-red-400" :
+                    r.priority === "medium" ? "bg-yellow-900/30 text-yellow-400" :
+                    "bg-blue-900/30 text-blue-400"
+                  }`}>{r.priority}</span>
+                  <span className="text-sm font-medium text-pm-text">{r.title}</span>
+                </div>
+                <p className="text-xs text-pm-muted">{r.description}</p>
+                <div className="text-xs text-pm-muted mt-1">
+                  Effort: {r.effort} &middot; Impact: {r.impact}
                 </div>
               </div>
             ))}
@@ -458,6 +637,32 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
         </div>
       )}
 
+      {/* Pages found vs missing */}
+      {(activeAudit.pages_found?.length || activeAudit.pages_missing?.length) ? (
+        <div className="mb-6 grid grid-cols-2 gap-4">
+          {activeAudit.pages_found && activeAudit.pages_found.length > 0 && (
+            <div>
+              <h4 className="text-sm font-semibold text-pm-text mb-2">Pages Found ({activeAudit.pages_found.length})</h4>
+              <div className="bg-pm-bg border border-pm-border rounded-lg p-3">
+                {activeAudit.pages_found.map((p, i) => (
+                  <div key={i} className="text-xs text-green-400 font-mono py-0.5">{p}</div>
+                ))}
+              </div>
+            </div>
+          )}
+          {activeAudit.pages_missing && activeAudit.pages_missing.length > 0 && (
+            <div>
+              <h4 className="text-sm font-semibold text-pm-text mb-2">Pages Missing ({activeAudit.pages_missing.length})</h4>
+              <div className="bg-pm-bg border border-pm-border rounded-lg p-3">
+                {activeAudit.pages_missing.map((p, i) => (
+                  <div key={i} className="text-xs text-red-400 font-mono py-0.5">{p}</div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : null}
+
       {/* Rebuild reason */}
       {overall?.rebuild_recommended && overall.rebuild_reason && (
         <div className="bg-red-900/10 border border-red-800/30 rounded-lg p-4 mb-6">
@@ -472,19 +677,98 @@ export function SiteAuditTab({ engagementId, orgId, defaultUrl }: Props) {
           disabled={pdfLoading}
           className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors"
         >
-          {pdfLoading ? "Generating..." : "Download Report"}
+          {pdfLoading ? "Generating..." : "Open Report"}
         </button>
-        {activeAudit.document_id && (
+        {!activeAudit.document_id && orgId && (
           <button
-            onClick={() =>
-              window.open(`/api/pm/site-audit/${activeAudit.id}`, "_blank")
-            }
-            className="border border-pm-border text-pm-muted hover:text-pm-text px-4 py-2 rounded-lg text-sm transition-colors"
+            onClick={() => saveToClientDocs(activeAudit.id)}
+            disabled={saving}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors"
           >
-            View Full Document
+            {saving ? "Saving..." : "Save to Client Docs"}
           </button>
         )}
+        {saveSuccess && (
+          <span className="text-green-400 text-sm self-center">Saved to client documents</span>
+        )}
+        {activeAudit.document_id && (
+          <span className="text-green-400 text-xs self-center">Report saved in client documents</span>
+        )}
       </div>
+    </div>
+  );
+}
+
+// ── Dimension Detail Expandable Panel ──
+function DimensionDetail({
+  dimKey,
+  dim,
+  gaps,
+  onClose,
+}: {
+  dimKey: string;
+  dim: AuditDimensionScore;
+  gaps: AuditGapItem[];
+  onClose: () => void;
+}) {
+  const label = DIMENSION_FULL[dimKey] || dimKey;
+
+  return (
+    <div className="mb-6 bg-pm-bg border border-pm-border rounded-lg overflow-hidden">
+      <div className="flex items-center justify-between p-3 border-b border-pm-border">
+        <div className="flex items-center gap-3">
+          <span className={`text-lg font-bold ${gradeColor(dim?.grade)}`}>{dim?.grade ?? "?"}</span>
+          <span className="text-sm font-semibold text-pm-text">{label}</span>
+          <span className="text-xs text-pm-muted">({dim?.score ?? 0}%)</span>
+        </div>
+        <button onClick={onClose} className="text-pm-muted hover:text-pm-text text-xs">Close</button>
+      </div>
+
+      {/* Findings */}
+      {dim?.findings && dim.findings.length > 0 && (
+        <div className="p-3 border-b border-pm-border">
+          <h5 className="text-xs font-semibold text-pm-muted mb-2 uppercase">Findings</h5>
+          <ul className="space-y-1">
+            {dim.findings.map((f, i) => (
+              <li key={i} className="text-sm text-pm-text flex items-start gap-2">
+                <span className="text-pm-muted shrink-0 mt-0.5">&#8226;</span>
+                <span>{f}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Gap items */}
+      {gaps.length > 0 && (
+        <div className="p-3">
+          <h5 className="text-xs font-semibold text-pm-muted mb-2 uppercase">Gap Analysis</h5>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-pm-muted border-b border-pm-border">
+                <th className="text-left p-1.5 font-medium">Item</th>
+                <th className="text-left p-1.5 font-medium">Current State</th>
+                <th className="text-left p-1.5 font-medium">Standard</th>
+                <th className="text-left p-1.5 font-medium">Gap</th>
+              </tr>
+            </thead>
+            <tbody>
+              {gaps.map((g, i) => (
+                <tr key={i} className="border-b border-pm-border/50 last:border-0">
+                  <td className="p-1.5 text-pm-text font-medium">{g.item}</td>
+                  <td className="p-1.5 text-pm-muted">{g.current_state}</td>
+                  <td className="p-1.5 text-pm-muted">{g.standard}</td>
+                  <td className="p-1.5 text-orange-400">{g.gap}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {gaps.length === 0 && (!dim?.findings || dim.findings.length === 0) && (
+        <div className="p-3 text-pm-muted text-xs">No detailed findings for this dimension.</div>
+      )}
     </div>
   );
 }

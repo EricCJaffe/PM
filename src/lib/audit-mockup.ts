@@ -20,25 +20,25 @@ export function generateMockupHtml(params: MockupParams): string {
   const domain = safeHostname(url);
   const year = new Date().getFullYear();
 
-  // Build nav links from pages to build
+  // Build nav links from pages to build (defensive: handle missing title)
   const navLinks = pagesToBuild
     .slice(0, 5)
-    .map((p) => `<a href="#" class="nav-link">${esc(p.title)}</a>`)
+    .map((p) => `<a href="#" class="nav-link">${esc(p.title || "Page")}</a>`)
     .join("\n      ");
 
   // Determine CTA text and hero copy based on vertical
   const { cta, heroCopy, heroSubtext, eyebrow, visitSection } = getVerticalCopy(vertical, orgName);
 
-  // Build page section stubs for recommended pages
+  // Build page section stubs for recommended pages (defensive: handle missing slug/title)
   const pageSections = pagesToBuild
     .slice(0, 4)
     .map(
       (p, i) => `
     <div class="section ${i % 2 === 1 ? "section-alt" : ""}">
-      <p class="section-label">${esc(p.slug.replace(/^\//, "").replace(/-/g, " "))}</p>
-      <h2 class="section-title">${esc(p.title)}</h2>
+      <p class="section-label">${esc((p.slug || "/page").replace(/^\//, "").replace(/-/g, " "))}</p>
+      <h2 class="section-title">${esc(p.title || "New Page")}</h2>
       <p class="section-body">This page would contain comprehensive content about ${esc(
-        p.title.toLowerCase()
+        (p.title || "this topic").toLowerCase()
       )}, optimized for search engines and AI discoverability.</p>
     </div>`
     )

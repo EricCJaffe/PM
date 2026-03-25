@@ -1,5 +1,9 @@
 # Tasks
 
+## Migrations — Pending
+- [ ] Apply migration 043_site_audit_prospect_support.sql to Supabase
+- [ ] Apply migration 045_rename_daily_logs_date_to_log_date.sql to Supabase
+
 ## Migrations — All Applied
 - [x] Apply migration 005_auth_user_roles.sql to Supabase
 - [x] Apply migration 006_org_contact_fields.sql to Supabase
@@ -28,6 +32,11 @@
 - [x] Onboarding notes: new users are added via admin console, which creates auth user + links to pm_members with org access. Each user gets a role per org: admin, user, or external (read-only)
 
 ## Bug Fixes
+- [x] Fix standup generation 500 error — `pm_daily_logs.date` was renamed to `log_date` in live DB but code still used `date`, causing NOT NULL violation on insert
+  - Updated all Supabase queries in standup/generate, standup list, reports/standup routes
+  - Updated StandupWidget and AIReportsPanel components to use `log_date`
+  - Updated DailyLog TypeScript type
+  - Added migration 045 to formalize the column rename
 - [x] Fix intake wizard applying to all templates — was showing web-specific 6-step wizard (Toolstack, Flags, Integrations) for every template
   - Replaced two buttons ("Quick create" + "+ New client project") with single "+ New Project" button
   - Added "Web Project" template card on new project page — only this template routes to the intake wizard
@@ -64,6 +73,7 @@
   - Integrated into task create/update routes (notify_assignee flag) and admin invite route
   - Graceful degradation when RESEND_API_KEY not set
 - [ ] Set up Vercel Cron for daily recurring task generation (/api/pm/series/generate)
+- [ ] Final configuration of DocuSeal (document signing/e-signature integration)
 
 ## New Features — Planned
 - [x] Centralized branding system (ADR 0002)
@@ -83,10 +93,23 @@
   - Send route upgraded: `/api/pm/proposals/[id]/send` now sends branded email via Resend with "View Proposal" button
   - Existing "Mark Sent" preserved as secondary action for manual tracking
   - Branded email template matching existing email design system (dark green header, FSA branding)
-- [ ] Set up Vercel Cron for daily engagement nudge checks (/api/cron/engagement-nudge)
+- [x] Projected revenue / MRR tracking on pipeline
+  - Migration 041: adds `projected_mrr` and `projected_one_time` columns to `pm_engagements` and `pm_projects`
+  - Pipeline stage summary boxes now display MRR and one-time revenue totals per stage
+  - Kanban columns show MRR/one-time revenue in headers
+  - Engagement create form adds Projected MRR and One-Time Revenue inputs
+  - Engagement detail summary cards show MRR alongside deal value
+  - Pipeline API (`/api/pm/organizations/pipeline`) returns per-stage revenue aggregates
 - [ ] QuickBooks integration (placeholder — billing/invoicing)
 - [x] Build out full intake/discovery form wizard (multi-step discovery questionnaire)
-- [ ] Discovery findings summary — AI-generated brief from notes + attachments
+- [x] Discovery findings summary — AI-generated brief from notes + attachments
+  - `src/lib/discovery-assembler.ts`: assembles interviews, gap analysis, notes, site audits, engagement data for an org
+  - `POST /api/pm/discovery-findings`: AI-generates comprehensive discovery brief via GPT-4o
+  - `GET /api/pm/discovery-findings`: list past discovery summaries (stored as pinned client notes)
+  - AI prompt generates 9-section brief: executive summary, client profile, key findings, gap analysis, digital presence, risks, opportunities, next steps, proposal recommendations
+  - Saves output as pinned internal client note (author: "AI Discovery") for historical reference
+  - Integrated into OnboardingTab with "Generate Brief" button, expandable summary cards, markdown rendering
+  - Assembles KB context via `assembleKBContext()` for institutional knowledge awareness
 - [x] Client portal UI pages (external user views with portal settings filtering)
 - [x] Department management UI (create/edit departments, assign to tasks/phases)
 - [x] Vocabulary customization UI (org-level renaming of base terms)
@@ -94,6 +117,69 @@
 - [x] Onboarding project → process project handoff (create child project from onboarding)
 
 ## Recently Completed
+- [x] SOW Builder billing enhancements
+  - **Bug fix**: Print dialog no longer reopens after saving PDF — window closes after print completes
+  - **Payment Notes**: New textarea field under payment schedule for additional billing notes
+  - **Line Items Editor**: New component for adding product/service line items with billing type (monthly recurring vs one-time)
+    - Separate sections for monthly recurring and one-time costs with subtotals
+    - Add/remove individual items with description, amount, quantity
+    - Combined total summary when both types present
+  - **Payment Terms dropdown**: QuickBooks-compatible pick list (Due on Receipt, Net 15, Net 30, Net 60, 50% Upfront / 50% on Completion, Custom)
+  - **Terms & Conditions**: New intake section with default cancellation language and contract length selector (Month-to-Month through 24 Months)
+    - Default: "month-to-month agreement cancelable with 30 days written notice"
+  - **AI generation updated**: Pricing section now generates separate tables for Monthly Recurring Costs and One-Time Costs; T&C section uses intake text as basis
+  - Migration: `042_sow_billing_enhancements.sql`
+- [x] Consolidate document generation: eliminate duplicate Proposals and Engagements features
+  - ProposalsTab rewritten to embed full docgen functionality (MSA, SOW, etc.) inline, filtered by client org
+  - Engagements tab removed from client dashboard (UI, API routes, engagement-engine.ts, cron)
+  - Old proposals feature removed (API routes, proposal templates, public share page)
+  - Documents shortcut removed from main NavBar (accessible via Proposals tab in client view)
+  - Default client tab changed from Engagements → Overview
+- [x] Site Audit v5: PDF Document Storage + Comparison Save
+  - Save-to-docs now generates actual PDF files (was saving raw HTML that showed source code in viewer)
+  - Client-side PDF generation using jsPDF + html2canvas — captures each page individually for multi-page PDFs
+  - New shared library `src/lib/audit-html.ts` — extracted `buildAuditHTML()` from route file (Next.js export restriction)
+  - New utility `src/lib/html-to-pdf.ts` — client-side HTML-to-PDF converter with shadow DOM isolation
+  - Save-doc endpoint now accepts PDF upload via FormData (was generating HTML server-side)
+  - Documents stored as `application/pdf` with `.pdf` extension in Supabase Storage
+  - Comparison report now has "Save to Client Docs" button — generates comparison PDF and saves to documents
+  - New API route: `POST /api/pm/site-audit/compare/save-doc` — saves comparison PDF to client docs
+  - Dependencies added: `jspdf`, `html2canvas`
+- [x] Site Audit v4: Full Report Storage, Snapshots, and Comparison
+  - Save-to-docs now stores the full branded HTML report (was saving lightweight summary)
+  - Also saves a structured markdown snapshot with YAML frontmatter for all scores/gaps/recommendations
+  - New `pm_audit_snapshots` table stores denormalized score data for quick comparison queries
+  - New comparison UI: select any two past audits and run AI-powered comparison analysis
+  - Comparison shows side-by-side dimension scores with visual bar chart trends
+  - AI analysis highlights improvements, declines, still-needs-work, and recommended next steps
+  - Export comparison to branded PDF/HTML with cover page and full analysis
+  - API routes: `GET/POST /api/pm/site-audit/compare`, `POST /api/pm/site-audit/compare/export`
+  - Migration: `040_audit_snapshots.sql`
+  - Compare button appears in history and results views when 2+ completed audits exist
+- [x] Fix "Save to Client Docs" button — was failing with "fetch failed"
+  - Removed dead `await fetch()` to `http://localhost:3000` that crashed the route in production (Vercel)
+  - Migration 039: fixed FK on `pm_site_audits.document_id` — was referencing `generated_documents` but code inserts into `pm_documents`
+  - Added audit ID suffix to document slug to prevent unique constraint violations on repeat audits
+- [x] Site Audit v3: Client Integration, Detail Enhancement, and Report Fixes
+  - Fixed download report button to always use the active audit's ID (was sometimes pulling stale data)
+  - Audit list now refreshes after a new audit completes (audits list was stale after running new audit)
+  - Added "Site Audit" tab to client dashboard — run before/after audits directly from a client's page
+  - Added "Save to Client Docs" button — saves audit report HTML to the client's Docs & SOPs with org association
+  - New API route: `POST /api/pm/site-audit/[id]/save-doc` — generates and stores report as pm_documents record
+  - Enhanced AI prompt for dramatically more detailed reports:
+    - Criterion-by-criterion scoring (every rubric item individually scored with pass/partial/fail)
+    - `criteria_breakdown` array per dimension with points_possible, points_earned, status, and detail
+    - 8-10+ findings per dimension (was 2-3 generic)
+    - 5-10 gap items per dimension (was 3-6)
+    - 8-12 recommendations with detailed descriptions (was 5-8)
+    - 5-8 quick wins (was 3-5)
+    - 4-6 sentence executive summary (was 2-3)
+  - Increased max_tokens from 6000 to 12000 for richer AI output
+  - PDF report now includes criterion scorecard tables with pass/fail/partial status and point breakdowns
+  - UI improvements: clickable dimension badges expand to show findings and gap analysis inline
+  - Recommendations section added to results view with priority badges
+  - Pages found vs missing comparison grid added to results view
+  - Results view renamed "Download Report" to "Open Report" for clarity
 - [x] Timeline/Gantt view for phases
   - `TimelineTab` component: horizontal bar chart with phases as colored bars along a time axis
   - Phase bars colored by status, filled proportionally by progress percentage
@@ -309,7 +395,6 @@
   - RLS policies automatically filter which rows each user receives
 - [x] Timeline view (Gantt-style) for phases
 - [x] Budget vs actuals tracking
-- [ ] Seed Honey Lake Digital and VakPak as sample projects
 - [ ] Asana import: support CSV format in addition to JSON
 - [ ] Asana import: connect via Asana API for live import (requires PAT)
 

@@ -124,13 +124,13 @@ This module shares a Supabase project with FSA. Auth and org/tenant schema are r
 | id | UUID | PK |
 | project_id | UUID | FK → pm_projects (nullable — null for org-level standups) |
 | org_id | UUID | FK → pm_organizations (migration 029) |
-| date | DATE | Unique per project or per org+log_type |
+| log_date | DATE | Unique per project or per org+log_type (renamed from `date` in migration 045) |
 | content | TEXT | Markdown |
 | generated_by | TEXT | ai, manual, or standup-agent |
 | log_type | TEXT | daily, standup, rollup, blocker, hub, decisions (migration 029) |
 | created_at | TIMESTAMPTZ | Auto |
 
-Migrations: 001 (base), 029 (org_id, log_type, nullable project_id)
+Migrations: 001 (base), 029 (org_id, log_type, nullable project_id), 045 (rename date → log_date)
 
 ### pm_files
 | Column | Type | Notes |
@@ -491,6 +491,12 @@ Migration: 035
 - `pm_projects.project_type` — TEXT: standard, onboarding, personal
 - `pm_projects.parent_project_id` — FK → pm_projects (SET NULL)
 - `pm_projects.onboarding_status` — TEXT: not-started, discovery, gap-analysis, planning, active, complete
+
+### Additional columns added by migration 041 (Projected Revenue)
+- `pm_engagements.projected_mrr` — DECIMAL(12,2), default 0, monthly recurring revenue
+- `pm_engagements.projected_one_time` — DECIMAL(12,2), default 0, one-time project revenue
+- `pm_projects.projected_mrr` — DECIMAL(12,2), default 0, monthly recurring revenue
+- `pm_projects.projected_one_time` — DECIMAL(12,2), default 0, one-time project revenue
 
 ### Storage
 - Bucket: `documents` (private, for PDF storage)

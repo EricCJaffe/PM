@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 
 interface StandupLog {
   id: string;
-  date: string;
+  log_date: string;
   content: string;
   generated_by: string;
   created_at: string;
@@ -29,9 +29,9 @@ export function StandupWidget({ orgId, adminEmail }: Props) {
       const res = await fetch(`/api/pm/standup?org_id=${orgId}&limit=7`);
       if (!res.ok) return;
       const data: StandupLog[] = await res.json();
-      const todayLog = data.find((d) => d.date === todayStr) ?? null;
+      const todayLog = data.find((d) => d.log_date === todayStr) ?? null;
       setToday(todayLog);
-      setHistory(data.filter((d) => d.date !== todayStr));
+      setHistory(data.filter((d) => d.log_date !== todayStr));
     } catch {
       /* ignore */
     }
@@ -163,7 +163,7 @@ export function StandupWidget({ orgId, adminEmail }: Props) {
           {history.map((log) => (
             <details key={log.id} className="group">
               <summary className="px-5 py-3 flex items-center justify-between cursor-pointer hover:bg-pm-bg/50">
-                <span className="text-pm-muted text-sm">{log.date}</span>
+                <span className="text-pm-muted text-sm">{log.log_date}</span>
                 <span className="text-pm-muted text-xs group-open:rotate-180 transition-transform">
                   &#9662;
                 </span>

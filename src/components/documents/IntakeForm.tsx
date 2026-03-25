@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import type { DocumentIntakeField, Member } from "@/types/pm";
 import type { Organization } from "@/types/pm";
+import { LineItemsEditor } from "./LineItemsEditor";
 
 interface IntakeFormProps {
   fields: DocumentIntakeField[];
@@ -151,6 +152,7 @@ function FieldInput({
 
   // Render team member dropdown for prepared_by
   const isTeamMemberSelect = field.field_key === "prepared_by" && siteMembers && siteMembers.length > 0;
+  const isLineItems = field.field_key === "line_items";
 
   return (
     <div>
@@ -159,7 +161,7 @@ function FieldInput({
           {field.label}
           {field.is_required && <span className="text-red-400 ml-1">*</span>}
         </label>
-        {onAiAssist && field.field_type === "textarea" && (
+        {onAiAssist && field.field_type === "textarea" && !isLineItems && (
           <button
             type="button"
             onClick={onAiAssist}
@@ -171,7 +173,9 @@ function FieldInput({
         )}
       </div>
 
-      {isTeamMemberSelect ? (
+      {isLineItems ? (
+        <LineItemsEditor value={value || "[]"} onChange={onChange} />
+      ) : isTeamMemberSelect ? (
         <select className={cls} value={value} onChange={(e) => onChange(e.target.value)}>
           <option value="">Select team member...</option>
           {siteMembers.map((m) => (

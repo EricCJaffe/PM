@@ -1,27 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 
-// GET /api/pm/site-audit?org_id=...
+// GET /api/pm/site-audit?org_id=...  OR  ?prospect_name=...
 export async function GET(request: NextRequest) {
   try {
     const orgId = request.nextUrl.searchParams.get("org_id");
-    if (!orgId) return NextResponse.json({ error: "org_id required" }, { status: 400 });
+    const prospectName = request.nextUrl.searchParams.get("prospect_name");
+
+    if (!orgId && !prospectName) {
+      return NextResponse.json({ error: "org_id or prospect_name required" }, { status: 400 });
+    }
 
     const supabase = createServiceClient();
 
     // Clean up stale audits stuck in "running" for > 2 minutes
-    await supabase
-      .from("pm_site_audits")
-      .update({ status: "failed", audit_summary: "Audit timed out" })
-      .eq("org_id", orgId)
-      .eq("status", "running")
-      .lt("created_at", new Date(Date.now() - 2 * 60 * 1000).toISOString());
+    if (orgId) {
+      await supabase
+        .from("pm_site_audits")
+        .update({ status: "failed", audit_summary: "Audit timed out" })
+        .eq("org_id", orgId)
+        .eq("status", "running")
+        .lt("created_at", new Date(Date.now() - 2 * 60 * 1000).toISOString());
+    } else if (prospectName) {
+      await supabase
+        .from("pm_site_audits")
+        .update({ status: "failed", audit_summary: "Audit timed out" })
+        .is("org_id", null)
+        .eq("prospect_name", prospectName)
+        .eq("status", "running")
+        .lt("created_at", new Date(Date.now() - 2 * 60 * 1000).toISOString());
+    }
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("pm_site_audits")
       .select("*")
-      .eq("org_id", orgId)
       .order("created_at", { ascending: false });
+
+    if (orgId) {
+      query = query.eq("org_id", orgId);
+    } else {
+      query = query.is("org_id", null).eq("prospect_name", prospectName!);
+    }
+
+    const { data, error } = await query;
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json(data);
@@ -36,10 +57,14 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { org_id, url, vertical, engagement_id, extra_context } = body;
+    const { org_id, prospect_name, url, vertical, engagement_id, extra_context } = body;
 
-    if (!org_id || !url || !vertical) {
-      return NextResponse.json({ error: "org_id, url, and vertical are required" }, { status: 400 });
+    if (!url || !vertical) {
+      return NextResponse.json({ error: "url and vertical are required" }, { status: 400 });
+    }
+
+    if (!org_id && !prospect_name) {
+      return NextResponse.json({ error: "org_id or prospect_name is required" }, { status: 400 });
     }
 
     // Normalize URL — add https:// if no protocol provided
@@ -58,7 +83,8 @@ export async function POST(request: NextRequest) {
     const { data: audit, error: insertErr } = await supabase
       .from("pm_site_audits")
       .insert({
-        org_id,
+        org_id: org_id || null,
+        prospect_name: prospect_name || null,
         url: normalizedUrl,
         vertical,
         engagement_id: engagement_id || null,

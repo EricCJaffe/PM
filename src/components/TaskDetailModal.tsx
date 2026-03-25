@@ -36,6 +36,8 @@ interface CreateContext {
   phase_id?: string;
   org_id?: string;
   default_owner?: string;
+  /** When true, shows optional Client/Project dropdowns for linking a personal task */
+  allowLinkToClient?: boolean;
 }
 
 /**
@@ -83,6 +85,36 @@ export function TaskDetailModal({
 
   // Recurrence — available for new tasks and for converting existing tasks
   const [recurrence, setRecurrence] = useState<RecurrenceConfig | null>(null);
+
+  // Optional client/project linking (personal task mode)
+  const showLinkFields = isCreate && createContext?.allowLinkToClient && !createContext?.project_id;
+  const [linkOrgs, setLinkOrgs] = useState<{ id: string; name: string }[]>([]);
+  const [linkProjects, setLinkProjects] = useState<{ id: string; name: string }[]>([]);
+  const [linkedOrgId, setLinkedOrgId] = useState(createContext?.org_id ?? "");
+  const [linkedProjectId, setLinkedProjectId] = useState("");
+
+  useEffect(() => {
+    if (!showLinkFields) return;
+    fetch("/api/pm/organizations")
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setLinkOrgs(data.map((o: { id: string; name: string }) => ({ id: o.id, name: o.name }))); })
+      .catch(() => {});
+  }, [showLinkFields]);
+
+  const [allProjects, setAllProjects] = useState<{ id: string; name: string; org_id: string }[]>([]);
+  useEffect(() => {
+    if (!showLinkFields) return;
+    fetch("/api/pm/projects")
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setAllProjects(data.map((p: { id: string; name: string; org_id: string }) => ({ id: p.id, name: p.name, org_id: p.org_id }))); })
+      .catch(() => {});
+  }, [showLinkFields]);
+
+  useEffect(() => {
+    if (!linkedOrgId) { setLinkProjects([]); setLinkedProjectId(""); return; }
+    setLinkProjects(allProjects.filter((p) => p.org_id === linkedOrgId));
+    setLinkedProjectId("");
+  }, [linkedOrgId, allProjects]);
 
   // Members for owner picker
   const memberEntries = Object.entries(memberMap);
@@ -149,12 +181,16 @@ export function TaskDetailModal({
   }
 
   async function handleCreate() {
+    // Resolve org/project — prefer linked selections over createContext defaults
+    const resolvedOrgId = (showLinkFields && linkedOrgId) || createContext?.org_id || orgId || null;
+    const resolvedProjectId = (showLinkFields && linkedProjectId) || createContext?.project_id || null;
+
     if (recurrence) {
       // Create a recurring series
       const seriesBody: Record<string, unknown> = {
-        project_id: createContext?.project_id ?? null,
+        project_id: resolvedProjectId,
         phase_id: form.phase_id || createContext?.phase_id || null,
-        org_id: createContext?.org_id ?? orgId ?? null,
+        org_id: resolvedOrgId,
         name: form.name,
         description: form.description || null,
         status_template: form.status,
@@ -192,9 +228,9 @@ export function TaskDetailModal({
     } else {
       // Create a one-time task
       const body: Record<string, unknown> = {
-        project_id: createContext?.project_id ?? null,
+        project_id: resolvedProjectId,
         phase_id: form.phase_id || createContext?.phase_id || null,
-        org_id: createContext?.org_id ?? orgId ?? null,
+        org_id: resolvedOrgId,
         name: form.name,
         description: form.description || null,
         status: form.status,
@@ -514,13 +550,34 @@ export function TaskDetailModal({
       {activeTab === "details" && (
         <div className="space-y-4">
           {/* Personal task indicator — when no project context */}
-          {isCreate && !createContext?.project_id && (
+          {isCreate && !createContext?.project_id && !showLinkFields && (
             <div className="flex items-center gap-2 bg-pm-bg rounded-lg px-3 py-2">
               <svg className="w-4 h-4 text-pm-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
               <span className="text-xs text-pm-accent font-medium">Personal Task</span>
               <span className="text-xs text-pm-muted ml-1">— not linked to any project</span>
+            </div>
+          )}
+          {/* Optional client/project linking for personal tasks */}
+          {showLinkFields && (
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Client (optional)">
+                <Select value={linkedOrgId} onChange={(e) => setLinkedOrgId(e.target.value)}>
+                  <option value="">— Personal task —</option>
+                  {linkOrgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+                </Select>
+              </Field>
+              <Field label="Project (optional)">
+                <Select
+                  value={linkedProjectId}
+                  onChange={(e) => setLinkedProjectId(e.target.value)}
+                  disabled={!linkedOrgId || linkProjects.length === 0}
+                >
+                  <option value="">— No project —</option>
+                  {linkProjects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </Select>
+              </Field>
             </div>
           )}
           <Field label="Task Name">
