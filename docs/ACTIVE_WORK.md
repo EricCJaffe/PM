@@ -16,7 +16,7 @@
 
 | Developer | Branch | Area / Module | Key files being touched | Status | Updated |
 |---|---|---|---|---|---|
-| eric | — | — | — | Available | [date] |
+| eric | fix/chat-task-org-id | AI chat + project page UI | `src/app/api/pm/chat/route.ts`, `src/app/projects/[slug]/page.tsx`, closeout docs | Review | 2026-03-25 |
 | [dev2] | — | — | — | Available | [date] |
 | [dev3] | — | — | — | Available | [date] |
 
@@ -48,4 +48,4 @@ Status options: Active / In Progress / Blocked / Review / Available / WIP-Incomp
 ## Waiting on review
 | Branch | Developer | PR link | Reviewer | Opened |
 |---|---|---|---|---|
-| — | — | — | — | — |
+| fix/chat-task-org-id | eric | https://github.com/EricCJaffe/PM/pull/new/fix/chat-task-org-id | eric | 2026-03-25 |
