@@ -209,6 +209,15 @@ async function executeTool(
 ): Promise<string> {
   try {
     if (name === "add_task") {
+      const { data: project, error: projectError } = await supabase
+        .from("pm_projects")
+        .select("org_id")
+        .eq("id", projectId)
+        .single();
+      if (projectError || !project?.org_id) {
+        return "Failed to add task: project org_id could not be resolved.";
+      }
+
       let phaseId: string | null = null;
       if (args.phase_slug) {
         const { data: phase } = await supabase
@@ -222,6 +231,7 @@ async function executeTool(
       const slug = slugify(args.name as string);
       const { error } = await supabase.from("pm_tasks").insert({
         project_id: projectId,
+        org_id: project.org_id,
         phase_id: phaseId,
         slug,
         name: args.name,
