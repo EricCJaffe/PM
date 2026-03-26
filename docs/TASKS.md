@@ -74,6 +74,14 @@
   - Graceful degradation when RESEND_API_KEY not set
 - [ ] Set up Vercel Cron for daily recurring task generation (/api/pm/series/generate)
 - [ ] Final configuration of DocuSeal (document signing/e-signature integration)
+  - [x] Wire up DocuSeal API client, webhook receiver, and eSign routes
+  - [x] Inject signature/date/name field tags into HTML before sending
+  - [x] Fix API response parsing and submission_id lookup
+  - [x] Add signing link ({{submitter.link}}) to email body
+  - [x] Always include both Client + Provider (FSA) signature blocks with names/titles
+  - [ ] **Cancel & re-send flow**: After sending for eSign, allow canceling, editing the document, and re-sending. Cancel button disappears after first send — needs to remain visible while status is "waiting". After cancel, status should revert to "draft" so document can be edited and re-sent.
+  - [ ] **Signed document retrieval**: When all parties have signed (submission.completed), automatically download the signed PDF from DocuSeal and upload it to the client's document storage in Supabase. Show download link in the eSign status banner.
+  - [ ] **Cancel 404 bug**: The `DELETE /submissions/:id` still returns 404 — the `getSubmitter()` call to resolve submission_id may be failing silently. Debug with live DocuSeal data to confirm the correct ID chain (submitter → submission).
 
 ## New Features — Planned
 - [x] Centralized branding system (ADR 0002)
