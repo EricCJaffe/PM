@@ -38,8 +38,14 @@ export interface EsignSubmitter {
   send_email?: boolean;
 }
 
-export interface EsignCreateFromHtmlRequest {
+export interface EsignDocument {
+  name: string;
   html: string;
+}
+
+export interface EsignCreateFromHtmlRequest {
+  html?: string;
+  documents?: EsignDocument[];
   name: string;
   submitters: EsignSubmitter[];
   order?: "preserved" | "random";
@@ -107,17 +113,28 @@ export interface EsignWebhookPayload {
 
 /**
  * Create a submission from raw HTML and send for signature.
- * Uses POST /submissions/html (Pro feature).
- * DocuSeal converts the HTML to PDF and adds a signature page.
+ * Uses POST /submissions/html.
+ * DocuSeal converts the HTML to PDF and renders field tags as interactive fields.
+ *
+ * Field tags supported in HTML:
+ *   <signature-field name="..." role="..."></signature-field>
+ *   <date-field name="..." role="..."></date-field>
+ *   <text-field name="..." role="..." style="width: Xpx; ..."></text-field>
+ *   <initials-field name="..." role="..."></initials-field>
  */
 export async function createSubmissionFromHtml(
   req: EsignCreateFromHtmlRequest
 ): Promise<EsignSubmitterResponse[]> {
   const { apiUrl } = getConfig();
 
-  const body = {
-    html: req.html,
+  // DocuSeal API expects documents as an array of {name, html}
+  const documents: EsignDocument[] = req.documents || [
+    { name: req.name, html: req.html || "" },
+  ];
+
+  const body: Record<string, unknown> = {
     name: req.name,
+    documents,
     send_email: req.send_email !== false,
     order: req.order || "preserved",
     submitters: req.submitters.map((s) => ({
@@ -127,9 +144,10 @@ export async function createSubmissionFromHtml(
       send_email: s.send_email !== false,
       values: s.values || {},
     })),
-    ...(req.message && { message: { body: req.message } }),
-    ...(req.expire_at && { expire_at: req.expire_at }),
   };
+
+  if (req.message) body.message = { body: req.message };
+  if (req.expire_at) body.expire_at = req.expire_at;
 
   const res = await fetch(`${apiUrl}/submissions/html`, {
     method: "POST",
@@ -143,6 +161,94 @@ export async function createSubmissionFromHtml(
   }
 
   return (await res.json()) as EsignSubmitterResponse[];
+}
+
+/**
+ * Inject DocuSeal field tags into the signature block of compiled HTML.
+ *
+ * Replaces the static signature block (sig-line / sig-name / sig-date elements)
+ * with DocuSeal's custom HTML field tags so the platform knows where to render
+ * interactive signature, date, and name fields for each signer.
+ *
+ * @param html - The compiled HTML document
+ * @param clientName - Client signer name (pre-filled)
+ * @param clientRole - DocuSeal role name for the client submitter
+ * @param providerName - Provider signer name (pre-filled, optional)
+ * @param providerRole - DocuSeal role name for the provider submitter (optional)
+ */
+export function injectSignatureFields(
+  html: string,
+  clientName: string,
+  clientRole: string,
+  providerName?: string,
+  providerRole?: string
+): string {
+  // Build the client signature column with DocuSeal field tags
+  const clientCol = `
+        <div class="sig-col">
+          <p class="sig-label">Client</p>
+          <signature-field name="Client Signature" role="${clientRole}" required="true" style="width: 100%; height: 60px; display: block;"></signature-field>
+          <text-field name="Client Name" role="${clientRole}" required="true" style="width: 200px; height: 18px; display: inline-block;" readonly="true">${escapeFieldValue(clientName)}</text-field>
+          <date-field name="Client Date Signed" role="${clientRole}" required="true" style="width: 140px; height: 18px; display: inline-block;"></date-field>
+        </div>`;
+
+  // Build the provider signature column (if provider is a signer)
+  const pName = providerName || "Foundation Stone Advisors";
+  const pRole = providerRole || "Provider";
+  const providerCol = `
+        <div class="sig-col">
+          <p class="sig-label">Foundation Stone Advisors</p>
+          <signature-field name="Provider Signature" role="${pRole}" required="true" style="width: 100%; height: 60px; display: block;"></signature-field>
+          <text-field name="Provider Name" role="${pRole}" required="true" style="width: 200px; height: 18px; display: inline-block;" readonly="true">${escapeFieldValue(pName)}</text-field>
+          <date-field name="Provider Date Signed" role="${pRole}" required="true" style="width: 140px; height: 18px; display: inline-block;"></date-field>
+        </div>`;
+
+  // Replace the entire signature block with DocuSeal-tagged version.
+  // The block structure is: <div class="signature-block">...nested divs...</div>
+  // We match greedily to the last closing </div> before the next major section or </body>.
+  const sigBlockStart = html.indexOf('<div class="signature-block">');
+
+  const newSigBlock = `<div class="signature-block">
+      <div class="section-divider"></div>
+      <h2>Authorization</h2>
+      <p class="sig-intro">By signing below, both parties agree to the terms outlined in this document.</p>
+      <div class="sig-row">
+${clientCol}
+${providerCol}
+      </div>
+    </div>`;
+
+  if (sigBlockStart !== -1) {
+    // Find the matching closing </div> by counting nested divs
+    let depth = 0;
+    let i = sigBlockStart;
+    let endPos = -1;
+    while (i < html.length) {
+      if (html.startsWith("<div", i)) {
+        depth++;
+        i += 4;
+      } else if (html.startsWith("</div>", i)) {
+        depth--;
+        if (depth === 0) {
+          endPos = i + 6; // past "</div>"
+          break;
+        }
+        i += 6;
+      } else {
+        i++;
+      }
+    }
+    if (endPos !== -1) {
+      return html.slice(0, sigBlockStart) + newSigBlock + html.slice(endPos);
+    }
+  }
+
+  // If no signature block found, append before </body>
+  return html.replace("</body>", `${newSigBlock}\n</body>`);
+}
+
+function escapeFieldValue(val: string): string {
+  return val.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 /**

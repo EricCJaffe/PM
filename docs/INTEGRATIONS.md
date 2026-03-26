@@ -20,13 +20,27 @@
 
 ### How It Works
 1. User creates & compiles a document (SOW) in the Document Editor
-2. Clicks **eSign** button → compiled HTML is sent to DocuSeal via `POST /submissions/html`
-3. DocuSeal converts HTML to PDF, adds signature fields, emails the client
-4. Webhook updates document status as signers interact:
+2. Clicks **eSign** button → the system:
+   a. Takes the compiled HTML and injects DocuSeal field tags into the signature block
+   b. Replaces static signature lines with `<signature-field>`, `<date-field>`, and `<text-field>` tags
+   c. Each field is bound to a submitter role (Client / Provider)
+   d. Sends to DocuSeal via `POST /submissions/html` with `documents` array format
+3. DocuSeal converts HTML to PDF, renders field tags as interactive form fields, emails the client
+4. Client opens the signing link, sees the document with interactive signature/date fields positioned exactly where the tags were placed
+5. Webhook updates document status as signers interact:
    - `form.completed` → individual signer completed
    - `submission.completed` → all signers done → status becomes "signed"
    - `form.declined` → signer rejected → status reverts to "draft"
-5. Status is also polled via GET `/api/pm/docgen/[id]/esign`
+6. Status is also polled via GET `/api/pm/docgen/[id]/esign`
+
+### Field Tag Reference
+DocuSeal uses custom HTML tags to define interactive form fields:
+- `<signature-field name="..." role="..." required="true">` — Signature pad
+- `<date-field name="..." role="..." required="true">` — Auto-filled date picker
+- `<text-field name="..." role="..." readonly="true">Prefilled value</text-field>` — Text input
+- `<initials-field name="..." role="...">` — Initials pad
+- The `role` attribute binds the field to a specific submitter (must match a submitter role)
+- The `injectSignatureFields()` helper in `esign.ts` handles this transformation automatically
 
 ### API Routes
 | Route | Method | Purpose |

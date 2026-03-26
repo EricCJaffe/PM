@@ -162,7 +162,7 @@ export default function DocumentEditorPage() {
       setEsignError("Compile the document first (Sections > Compile & Preview).");
       return;
     }
-    if (!confirm(`Send this document to ${intakeValues.client_contact_name || clientEmail} for digital signature via Xodo Sign?`)) return;
+    if (!confirm(`Send this document to ${intakeValues.client_contact_name || clientEmail} for digital signature via DocuSeal?`)) return;
     setEsignSending(true);
     setEsignError("");
     try {
@@ -330,7 +330,7 @@ export default function DocumentEditorPage() {
               {esignStatus === "declined" && "Declined"}
               {esignStatus === "expired" && "Expired"}
             </span>
-            <span className="text-pm-muted text-xs">via Xodo Sign</span>
+            <span className="text-pm-muted text-xs">via DocuSeal</span>
           </div>
           {esignSigners.length > 0 && (
             <div className="flex flex-wrap gap-3 text-xs text-pm-muted">
