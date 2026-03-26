@@ -16,7 +16,7 @@
 
 | Developer | Branch | Area / Module | Key files being touched | Status | Updated |
 |---|---|---|---|---|---|
-| eric | — | — | — | Available | [date] |
+| eric | claude/review-project-docs-TbBoa | DocuSeal eSign + NDA/MSA templates | esign.ts, SectionEditor, seed files | Available | 2026-03-26 |
 | [dev2] | — | — | — | Available | [date] |
 | [dev3] | — | — | — | Available | [date] |
 
