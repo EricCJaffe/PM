@@ -46,9 +46,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // Find the document whose submitter IDs include this submission's submitter
+    // Find the document by submission_id or by matching submitter IDs
     const doc = docs.find((d: Record<string, unknown>) => {
       const meta = d.esign_metadata as Record<string, unknown> | null;
+      if (meta?.submission_id === submissionId) return true;
       const ids = (meta?.submitter_ids || []) as number[];
       return ids.includes(data.id) || ids.includes(submissionId);
     });

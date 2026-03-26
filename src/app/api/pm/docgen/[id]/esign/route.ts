@@ -95,10 +95,13 @@ export async function POST(
     // Normalize result to array (createSubmissionFromHtml already does this,
     // but guard against unexpected shapes)
     const resultSubmitters = Array.isArray(result) ? result : [result];
-    const submissionId = resultSubmitters[0]?.id;
+
+    // DocuSeal submitter objects include submission_id (the parent submission).
+    // We need the submission_id for GET/DELETE calls, not the submitter id.
+    const submissionId = resultSubmitters[0]?.submission_id || resultSubmitters[0]?.id;
 
     // Update document with eSign tracking data
-    // We store the first submitter ID as the document hash for lookups
+    // esign_document_hash stores the submission ID for API lookups (GET/DELETE)
     const { error: updateErr } = await supabase
       .from("generated_documents")
       .update({
@@ -108,12 +111,14 @@ export async function POST(
         esign_sent_at: new Date().toISOString(),
         esign_signers: resultSubmitters.map((s) => ({
           id: s.id,
+          submission_id: s.submission_id,
           name: s.name,
           email: s.email,
           status: s.status || "pending",
           signed: false,
         })),
         esign_metadata: {
+          submission_id: submissionId,
           submitter_ids: resultSubmitters.map((s) => s.id),
           embed_srcs: resultSubmitters.map((s) => ({ email: s.email, embed_src: s.embed_src })),
         },
@@ -174,12 +179,11 @@ export async function GET(
       return NextResponse.json({ esign_status: null, message: "Not sent for signature" });
     }
 
-    // Fetch live status from DocuSeal
+    // Fetch live status from DocuSeal using the submission ID
     const meta = doc.esign_metadata as Record<string, unknown> | null;
-    const submitterIds = (meta?.submitter_ids || []) as number[];
+    const submissionId = (meta?.submission_id as number) || Number(doc.esign_document_hash);
 
-    // Use the first submitter ID to get the full submission
-    if (submitterIds.length === 0) {
+    if (!submissionId || isNaN(submissionId)) {
       return NextResponse.json({
         esign_status: doc.esign_status,
         esign_sent_at: doc.esign_sent_at,
@@ -190,7 +194,7 @@ export async function GET(
     }
 
     try {
-      const submission = await getSubmission(submitterIds[0]);
+      const submission = await getSubmission(submissionId);
 
       // Map DocuSeal statuses to our normalized statuses
       const signerUpdates = submission.submitters.map((s) => ({
@@ -276,11 +280,11 @@ export async function DELETE(
       return NextResponse.json({ error: "Cannot cancel a signed document" }, { status: 400 });
     }
 
-    // Archive in DocuSeal using first submitter ID
+    // Archive in DocuSeal using the submission ID
     const meta = doc.esign_metadata as Record<string, unknown> | null;
-    const submitterIds = (meta?.submitter_ids || []) as number[];
-    if (submitterIds.length > 0) {
-      await archiveSubmission(submitterIds[0]);
+    const submissionId = (meta?.submission_id as number) || Number(doc.esign_document_hash);
+    if (submissionId && !isNaN(submissionId)) {
+      await archiveSubmission(submissionId);
     }
 
     // Update local status

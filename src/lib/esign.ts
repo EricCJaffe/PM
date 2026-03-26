@@ -56,6 +56,7 @@ export interface EsignCreateFromHtmlRequest {
 
 export interface EsignSubmitterResponse {
   id: number;
+  submission_id: number;
   uuid: string;
   email: string;
   slug: string;
