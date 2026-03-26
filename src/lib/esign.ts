@@ -266,6 +266,27 @@ function escapeFieldValue(val: string): string {
 }
 
 /**
+ * Get a submitter by ID to retrieve the parent submission_id.
+ * POST /submissions/html returns submitter objects without submission_id,
+ * so we need this follow-up call to get it.
+ */
+export async function getSubmitter(submitterId: number): Promise<EsignSubmitterResponse & { submission_id: number }> {
+  const { apiUrl } = getConfig();
+
+  const res = await fetch(`${apiUrl}/submitters/${submitterId}`, {
+    method: "GET",
+    headers: headers(),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`DocuSeal API error (${res.status}): ${err}`);
+  }
+
+  return await res.json();
+}
+
+/**
  * Get a submission by ID with full details.
  */
 export async function getSubmission(submissionId: number): Promise<EsignSubmissionResponse> {

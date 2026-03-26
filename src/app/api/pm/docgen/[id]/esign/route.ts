@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import {
   createSubmissionFromHtml,
+  getSubmitter,
   getSubmission,
   archiveSubmission,
   injectSignatureFields,
@@ -89,16 +90,28 @@ export async function POST(
       submitters,
       order: submitters.length > 1 ? "preserved" : undefined,
       send_email: true,
-      message: `Please review and sign this ${docTypeName}. If you have any questions, please contact ${providerName}.`,
+      message: `Please review and sign this ${docTypeName}. If you have any questions, please contact ${providerName}.\n\n{{submitter.link}}`,
     });
 
     // Normalize result to array (createSubmissionFromHtml already does this,
     // but guard against unexpected shapes)
     const resultSubmitters = Array.isArray(result) ? result : [result];
 
-    // DocuSeal submitter objects include submission_id (the parent submission).
-    // We need the submission_id for GET/DELETE calls, not the submitter id.
-    const submissionId = resultSubmitters[0]?.submission_id || resultSubmitters[0]?.id;
+    // POST /submissions/html returns submitter objects without submission_id.
+    // Fetch the first submitter to get the parent submission_id needed for
+    // GET /submissions/:id and DELETE /submissions/:id.
+    let submissionId: number | undefined;
+    const firstSubmitterId = resultSubmitters[0]?.id;
+    if (firstSubmitterId) {
+      try {
+        const submitterDetail = await getSubmitter(firstSubmitterId);
+        submissionId = submitterDetail.submission_id;
+      } catch {
+        // Fall back to submitter ID if lookup fails
+        console.warn("Could not fetch submitter details, using submitter ID as fallback");
+      }
+    }
+    if (!submissionId) submissionId = firstSubmitterId;
 
     // Update document with eSign tracking data
     // esign_document_hash stores the submission ID for API lookups (GET/DELETE)
