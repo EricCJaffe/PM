@@ -1,6 +1,15 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import type { DocumentSection } from "@/types/pm";
+
+// Lazy-load to avoid SSR issues with Tiptap
+const RichTextEditor = dynamic(() => import("@/components/RichTextEditor"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-[250px] bg-pm-bg border border-pm-border rounded-lg animate-pulse" />
+  ),
+});
 
 interface SectionEditorProps {
   sections: DocumentSection[];
@@ -35,12 +44,10 @@ export function SectionEditor({ sections, onUpdate, onToggleLock }: SectionEdito
             </button>
           </div>
           <div className="p-3">
-            <textarea
-              className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text text-sm focus:outline-none focus:border-blue-500 resize-none font-mono"
-              rows={8}
+            <RichTextEditor
               value={section.content_html}
-              onChange={(e) => onUpdate(section.id, e.target.value)}
-              placeholder="Section content (HTML)..."
+              onChange={(html) => onUpdate(section.id, html)}
+              placeholder={`Enter content for ${section.title}...`}
             />
           </div>
         </div>
