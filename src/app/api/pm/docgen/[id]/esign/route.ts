@@ -4,6 +4,7 @@ import {
   createSubmissionFromHtml,
   getSubmission,
   archiveSubmission,
+  injectSignatureFields,
 } from "@/lib/esign";
 
 // POST /api/pm/docgen/[id]/esign — Send document for eSignature via DocuSeal
@@ -57,21 +58,34 @@ export async function POST(
     const body = await request.json().catch(() => ({}));
     const providerEmail = body.provider_email;
 
+    const clientRole = "Client";
+    const providerRole = "Provider";
+
     // Build submitter list
     const submitters = [
-      { name: clientName, email: clientEmail, role: "Client" },
+      { name: clientName, email: clientEmail, role: clientRole },
     ];
     if (providerEmail) {
-      submitters.push({ name: providerName, email: providerEmail, role: "Provider" });
+      submitters.push({ name: providerName, email: providerEmail, role: providerRole });
     }
 
     const dt = (doc as Record<string, unknown>).document_types as { name: string } | null;
     const docTypeName = dt?.name || "Document";
 
-    // Send to DocuSeal — creates submission directly from HTML
+    // Inject DocuSeal signature/date/name field tags into the HTML
+    // This replaces the static signature block with interactive fields
+    const htmlWithFields = injectSignatureFields(
+      doc.compiled_html as string,
+      clientName,
+      clientRole,
+      providerEmail ? providerName : undefined,
+      providerEmail ? providerRole : undefined,
+    );
+
+    // Send to DocuSeal — creates submission from HTML with embedded field tags
     const result = await createSubmissionFromHtml({
-      html: doc.compiled_html as string,
       name: `${doc.title} — ${docTypeName}`,
+      documents: [{ name: `${doc.title} — ${docTypeName}`, html: htmlWithFields }],
       submitters,
       order: submitters.length > 1 ? "preserved" : undefined,
       send_email: true,

@@ -89,8 +89,8 @@ async function testConnectivity() {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        html: testHtml,
         name: "PM Integration Test",
+        documents: [{ name: "PM Integration Test", html: testHtml }],
         send_email: false, // Don't actually email anyone
         submitters: [
           {
