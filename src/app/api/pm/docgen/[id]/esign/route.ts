@@ -45,8 +45,10 @@ export async function POST(
     // Extract signer info from intake data
     const intake = doc.intake_data as Record<string, string>;
     const clientName = intake.client_contact_name || intake.client_name || "Client";
+    const clientTitle = intake.client_contact_title || "";
     const clientEmail = intake.client_contact_email;
-    const providerName = intake.prepared_by || "Foundation Stone Advisors";
+    const providerName = intake.prepared_by || "Eric Jaffe";
+    const providerTitle = intake.provider_title || "";
 
     if (!clientEmail) {
       return NextResponse.json(
@@ -55,32 +57,43 @@ export async function POST(
       );
     }
 
-    // Allow optional override from request body
+    // Allow optional provider email override from request body
     const body = await request.json().catch(() => ({}));
     const providerEmail = body.provider_email;
 
     const clientRole = "Client";
     const providerRole = "Provider";
 
-    // Build submitter list
+    // Build submitter list — always include both client and provider
     const submitters = [
       { name: clientName, email: clientEmail, role: clientRole },
     ];
-    if (providerEmail) {
-      submitters.push({ name: providerName, email: providerEmail, role: providerRole });
-    }
+    // Provider is always a signer. If no email passed in body, use the
+    // intake provider_email or fall back to a default.
+    const resolvedProviderEmail = providerEmail
+      || intake.provider_email
+      || "eric@foundationstoneadvisors.com";
+    submitters.push({ name: providerName, email: resolvedProviderEmail, role: providerRole });
 
     const dt = (doc as Record<string, unknown>).document_types as { name: string } | null;
     const docTypeName = dt?.name || "Document";
 
-    // Inject DocuSeal signature/date/name field tags into the HTML
-    // This replaces the static signature block with interactive fields
+    // Inject DocuSeal signature/date/name field tags into the HTML.
+    // Both client and provider always get a signature block.
     const htmlWithFields = injectSignatureFields(
       doc.compiled_html as string,
-      clientName,
-      clientRole,
-      providerEmail ? providerName : undefined,
-      providerEmail ? providerRole : undefined,
+      {
+        name: clientName,
+        title: clientTitle,
+        role: clientRole,
+        label: intake.client_name || "Client",
+      },
+      {
+        name: providerName,
+        title: providerTitle,
+        role: providerRole,
+        label: "Foundation Stone Advisors",
+      },
     );
 
     // Send to DocuSeal — creates submission from HTML with embedded field tags
