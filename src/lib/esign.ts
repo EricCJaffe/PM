@@ -56,6 +56,7 @@ export interface EsignCreateFromHtmlRequest {
 
 export interface EsignSubmitterResponse {
   id: number;
+  submission_id: number;
   uuid: string;
   email: string;
   slug: string;
@@ -160,7 +161,27 @@ export async function createSubmissionFromHtml(
     throw new Error(`DocuSeal API error (${res.status}): ${err}`);
   }
 
-  return (await res.json()) as EsignSubmitterResponse[];
+  const data = await res.json();
+
+  // DocuSeal may return either:
+  //   - An array of submitter objects (flat format)
+  //   - A single submission object with a submitters array inside
+  //   - A single submitter object (single signer)
+  if (Array.isArray(data)) {
+    return data as EsignSubmitterResponse[];
+  }
+  if (data.submitters && Array.isArray(data.submitters)) {
+    return data.submitters as EsignSubmitterResponse[];
+  }
+  // Single object — wrap in array
+  return [data] as EsignSubmitterResponse[];
+}
+
+export interface SignerInfo {
+  name: string;
+  title?: string;
+  role: string;
+  label: string; // Column header (e.g. "Client" or "Foundation Stone Advisors")
 }
 
 /**
@@ -169,39 +190,14 @@ export async function createSubmissionFromHtml(
  * Replaces the static signature block (sig-line / sig-name / sig-date elements)
  * with DocuSeal's custom HTML field tags so the platform knows where to render
  * interactive signature, date, and name fields for each signer.
- *
- * @param html - The compiled HTML document
- * @param clientName - Client signer name (pre-filled)
- * @param clientRole - DocuSeal role name for the client submitter
- * @param providerName - Provider signer name (pre-filled, optional)
- * @param providerRole - DocuSeal role name for the provider submitter (optional)
  */
 export function injectSignatureFields(
   html: string,
-  clientName: string,
-  clientRole: string,
-  providerName?: string,
-  providerRole?: string
+  client: SignerInfo,
+  provider: SignerInfo,
 ): string {
-  // Build the client signature column with DocuSeal field tags
-  const clientCol = `
-        <div class="sig-col">
-          <p class="sig-label">Client</p>
-          <signature-field name="Client Signature" role="${clientRole}" required="true" style="width: 100%; height: 60px; display: block;"></signature-field>
-          <text-field name="Client Name" role="${clientRole}" required="true" style="width: 200px; height: 18px; display: inline-block;" readonly="true">${escapeFieldValue(clientName)}</text-field>
-          <date-field name="Client Date Signed" role="${clientRole}" required="true" style="width: 140px; height: 18px; display: inline-block;"></date-field>
-        </div>`;
-
-  // Build the provider signature column (if provider is a signer)
-  const pName = providerName || "Foundation Stone Advisors";
-  const pRole = providerRole || "Provider";
-  const providerCol = `
-        <div class="sig-col">
-          <p class="sig-label">Foundation Stone Advisors</p>
-          <signature-field name="Provider Signature" role="${pRole}" required="true" style="width: 100%; height: 60px; display: block;"></signature-field>
-          <text-field name="Provider Name" role="${pRole}" required="true" style="width: 200px; height: 18px; display: inline-block;" readonly="true">${escapeFieldValue(pName)}</text-field>
-          <date-field name="Provider Date Signed" role="${pRole}" required="true" style="width: 140px; height: 18px; display: inline-block;"></date-field>
-        </div>`;
+  const clientCol = buildSignerColumn(client, "Client");
+  const providerCol = buildSignerColumn(provider, "Provider");
 
   // Replace the entire signature block with DocuSeal-tagged version.
   // The block structure is: <div class="signature-block">...nested divs...</div>
@@ -247,8 +243,44 @@ ${providerCol}
   return html.replace("</body>", `${newSigBlock}\n</body>`);
 }
 
+function buildSignerColumn(signer: SignerInfo, prefix: string): string {
+  const nameVal = escapeFieldValue(signer.name);
+  const titleLine = signer.title
+    ? `\n          <p class="sig-title">${escapeFieldValue(signer.title)}</p>`
+    : "";
+
+  return `
+        <div class="sig-col">
+          <p class="sig-label">${escapeFieldValue(signer.label)}</p>
+          <signature-field name="${prefix} Signature" role="${signer.role}" required="true" style="width: 100%; height: 60px; display: block;"></signature-field>
+          <p class="sig-name">${nameVal}</p>${titleLine}
+          <date-field name="${prefix} Date Signed" role="${signer.role}" required="true" style="width: 140px; height: 18px; display: inline-block;"></date-field>
+        </div>`;
+}
+
 function escapeFieldValue(val: string): string {
   return val.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+/**
+ * Get a submitter by ID to retrieve the parent submission_id.
+ * POST /submissions/html returns submitter objects without submission_id,
+ * so we need this follow-up call to get it.
+ */
+export async function getSubmitter(submitterId: number): Promise<EsignSubmitterResponse & { submission_id: number }> {
+  const { apiUrl } = getConfig();
+
+  const res = await fetch(`${apiUrl}/submitters/${submitterId}`, {
+    method: "GET",
+    headers: headers(),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`DocuSeal API error (${res.status}): ${err}`);
+  }
+
+  return await res.json();
 }
 
 /**
