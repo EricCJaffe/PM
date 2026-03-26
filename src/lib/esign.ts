@@ -160,7 +160,20 @@ export async function createSubmissionFromHtml(
     throw new Error(`DocuSeal API error (${res.status}): ${err}`);
   }
 
-  return (await res.json()) as EsignSubmitterResponse[];
+  const data = await res.json();
+
+  // DocuSeal may return either:
+  //   - An array of submitter objects (flat format)
+  //   - A single submission object with a submitters array inside
+  //   - A single submitter object (single signer)
+  if (Array.isArray(data)) {
+    return data as EsignSubmitterResponse[];
+  }
+  if (data.submitters && Array.isArray(data.submitters)) {
+    return data.submitters as EsignSubmitterResponse[];
+  }
+  // Single object — wrap in array
+  return [data] as EsignSubmitterResponse[];
 }
 
 /**

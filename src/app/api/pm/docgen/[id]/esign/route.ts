@@ -92,11 +92,13 @@ export async function POST(
       message: `Please review and sign this ${docTypeName}. If you have any questions, please contact ${providerName}.`,
     });
 
-    // DocuSeal returns an array of submitter objects; extract submission_id from the first
-    const submissionId = result[0]?.id;
+    // Normalize result to array (createSubmissionFromHtml already does this,
+    // but guard against unexpected shapes)
+    const submitters = Array.isArray(result) ? result : [result];
+    const submissionId = submitters[0]?.id;
 
     // Update document with eSign tracking data
-    // We store the submission ID (first submitter ID) as the document hash for lookups
+    // We store the first submitter ID as the document hash for lookups
     const { error: updateErr } = await supabase
       .from("generated_documents")
       .update({
@@ -104,7 +106,7 @@ export async function POST(
         esign_document_hash: String(submissionId),
         esign_status: "waiting",
         esign_sent_at: new Date().toISOString(),
-        esign_signers: result.map((s) => ({
+        esign_signers: submitters.map((s) => ({
           id: s.id,
           name: s.name,
           email: s.email,
@@ -112,8 +114,8 @@ export async function POST(
           signed: false,
         })),
         esign_metadata: {
-          submitter_ids: result.map((s) => s.id),
-          embed_srcs: result.map((s) => ({ email: s.email, embed_src: s.embed_src })),
+          submitter_ids: submitters.map((s) => s.id),
+          embed_srcs: submitters.map((s) => ({ email: s.email, embed_src: s.embed_src })),
         },
         status: "sent",
         sent_at: new Date().toISOString(),
@@ -131,14 +133,14 @@ export async function POST(
       details: {
         provider: "docuseal",
         submission_id: submissionId,
-        signers: result.map((s) => ({ name: s.name, email: s.email })),
+        signers: submitters.map((s) => ({ name: s.name, email: s.email })),
       },
     });
 
     return NextResponse.json({
       success: true,
       submission_id: submissionId,
-      signers: result.map((s) => ({ name: s.name, email: s.email, status: s.status })),
+      signers: submitters.map((s) => ({ name: s.name, email: s.email, status: s.status })),
     });
   } catch (err) {
     console.error("eSign error:", err);
