@@ -309,7 +309,7 @@ export type DealStage = PipelineStatus;
 
 export type EngagementType = "new_prospect" | "existing_client";
 
-export type EngagementServiceLine = "process_audit" | "ai_automation" | "marketing" | "business_consulting" | "website_dev" | "other";
+export type EngagementServiceLine = "process_audit" | "ai_automation" | "marketing" | "business_consulting" | "website_dev" | "website_build" | "other";
 
 export interface Engagement {
   id: string;
@@ -1128,4 +1128,20 @@ export interface Pass1FormData {
   target_audience: string;
   tone: string;
   reference_sites?: string[];
+}
+
+export interface Pass2PageContent {
+  page_slug: string;
+  page_title: string;
+  hero_headline: string;
+  hero_subtext: string;
+  body_content: string;
+  cta_label: string;
+  cta_url: string;
+  photo_preference: "uploaded" | "stock" | "none";
+  extra_notes: string;
+}
+
+export interface Pass2FormData {
+  pages: Record<string, Pass2PageContent>;
 }

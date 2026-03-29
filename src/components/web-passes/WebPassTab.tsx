@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import type { Organization, WebPass, WebPassComment, SiteAudit, Pass1FormData } from "@/types/pm";
 import { PassStepper } from "./PassStepper";
+import { ContentForm } from "./ContentForm";
 
 const PASS_TYPES = ["discovery", "foundation", "content", "polish", "go-live"] as const;
 const PASS_LABELS: Record<string, string> = {
@@ -87,7 +88,7 @@ export function WebPassTab({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           org_id: org.id,
-          template_slug: "custom",
+          template_slug: "website-build",
           name: `${org.name} — Web Project`,
           slug: `${org.slug}-web-${Date.now()}`,
           owner: "",
@@ -450,15 +451,22 @@ export function WebPassTab({
             </div>
           )}
 
-          {/* Content / Polish passes — show deliverable + comment panel */}
-          {(activePass.pass_type === "content" || activePass.pass_type === "polish") && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
+          {/* Content pass — content form + preview */}
+          {activePass.pass_type === "content" && (
+            <div className="space-y-6">
+              <ContentForm
+                pass={activePass}
+                onSaved={(updated) => {
+                  setActivePass(updated);
+                  setPasses((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+                }}
+              />
+              <div>
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="font-semibold text-pm-text">Preview</h4>
                   <button onClick={generateMockup} disabled={generating}
-                    className="px-3 py-1 border border-pm-border text-pm-muted hover:text-pm-text text-xs rounded-lg transition-colors">
-                    {generating ? "Generating…" : activePass.pass_type === "polish" ? "Apply Feedback & Polish" : "Generate from Content"}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm rounded-lg font-medium transition-colors">
+                    {generating ? "Generating…" : "Generate from Content"}
                   </button>
                 </div>
                 {activePass.deliverable_html ? (
@@ -467,7 +475,31 @@ export function WebPassTab({
                   </div>
                 ) : (
                   <div className="card text-center py-12 text-pm-muted text-sm">
-                    No preview yet. Click Generate to create one.
+                    Save your content above, then click Generate to render the preview.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Polish pass — show deliverable + comment panel */}
+          {activePass.pass_type === "polish" && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-semibold text-pm-text">Preview</h4>
+                  <button onClick={generateMockup} disabled={generating}
+                    className="px-3 py-1 border border-pm-border text-pm-muted hover:text-pm-text text-xs rounded-lg transition-colors">
+                    {generating ? "Generating…" : "Apply Feedback & Polish"}
+                  </button>
+                </div>
+                {activePass.deliverable_html ? (
+                  <div className="w-full h-96 border border-pm-border rounded-lg overflow-hidden">
+                    <iframe srcDoc={activePass.deliverable_html} className="w-full h-full border-0" />
+                  </div>
+                ) : (
+                  <div className="card text-center py-12 text-pm-muted text-sm">
+                    No preview yet. Click Generate to apply feedback.
                   </div>
                 )}
               </div>
