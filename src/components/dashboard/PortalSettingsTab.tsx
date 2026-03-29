@@ -173,12 +173,52 @@ export function PortalSettingsTab({ org }: { org: Organization }) {
     </label>
   );
 
+  const portalUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/portal/${org.slug}`
+    : `/portal/${org.slug}`;
+
+  const [copied, setCopied] = useState(false);
+  const copyPortalLink = () => {
+    navigator.clipboard.writeText(portalUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   if (loadingSettings) {
     return <p className="text-pm-muted">Loading portal settings...</p>;
   }
 
   return (
     <div className="space-y-8">
+      {/* ===== Portal Link ===== */}
+      <div className="card border-pm-accent/30">
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="text-sm font-semibold text-pm-text mb-1">Client Portal Link</h4>
+            <p className="text-sm text-pm-muted">Share this link with your client to give them access to their portal.</p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <a
+              href={portalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 bg-pm-surface border border-pm-border hover:border-pm-accent/50 text-pm-text text-sm rounded-lg font-medium transition-colors"
+            >
+              Open Portal
+            </a>
+            <button
+              onClick={copyPortalLink}
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg font-medium transition-colors"
+            >
+              {copied ? "Copied!" : "Copy Link"}
+            </button>
+          </div>
+        </div>
+        <div className="mt-3 flex items-center gap-2 bg-pm-bg border border-pm-border rounded-lg px-3 py-2">
+          <span className="text-sm text-pm-muted font-mono truncate flex-1">{portalUrl}</span>
+        </div>
+      </div>
+
       {/* ===== SECTION 1: Portal Settings ===== */}
       <div>
         <h3 className="text-lg font-semibold text-pm-text mb-4">Portal Settings</h3>

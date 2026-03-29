@@ -31,7 +31,29 @@
 - [x] End-to-end test: full auth flow (login → admin console → add user → external user scoping)
 - [x] Onboarding notes: new users are added via admin console, which creates auth user + links to pm_members with org access. Each user gets a role per org: admin, user, or external (read-only)
 
+## UI Cleanup — Client Dashboard
+- [x] Consolidate client dashboard tabs from 20 to 15
+  - Merged **Overview** + **Info** into single **Details** tab (pipeline, company info, contact, projects, standup)
+  - Merged **Process Maps** into **Workflows** tab (sub-tabs: Implementation Plan + Process Maps)
+  - Removed **Opportunities** tab (redundant with Proposals)
+  - Removed **Knowledge Base** from client menu (site-level function)
+  - Removed **Gap Analysis** tab (part of process workflow)
+  - Moved **Workflows** next to Tasks for better navigation
+  - Added **portal link** to Client Portal tab (URL, Open Portal, Copy Link)
+- [x] Clean up client header
+  - Replaced process-review stats cards with **Projects**, **Tasks**, **Proposals**, **Overall Progress**
+  - Removed Edit, Delete, + New Project, Share with Client buttons from header
+  - Added **primary contact** name, phone (clickable tel:), email (clickable mailto:) to header
+  - Moved Edit Client + Delete Client into **Details** tab
+  - Moved + New Project button into **Details** tab projects section
+- New tab order: Details, Tasks, Workflows, Proposals, Notes, Users, KPIs, Site Audit, Docs & SOPs, Departments, Vocabulary, Onboarding, Branding, Client Portal, Tools
+
 ## Bug Fixes
+- [x] Fix duplicate slug constraint error on project creation — `pm_projects` has `UNIQUE(org_id, slug)` but neither seed nor intake routes checked for existing slugs
+  - Added `resolveUniqueProjectSlug()` helper in `src/lib/queries.ts` — queries existing slugs with same prefix and appends `-2`, `-3`, etc. if taken
+  - Updated `/api/pm/projects/seed` route to deduplicate slug before insert
+  - Updated `/api/pm/projects/intake` route to deduplicate slug before insert
+  - Vault file paths also use the deduplicated slug for consistency
 - [x] Fix standup generation 500 error — `pm_daily_logs.date` was renamed to `log_date` in live DB but code still used `date`, causing NOT NULL violation on insert
   - Updated all Supabase queries in standup/generate, standup list, reports/standup routes
   - Updated StandupWidget and AIReportsPanel components to use `log_date`

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, lazy, Suspense } from "react";
+import { useRouter } from "next/navigation";
 import type {
   Organization, SiteAudit, AuditVertical, AuditGrade,
   AuditScores, AuditDimensionScore, AuditOverall,
@@ -89,17 +90,21 @@ function getOverall(audit: SiteAudit): AuditOverall {
 
 function AuditResults({
   audit,
+  orgId,
   onBack,
   onGenerateDoc,
   onGeneratePDF,
 }: {
   audit: SiteAudit;
+  orgId: string;
   onBack: () => void;
   onGenerateDoc: () => void;
   onGeneratePDF: () => void;
 }) {
+  const router = useRouter();
   const [generatingDoc, setGeneratingDoc] = useState(false);
   const [generatingPDF, setGeneratingPDF] = useState(false);
+  const [creatingWorkflow, setCreatingWorkflow] = useState<"remediation" | "rebuild" | null>(null);
 
   const handleGenerateDoc = async () => {
     setGeneratingDoc(true);
@@ -109,6 +114,41 @@ function AuditResults({
   const handleGeneratePDF = async () => {
     setGeneratingPDF(true);
     onGeneratePDF();
+  };
+
+  const overall = audit.status === "complete" && audit.scores ? getOverall(audit) : null;
+  const isRebuildRecommended = overall?.rebuild_recommended ?? false;
+
+  const handleStartWorkflow = async (type: "remediation" | "rebuild") => {
+    setCreatingWorkflow(type);
+    try {
+      const siteName = audit.url.replace(/https?:\/\//, "").replace(/\/$/, "");
+      const name = type === "rebuild"
+        ? `Website Rebuild — ${siteName}`
+        : `Site Remediation — ${siteName}`;
+      const slug = `${type}-${siteName.replace(/[^a-z0-9]/gi, "-").toLowerCase()}-${Date.now().toString(36)}`;
+
+      const res = await fetch("/api/pm/projects/seed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          slug,
+          description: type === "rebuild"
+            ? `Full website rebuild based on site audit of ${audit.url}. Overall score: ${overall?.score ?? "N/A"}%. Build a new site from scratch using rubric best practices.`
+            : `Remediation project based on site audit of ${audit.url}. Overall score: ${overall?.score ?? "N/A"}%. Fix gaps and issues identified by the audit.`,
+          template_slug: "custom",
+          org_id: orgId,
+        }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      router.push(`/projects/${data.slug || slug}`);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to create project");
+    } finally {
+      setCreatingWorkflow(null);
+    }
   };
 
   if (audit.status === "failed") {
@@ -135,7 +175,7 @@ function AuditResults({
   }
 
   const scores = audit.scores;
-  const overall = getOverall(audit);
+  const ov = overall!;
   const gaps = audit.gaps || {};
   const recommendations = audit.recommendations || [];
   const quickWins = audit.quick_wins || [];
@@ -173,6 +213,69 @@ function AuditResults({
         </div>
       </div>
 
+      {/* Start a Workflow */}
+      <div className="card">
+        <h3 className="font-semibold text-pm-text mb-1">Start a Workflow</h3>
+        <p className="text-sm text-pm-muted mb-4">
+          Use this audit to create a structured project with tasks generated from the findings.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Remediation */}
+          <button
+            onClick={() => handleStartWorkflow("remediation")}
+            disabled={creatingWorkflow !== null}
+            className="card text-left hover:border-pm-muted/50 transition-all cursor-pointer group"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-9 h-9 rounded-lg bg-slate-600/30 flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
+              <h4 className="font-semibold text-pm-text">Remediation</h4>
+            </div>
+            <p className="text-sm text-pm-muted leading-relaxed">
+              Keep the current site. Fix gaps and issues identified by the audit. Re-audit to track improvement.
+            </p>
+            {creatingWorkflow === "remediation" && (
+              <div className="mt-3 text-xs text-pm-accent animate-pulse">Creating project...</div>
+            )}
+          </button>
+
+          {/* Website Rebuild */}
+          <button
+            onClick={() => handleStartWorkflow("rebuild")}
+            disabled={creatingWorkflow !== null}
+            className={`card text-left transition-all cursor-pointer group ${
+              isRebuildRecommended ? "border-amber-500/30 hover:border-amber-500/60" : "hover:border-pm-muted/50"
+            }`}
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-9 h-9 rounded-lg bg-amber-600/20 flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+              </div>
+              <div className="flex items-center gap-2">
+                <h4 className="font-semibold text-pm-text">Website Rebuild</h4>
+                {isRebuildRecommended && (
+                  <span className="px-2 py-0.5 bg-emerald-600/20 text-emerald-400 text-[10px] font-bold rounded uppercase tracking-wider">
+                    Recommended
+                  </span>
+                )}
+              </div>
+            </div>
+            <p className="text-sm text-pm-muted leading-relaxed">
+              Build a new site from scratch using rubric best practices. Guided discovery, design, content, and review process.
+            </p>
+            {creatingWorkflow === "rebuild" && (
+              <div className="mt-3 text-xs text-pm-accent animate-pulse">Creating project...</div>
+            )}
+          </button>
+        </div>
+      </div>
+
       {/* Header with Overall Score */}
       <div className="card">
         <div className="flex items-center justify-between mb-4">
@@ -185,18 +288,18 @@ function AuditResults({
           </div>
           <div className="text-center">
             <div className="text-xs text-pm-muted mb-1">Overall</div>
-            <GradeBadge grade={overall.grade} size="lg" />
-            <div className="text-xs text-pm-muted mt-1">{overall.score}%</div>
+            <GradeBadge grade={ov.grade} size="lg" />
+            <div className="text-xs text-pm-muted mt-1">{ov.score}%</div>
           </div>
         </div>
         {audit.audit_summary && (
           <p className="text-sm text-pm-muted">{audit.audit_summary}</p>
         )}
-        {overall.rebuild_recommended && (
+        {ov.rebuild_recommended && (
           <div className="mt-3 p-3 bg-red-600/10 border border-red-600/30 rounded-lg">
             <span className="text-sm font-medium text-red-400">Rebuild Recommended</span>
-            {overall.rebuild_reason && (
-              <p className="text-xs text-red-300 mt-1">{overall.rebuild_reason}</p>
+            {ov.rebuild_reason && (
+              <p className="text-xs text-red-300 mt-1">{ov.rebuild_reason}</p>
             )}
           </div>
         )}
@@ -556,6 +659,7 @@ export function ToolsTab({
     return (
       <AuditResults
         audit={activeAudit}
+        orgId={org.id}
         onBack={() => setActiveAudit(null)}
         onGenerateDoc={() => handleGenerateDoc(activeAudit)}
         onGeneratePDF={() => handleGeneratePDF(activeAudit)}
