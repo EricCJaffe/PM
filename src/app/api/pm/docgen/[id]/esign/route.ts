@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import {
   createSubmissionFromHtml,
+  getSubmitter,
   getSubmission,
   archiveSubmission,
+  injectSignatureFields,
 } from "@/lib/esign";
 
 // POST /api/pm/docgen/[id]/esign — Send document for eSignature via DocuSeal
@@ -43,8 +45,10 @@ export async function POST(
     // Extract signer info from intake data
     const intake = doc.intake_data as Record<string, string>;
     const clientName = intake.client_contact_name || intake.client_name || "Client";
+    const clientTitle = intake.client_contact_title || "";
     const clientEmail = intake.client_contact_email;
-    const providerName = intake.prepared_by || "Foundation Stone Advisors";
+    const providerName = intake.prepared_by || "Eric Jaffe";
+    const providerTitle = intake.provider_title || "";
 
     if (!clientEmail) {
       return NextResponse.json(
@@ -53,36 +57,77 @@ export async function POST(
       );
     }
 
-    // Allow optional override from request body
+    // Allow optional provider email override from request body
     const body = await request.json().catch(() => ({}));
     const providerEmail = body.provider_email;
 
-    // Build submitter list
+    const clientRole = "Client";
+    const providerRole = "Provider";
+
+    // Build submitter list — always include both client and provider
     const submitters = [
-      { name: clientName, email: clientEmail, role: "Client" },
+      { name: clientName, email: clientEmail, role: clientRole },
     ];
-    if (providerEmail) {
-      submitters.push({ name: providerName, email: providerEmail, role: "Provider" });
-    }
+    // Provider is always a signer. If no email passed in body, use the
+    // intake provider_email or fall back to a default.
+    const resolvedProviderEmail = providerEmail
+      || intake.provider_email
+      || "eric@foundationstoneadvisors.com";
+    submitters.push({ name: providerName, email: resolvedProviderEmail, role: providerRole });
 
     const dt = (doc as Record<string, unknown>).document_types as { name: string } | null;
     const docTypeName = dt?.name || "Document";
 
-    // Send to DocuSeal — creates submission directly from HTML
+    // Inject DocuSeal signature/date/name field tags into the HTML.
+    // Both client and provider always get a signature block.
+    const htmlWithFields = injectSignatureFields(
+      doc.compiled_html as string,
+      {
+        name: clientName,
+        title: clientTitle,
+        role: clientRole,
+        label: intake.client_name || "Client",
+      },
+      {
+        name: providerName,
+        title: providerTitle,
+        role: providerRole,
+        label: "Foundation Stone Advisors",
+      },
+    );
+
+    // Send to DocuSeal — creates submission from HTML with embedded field tags
     const result = await createSubmissionFromHtml({
-      html: doc.compiled_html as string,
       name: `${doc.title} — ${docTypeName}`,
+      documents: [{ name: `${doc.title} — ${docTypeName}`, html: htmlWithFields }],
       submitters,
       order: submitters.length > 1 ? "preserved" : undefined,
       send_email: true,
-      message: `Please review and sign this ${docTypeName}. If you have any questions, please contact ${providerName}.`,
+      message: `Please review and sign this ${docTypeName}. If you have any questions, please contact ${providerName}.\n\n{{submitter.link}}`,
     });
 
-    // DocuSeal returns an array of submitter objects; extract submission_id from the first
-    const submissionId = result[0]?.id;
+    // Normalize result to array (createSubmissionFromHtml already does this,
+    // but guard against unexpected shapes)
+    const resultSubmitters = Array.isArray(result) ? result : [result];
+
+    // POST /submissions/html returns submitter objects without submission_id.
+    // Fetch the first submitter to get the parent submission_id needed for
+    // GET /submissions/:id and DELETE /submissions/:id.
+    let submissionId: number | undefined;
+    const firstSubmitterId = resultSubmitters[0]?.id;
+    if (firstSubmitterId) {
+      try {
+        const submitterDetail = await getSubmitter(firstSubmitterId);
+        submissionId = submitterDetail.submission_id;
+      } catch {
+        // Fall back to submitter ID if lookup fails
+        console.warn("Could not fetch submitter details, using submitter ID as fallback");
+      }
+    }
+    if (!submissionId) submissionId = firstSubmitterId;
 
     // Update document with eSign tracking data
-    // We store the submission ID (first submitter ID) as the document hash for lookups
+    // esign_document_hash stores the submission ID for API lookups (GET/DELETE)
     const { error: updateErr } = await supabase
       .from("generated_documents")
       .update({
@@ -90,16 +135,18 @@ export async function POST(
         esign_document_hash: String(submissionId),
         esign_status: "waiting",
         esign_sent_at: new Date().toISOString(),
-        esign_signers: result.map((s) => ({
+        esign_signers: resultSubmitters.map((s) => ({
           id: s.id,
+          submission_id: s.submission_id,
           name: s.name,
           email: s.email,
           status: s.status || "pending",
           signed: false,
         })),
         esign_metadata: {
-          submitter_ids: result.map((s) => s.id),
-          embed_srcs: result.map((s) => ({ email: s.email, embed_src: s.embed_src })),
+          submission_id: submissionId,
+          submitter_ids: resultSubmitters.map((s) => s.id),
+          embed_srcs: resultSubmitters.map((s) => ({ email: s.email, embed_src: s.embed_src })),
         },
         status: "sent",
         sent_at: new Date().toISOString(),
@@ -117,14 +164,14 @@ export async function POST(
       details: {
         provider: "docuseal",
         submission_id: submissionId,
-        signers: result.map((s) => ({ name: s.name, email: s.email })),
+        signers: resultSubmitters.map((s) => ({ name: s.name, email: s.email })),
       },
     });
 
     return NextResponse.json({
       success: true,
       submission_id: submissionId,
-      signers: result.map((s) => ({ name: s.name, email: s.email, status: s.status })),
+      signers: resultSubmitters.map((s) => ({ name: s.name, email: s.email, status: s.status })),
     });
   } catch (err) {
     console.error("eSign error:", err);
@@ -158,12 +205,11 @@ export async function GET(
       return NextResponse.json({ esign_status: null, message: "Not sent for signature" });
     }
 
-    // Fetch live status from DocuSeal
+    // Fetch live status from DocuSeal using the submission ID
     const meta = doc.esign_metadata as Record<string, unknown> | null;
-    const submitterIds = (meta?.submitter_ids || []) as number[];
+    const submissionId = (meta?.submission_id as number) || Number(doc.esign_document_hash);
 
-    // Use the first submitter ID to get the full submission
-    if (submitterIds.length === 0) {
+    if (!submissionId || isNaN(submissionId)) {
       return NextResponse.json({
         esign_status: doc.esign_status,
         esign_sent_at: doc.esign_sent_at,
@@ -174,7 +220,7 @@ export async function GET(
     }
 
     try {
-      const submission = await getSubmission(submitterIds[0]);
+      const submission = await getSubmission(submissionId);
 
       // Map DocuSeal statuses to our normalized statuses
       const signerUpdates = submission.submitters.map((s) => ({
@@ -260,11 +306,11 @@ export async function DELETE(
       return NextResponse.json({ error: "Cannot cancel a signed document" }, { status: 400 });
     }
 
-    // Archive in DocuSeal using first submitter ID
+    // Archive in DocuSeal using the submission ID
     const meta = doc.esign_metadata as Record<string, unknown> | null;
-    const submitterIds = (meta?.submitter_ids || []) as number[];
-    if (submitterIds.length > 0) {
-      await archiveSubmission(submitterIds[0]);
+    const submissionId = (meta?.submission_id as number) || Number(doc.esign_document_hash);
+    if (submissionId && !isNaN(submissionId)) {
+      await archiveSubmission(submissionId);
     }
 
     // Update local status

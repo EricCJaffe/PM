@@ -50,3 +50,62 @@ Env vars changed: [yes — list / no]
 ---
 
 <!-- Entries below — newest first -->
+
+---
+## 2026-03-26 — claude
+
+### PLAIN-LANGUAGE SUMMARY
+What we worked on: Wired up the DocuSeal e-signature integration so documents (SOW, NDA, MSA) can be sent for digital signature, and created two new document templates.
+What got done:
+- DocuSeal eSign integration is functional — documents get sent, emails go out with signing links, signature fields appear in the right places
+- Built NDA template from scratch with all 14 editable clauses
+- Rebuilt MSA template with FSA branding (was plain text, now matches SOW/NDA)
+- Upgraded the document section editor from raw HTML textarea to a rich text editor (Tiptap)
+- Cleaned up all "Xodo Sign" references to DocuSeal
+- Documented the reusable template pattern so future templates automatically work with eSign
+What is still in progress:
+- Cancel eSign button returns 404 — needs debugging with live DocuSeal data to confirm the submission_id resolution works
+- After canceling, need the document to go back to "draft" so it can be edited and re-sent
+- When a document is fully signed, need to download the signed PDF from DocuSeal and store it
+Decisions the team should know:
+- DocuSeal field tags are injected at eSign-send time, not stored in templates — keeps templates clean
+- Provider (FSA) signature block always appears, no longer optional
+- Default provider email falls back to eric@foundationstoneadvisors.com
+Blockers needing non-dev input:
+- Run `seed-docgen-nda.sql` and `seed-docgen-msa.sql` in Supabase SQL Editor to activate new templates
+
+### TECHNICAL HANDOFF
+Session goal: Wire up DocuSeal eSign integration and add NDA/MSA templates
+Completed:
+- `src/lib/esign.ts` — Rewrote API client for `documents` array format, added `injectSignatureFields()`, `getSubmitter()`, `SignerInfo` type, `buildSignerColumn()` helper
+- `src/app/api/pm/docgen/[id]/esign/route.ts` — Fixed response parsing, submission_id resolution, always-include-both-signers, names/titles from intake data
+- `src/app/api/pm/webhooks/esign/route.ts` — Added submission_id lookup in webhook matching
+- `src/app/documents/[id]/page.tsx` — Fixed "Xodo Sign" → "DocuSeal" in UI
+- `src/components/documents/SectionEditor.tsx` — Replaced textarea with Tiptap RichTextEditor
+- `src/app/api/pm/docgen/route.ts` — Added `default_content` support for pre-populated sections
+- `supabase/seeds/seed-docgen-nda.sql` — New NDA template (14 clauses, 13 intake fields)
+- `supabase/seeds/seed-docgen-msa.sql` — Rebuilt MSA template (9 clauses, 11 intake fields)
+- `supabase/migrations/019_esign_integration.sql` — Updated comments from Xodo to DocuSeal
+- `scripts/test-docuseal.ts` — Updated to documents array format
+- `docs/INTEGRATIONS.md` — Added field tag reference and updated flow docs
+- `docs/PROMPT_LIBRARY.md` — Added reusable template pattern and DocuSeal injection docs
+- `docs/TASKS.md` — Updated with all completed and remaining work
+Files changed:
+- `src/lib/esign.ts` — Core DocuSeal client rewrite + signature field injection
+- `src/app/api/pm/docgen/[id]/esign/route.ts` — eSign route fixes (response parsing, both signers, names/titles)
+- `src/app/api/pm/webhooks/esign/route.ts` — Webhook submission_id matching
+- `src/app/documents/[id]/page.tsx` — UI text fix (Xodo → DocuSeal)
+- `src/components/documents/SectionEditor.tsx` — Rich text editor upgrade
+- `src/app/api/pm/docgen/route.ts` — default_content support
+- `supabase/seeds/seed-docgen-nda.sql` — New file
+- `supabase/seeds/seed-docgen-msa.sql` — New file
+Decisions: DocuSeal field tags injected at send time (not in templates) — keeps templates reusable for print/PDF too
+In progress: Cancel 404 bug — getSubmitter() may not be returning submission_id correctly
+Blockers: Need live DocuSeal debugging to trace the exact ID chain
+Next session startup:
+1. Run `seed-docgen-nda.sql` and `seed-docgen-msa.sql` in Supabase SQL Editor
+2. Debug the cancel 404 — add console.log in the eSign route to see what getSubmitter returns
+3. Fix cancel button visibility (stays visible while status is "waiting")
+4. Add signed document retrieval (download PDF from DocuSeal after submission.completed)
+Branch: `claude/review-project-docs-TbBoa` | PR: not yet created
+Migrations run: no new migrations | Env vars changed: no
