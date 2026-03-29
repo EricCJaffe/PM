@@ -2,39 +2,29 @@
 import { useState, useMemo } from "react";
 import type { Organization, ProjectWithStats, ProcessMap, Opportunity, KPI, PMDocument, PhaseWithTasks } from "@/types/pm";
 import { OverviewTab } from "./OverviewTab";
-// InfoTab consolidated into OverviewTab
+import { ProjectsTab } from "./ProjectsTab";
 import { ProposalsTab } from "./ProposalsTab";
 import { NotesTab } from "./NotesTab";
 import { ProcessMapsTab } from "./ProcessMapsTab";
 import { OpportunitiesTab } from "./OpportunitiesTab";
-import { ImplementationTab } from "./ImplementationTab";
-import { KPIsTab } from "./KPIsTab";
 import { DocsTab } from "./DocsTab";
 import { UsersTab } from "./UsersTab";
 import { KBTab } from "./KBTab";
-import { ClientTasksTab } from "./ClientTasksTab";
 import { WorkflowsTab } from "./WorkflowsTab";
-import { DepartmentsTab } from "./DepartmentsTab";
-import { VocabTab } from "./VocabTab";
 import { GapAnalysisTab } from "./GapAnalysisTab";
 import { PortalSettingsTab } from "./PortalSettingsTab";
 import { OrgBrandingTab } from "./OrgBrandingTab";
-// OnboardingTab and SiteAuditTab consolidated under WorkflowsTab
 
 const tabs = [
   { id: "overview", label: "Overview" },
-  { id: "tasks", label: "Tasks" },
+  { id: "projects", label: "Projects" },
   { id: "proposals", label: "Proposals" },
   { id: "notes", label: "Notes" },
   { id: "users", label: "Users" },
   { id: "process-maps", label: "Process Maps" },
   { id: "opportunities", label: "Opportunities" },
-  { id: "implementation", label: "Implementation Plan" },
-  { id: "kpis", label: "KPIs" },
   { id: "docs", label: "Docs & SOPs" },
   { id: "kb", label: "Knowledge Base" },
-  { id: "departments", label: "Departments" },
-  { id: "vocab", label: "Vocabulary" },
   { id: "gap-analysis", label: "Gap Analysis" },
   { id: "branding", label: "Branding" },
   { id: "portal", label: "Client Portal" },
@@ -42,7 +32,7 @@ const tabs = [
 ];
 
 function matchesProject<T extends { project_id?: string | null }>(item: T, projectId: string | null): boolean {
-  if (!projectId) return true; // "All Projects"
+  if (!projectId) return true;
   return item.project_id === projectId || item.project_id === null;
 }
 
@@ -112,7 +102,7 @@ export function DashboardTabs({
         {projects.length > 1 && (
           <select
             value={selectedProjectId || ""}
-            onChange={(e) => setSelectedProjectId(e.target.value || null)}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedProjectId(e.target.value || null)}
             className="bg-pm-bg border border-pm-border rounded-lg px-3 py-1.5 text-sm text-pm-text shrink-0"
           >
             <option value="">All Projects</option>
@@ -123,25 +113,16 @@ export function DashboardTabs({
         )}
       </div>
 
-
-      {active === "tasks" && <ClientTasksTab org={org} />}
+      {active === "overview" && <OverviewTab org={org} projects={projects} kpis={filteredKpis} />}
+      {active === "projects" && <ProjectsTab org={org} projects={projects} allPhases={filteredPhases} />}
       {active === "proposals" && <ProposalsTab org={org} />}
       {active === "notes" && <NotesTab org={org} />}
       {active === "users" && <UsersTab org={org} />}
-      {active === "overview" && (
-        <OverviewTab org={org} projects={projects} />
-      )}
       {active === "process-maps" && <ProcessMapsTab org={org} processMaps={filteredProcessMaps} projects={projects} selectedProjectId={selectedProjectId} />}
       {active === "opportunities" && <OpportunitiesTab org={org} opportunities={filteredOpportunities} projects={projects} selectedProjectId={selectedProjectId} />}
-      {active === "implementation" && <ImplementationTab allPhases={filteredPhases} />}
-      {active === "kpis" && <KPIsTab org={org} kpis={filteredKpis} projects={projects} selectedProjectId={selectedProjectId} />}
-
       {active === "docs" && <DocsTab org={org} documents={filteredDocs} projects={projects} selectedProjectId={selectedProjectId} />}
       {active === "kb" && <KBTab org={org} scope="org" />}
-      {active === "departments" && <DepartmentsTab org={org} />}
-      {active === "vocab" && <VocabTab org={org} />}
       {active === "gap-analysis" && <GapAnalysisTab org={org} />}
-
       {active === "branding" && <OrgBrandingTab org={org} />}
       {active === "portal" && <PortalSettingsTab org={org} />}
       {active === "workflows" && <WorkflowsTab org={org} />}

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, lazy, Suspense } from "react";
-import type { Organization, ProjectWithStats, PipelineStatus } from "@/types/pm";
+import { useState, useEffect, lazy, Suspense } from "react";
+import type { Organization, ProjectWithStats, PipelineStatus, KPI } from "@/types/pm";
 import { StandupWidget } from "../StandupWidget";
 
 const RichTextEditor = lazy(() => import("@/components/RichTextEditor"));
@@ -19,9 +19,11 @@ const PIPELINE_STAGES: { value: PipelineStatus; label: string; color: string }[]
 export function OverviewTab({
   org,
   projects,
+  kpis,
 }: {
   org: Organization;
   projects: ProjectWithStats[];
+  kpis?: KPI[];
 }) {
   const [saving, setSaving] = useState(false);
   const [pipelineStatus, setPipelineStatus] = useState<PipelineStatus>(org.pipeline_status || "lead");
@@ -319,6 +321,104 @@ export function OverviewTab({
           </div>
         </div>
       </div>
+      {/* KPIs */}
+      {kpis && kpis.length > 0 && (
+        <div className="card">
+          <h3 className="font-semibold text-pm-text mb-4">Key Performance Indicators</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {kpis.map((kpi: KPI) => (
+              <div key={kpi.id} className="bg-pm-bg border border-pm-border rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-pm-text">{kpi.name}</span>
+                  <span className={`text-xs px-1.5 py-0.5 rounded ${
+                    kpi.trend === "up" ? "bg-emerald-500/20 text-emerald-400" :
+                    kpi.trend === "down" ? "bg-red-500/20 text-red-400" :
+                    "bg-gray-500/20 text-gray-400"
+                  }`}>
+                    {kpi.trend === "up" ? "↑" : kpi.trend === "down" ? "↓" : "→"} {kpi.trend}
+                  </span>
+                </div>
+                <div className="text-2xl font-bold text-pm-text">
+                  {kpi.current_value}{kpi.unit ? ` ${kpi.unit}` : ""}
+                </div>
+                {kpi.target_value != null && (
+                  <div className="mt-2">
+                    <div className="flex justify-between text-xs text-pm-muted mb-1">
+                      <span>Target: {kpi.target_value}{kpi.unit ? ` ${kpi.unit}` : ""}</span>
+                      <span>{Math.min(100, Math.round((kpi.current_value / kpi.target_value) * 100))}%</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-pm-border rounded-full">
+                      <div className="h-full bg-pm-accent rounded-full" style={{ width: `${Math.min(100, Math.round((kpi.current_value / kpi.target_value) * 100))}%` }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Departments & Vocabulary */}
+      <DepartmentsSection orgId={org.id} />
+    </div>
+  );
+}
+
+function DepartmentsSection({ orgId }: { orgId: string }) {
+  const [departments, setDepartments] = useState<Array<{ id: string; name: string; description: string | null; head_name: string | null; member_count: number | null; is_active: boolean }>>([]);
+  const [vocab, setVocab] = useState<Array<{ base_term: string; display_label: string }>>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetch(`/api/pm/departments?org_id=${orgId}`).then((r) => r.json()),
+      fetch(`/api/pm/departments/vocab?org_id=${orgId}`).then((r) => r.json()),
+    ]).then(([deptData, vocabData]) => {
+      if (Array.isArray(deptData)) setDepartments(deptData);
+      if (Array.isArray(vocabData)) setVocab(vocabData);
+    }).finally(() => setLoading(false));
+  }, [orgId]);
+
+  if (loading) return null;
+  if (departments.length === 0 && vocab.length === 0) return null;
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {departments.length > 0 && (
+        <div className="card">
+          <h3 className="font-semibold text-pm-text mb-4">Departments</h3>
+          <div className="space-y-2">
+            {departments.filter((d) => d.is_active).map((dept) => (
+              <div key={dept.id} className="flex items-center justify-between py-2 border-b border-pm-border/50 last:border-0">
+                <div>
+                  <span className="text-sm font-medium text-pm-text">{dept.name}</span>
+                  {dept.head_name && <span className="text-xs text-pm-muted ml-2">— {dept.head_name}</span>}
+                </div>
+                {dept.member_count != null && dept.member_count > 0 && (
+                  <span className="text-xs text-pm-muted">{dept.member_count} members</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {vocab.length > 0 && (
+        <div className="card">
+          <h3 className="font-semibold text-pm-text mb-4">Custom Vocabulary</h3>
+          <div className="space-y-2">
+            {vocab.filter((v) => v.base_term !== v.display_label).map((v) => (
+              <div key={v.base_term} className="flex items-center justify-between py-2 border-b border-pm-border/50 last:border-0">
+                <span className="text-xs text-pm-muted">{v.base_term}</span>
+                <span className="text-sm text-pm-text">→ {v.display_label}</span>
+              </div>
+            ))}
+            {vocab.every((v) => v.base_term === v.display_label) && (
+              <p className="text-sm text-pm-muted">Using default vocabulary.</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
