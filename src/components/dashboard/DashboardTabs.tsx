@@ -9,12 +9,9 @@ import { KPIsTab } from "./KPIsTab";
 import { DocsTab } from "./DocsTab";
 import { UsersTab } from "./UsersTab";
 import { ClientProjectsTab } from "./ClientProjectsTab";
-import { ToolsTab } from "./ToolsTab";
 import { DepartmentsTab } from "./DepartmentsTab";
-import { VocabTab } from "./VocabTab";
 import { PortalSettingsTab } from "./PortalSettingsTab";
 import { OrgBrandingTab } from "./OrgBrandingTab";
-import { OnboardingTab } from "./OnboardingTab";
 import { SiteAuditTab } from "@/components/SiteAuditTab";
 
 const tabs = [
@@ -28,11 +25,8 @@ const tabs = [
   { id: "site-audit", label: "Site Audit" },
   { id: "docs", label: "Docs & SOPs" },
   { id: "departments", label: "Departments" },
-  { id: "vocab", label: "Vocabulary" },
-  { id: "onboarding", label: "Onboarding" },
   { id: "branding", label: "Branding" },
   { id: "portal", label: "Client Portal" },
-  { id: "tools", label: "Tools" },
 ];
 
 function matchesProject<T extends { project_id?: string | null }>(item: T, projectId: string | null): boolean {
@@ -142,11 +136,8 @@ export function DashboardTabs({
       {active === "site-audit" && <SiteAuditTab orgId={org.id} />}
       {active === "docs" && <DocsTab org={org} documents={filteredDocs} projects={projects} selectedProjectId={selectedProjectId} />}
       {active === "departments" && <DepartmentsTab org={org} />}
-      {active === "vocab" && <VocabTab org={org} />}
-      {active === "onboarding" && <OnboardingTab org={org} />}
       {active === "branding" && <OrgBrandingTab org={org} />}
       {active === "portal" && <PortalSettingsTab org={org} />}
-      {active === "tools" && <ToolsTab org={org} />}
     </>
   );
 }

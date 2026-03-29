@@ -5,8 +5,11 @@ import type { Organization, ProjectWithStats, ProcessMap, ProcessMapStep, PhaseW
 import { ProgressBar } from "../ProgressBar";
 import { StatusBadge } from "../StatusBadge";
 import { ProcessMapsTab } from "./ProcessMapsTab";
+import { ToolsTab } from "./ToolsTab";
+import { OnboardingTab } from "./OnboardingTab";
+import { VocabTab } from "./VocabTab";
 
-type SubTab = "implementation" | "process-maps";
+type SubTab = "implementation" | "process-maps" | "site-audit" | "onboarding" | "vocab";
 
 export function WorkflowsTab({
   org,
@@ -26,6 +29,9 @@ export function WorkflowsTab({
   const subTabs: { id: SubTab; label: string }[] = [
     { id: "implementation", label: "Implementation Plan" },
     { id: "process-maps", label: "Process Maps" },
+    { id: "vocab", label: "Vocabulary" },
+    { id: "site-audit", label: "Site Audit" },
+    { id: "onboarding", label: "Onboarding" },
   ];
 
   return (
@@ -56,6 +62,9 @@ export function WorkflowsTab({
           selectedProjectId={selectedProjectId}
         />
       )}
+      {subTab === "vocab" && <VocabTab org={org} />}
+      {subTab === "site-audit" && <ToolsTab org={org} />}
+      {subTab === "onboarding" && <OnboardingTab org={org} />}
     </div>
   );
 }
