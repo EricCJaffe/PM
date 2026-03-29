@@ -31,6 +31,16 @@
 - [x] End-to-end test: full auth flow (login → admin console → add user → external user scoping)
 - [x] Onboarding notes: new users are added via admin console, which creates auth user + links to pm_members with org access. Each user gets a role per org: admin, user, or external (read-only)
 
+## UI Cleanup — Client Dashboard Tabs
+- [x] Consolidate client dashboard tabs from 20 to 16
+  - Merged **Process Maps** into a new **Workflows** tab (sub-tabs: Implementation Plan + Process Maps)
+  - Removed **Opportunities** tab (redundant with Proposals)
+  - Removed **Knowledge Base** tab from client menu (site-level function, not per-client)
+  - Removed **Gap Analysis** tab (part of the process/workflow flow)
+  - Moved **Workflows** tab to position after Tasks (left side, near projects)
+  - Added **portal link** to Client Portal tab — shows URL, "Open Portal" button, and "Copy Link" for sharing
+- New tab order: Overview, Info, Tasks, Workflows, Proposals, Notes, Users, KPIs, Site Audit, Docs & SOPs, Departments, Vocabulary, Onboarding, Branding, Client Portal, Tools
+
 ## Bug Fixes
 - [x] Fix duplicate slug constraint error on project creation — `pm_projects` has `UNIQUE(org_id, slug)` but neither seed nor intake routes checked for existing slugs
   - Added `resolveUniqueProjectSlug()` helper in `src/lib/queries.ts` — queries existing slugs with same prefix and appends `-2`, `-3`, etc. if taken
