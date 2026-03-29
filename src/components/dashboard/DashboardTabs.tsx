@@ -8,7 +8,7 @@ import { WorkflowsTab } from "./WorkflowsTab";
 import { KPIsTab } from "./KPIsTab";
 import { DocsTab } from "./DocsTab";
 import { UsersTab } from "./UsersTab";
-import { ClientTasksTab } from "./ClientTasksTab";
+import { ClientProjectsTab } from "./ClientProjectsTab";
 import { ToolsTab } from "./ToolsTab";
 import { DepartmentsTab } from "./DepartmentsTab";
 import { VocabTab } from "./VocabTab";
@@ -19,7 +19,7 @@ import { SiteAuditTab } from "@/components/SiteAuditTab";
 
 const tabs = [
   { id: "details", label: "Details" },
-  { id: "tasks", label: "Tasks" },
+  { id: "projects", label: "Projects" },
   { id: "workflows", label: "Workflows" },
   { id: "proposals", label: "Proposals" },
   { id: "notes", label: "Notes" },
@@ -123,10 +123,9 @@ export function DashboardTabs({
           projects={projects}
           processMaps={filteredProcessMaps}
           opportunities={filteredOpportunities}
-          allPhases={filteredPhases}
         />
       )}
-      {active === "tasks" && <ClientTasksTab org={org} />}
+      {active === "projects" && <ClientProjectsTab org={org} projects={projects} allPhases={filteredPhases} />}
       {active === "proposals" && <ProposalsTab org={org} />}
       {active === "notes" && <NotesTab org={org} />}
       {active === "users" && <UsersTab org={org} />}

@@ -2,8 +2,7 @@
 import { useState, lazy, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import type { Organization, ProjectWithStats, ProcessMap, Opportunity, PhaseWithTasks, PipelineStatus } from "@/types/pm";
-import { ProgressBar } from "../ProgressBar";
+import type { Organization, ProjectWithStats, ProcessMap, Opportunity, PipelineStatus } from "@/types/pm";
 import { StandupWidget } from "../StandupWidget";
 
 const RichTextEditor = lazy(() => import("@/components/RichTextEditor"));
@@ -23,13 +22,11 @@ export function OverviewTab({
   projects,
   processMaps,
   opportunities,
-  allPhases,
 }: {
   org: Organization;
   projects: ProjectWithStats[];
   processMaps: ProcessMap[];
   opportunities: Opportunity[];
-  allPhases: { project: ProjectWithStats; phases: PhaseWithTasks[] }[];
 }) {
   const router = useRouter();
 
@@ -331,87 +328,6 @@ export function OverviewTab({
         </div>
       </div>
 
-      {/* Project Cards */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-pm-text">Projects</h3>
-          <Link
-            href={`/projects/new?org=${org.id}`}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            + New Project
-          </Link>
-        </div>
-        {allPhases.length === 0 ? (
-          <div className="card text-center py-8">
-            <p className="text-pm-muted mb-3">No projects yet.</p>
-            <Link
-              href={`/projects/new?org=${org.id}`}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors inline-block"
-            >
-              + New Project
-            </Link>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {allPhases.map(({ project, phases }) => {
-              const pTotalTasks = phases.reduce((sum, p) => sum + p.tasks.length, 0);
-              const pCompleteTasks = phases.reduce((sum, p) => sum + p.tasks.filter((t) => t.status === "complete").length, 0);
-              const blockedTasks = phases.reduce((sum, p) => sum + p.tasks.filter((t) => t.status === "blocked").length, 0);
-              const progress = pTotalTasks > 0 ? Math.round((pCompleteTasks / pTotalTasks) * 100) : 0;
-              const statusLabel = progress === 100 ? "Complete" : progress > 0 ? "In Progress" : "Not Started";
-              return (
-                <Link
-                  key={project.id}
-                  href={`/projects/${project.slug}`}
-                  className="card hover:border-pm-accent/50 transition-colors cursor-pointer block"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h4 className="font-medium text-pm-text">{project.name}</h4>
-                      {project.description && (
-                        <p className="text-xs text-pm-muted mt-1 line-clamp-2">{project.description}</p>
-                      )}
-                    </div>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ml-2 ${
-                      statusLabel === "Complete" ? "bg-pm-complete/20 text-pm-complete"
-                        : statusLabel === "In Progress" ? "bg-pm-in-progress/20 text-pm-in-progress"
-                          : "bg-pm-not-started/20 text-pm-muted"
-                    }`}>
-                      {statusLabel}
-                    </span>
-                  </div>
-                  <div className="mb-3">
-                    <ProgressBar value={progress} />
-                  </div>
-                  <div className="grid grid-cols-4 gap-2 text-center">
-                    <div>
-                      <div className="text-sm font-semibold text-pm-text">{phases.length}</div>
-                      <div className="text-xs text-pm-muted">Phases</div>
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold text-pm-text">{pTotalTasks}</div>
-                      <div className="text-xs text-pm-muted">Tasks</div>
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold text-pm-complete">{pCompleteTasks}</div>
-                      <div className="text-xs text-pm-muted">Done</div>
-                    </div>
-                    <div>
-                      <div className={`text-sm font-semibold ${blockedTasks > 0 ? "text-pm-blocked" : "text-pm-text"}`}>{blockedTasks}</div>
-                      <div className="text-xs text-pm-muted">Blocked</div>
-                    </div>
-                  </div>
-                  <div className="mt-3 pt-3 border-t border-pm-border/50 flex items-center justify-between">
-                    <span className="text-xs text-pm-muted">{project.owner || "Unassigned"}</span>
-                    <span className="text-xs text-pm-accent font-medium">{progress}% complete &rarr;</span>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
