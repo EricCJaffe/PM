@@ -78,7 +78,7 @@ export async function POST(
     let updatedCount = 0;
 
     // Generate content per page in batch
-    const pageList = tasks.map((t) => {
+    const pageList = tasks.map((t: { id: string; name: string; description: string | null }) => {
       const pageName = t.name.replace("Content for: ", "");
       const pageInfo = pages.find((p) => p.title === pageName);
       return {
