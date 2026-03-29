@@ -6,6 +6,7 @@ import type {
   Organization, SiteAudit, AuditVertical, AuditGrade,
   AuditScores, AuditDimensionScore, AuditOverall,
 } from "@/types/pm";
+import { WebPassTab } from "@/components/web-passes/WebPassTab";
 
 const RichTextEditor = lazy(() => import("@/components/RichTextEditor"));
 
@@ -94,12 +95,14 @@ function AuditResults({
   onBack,
   onGenerateDoc,
   onGeneratePDF,
+  onStartWebPass,
 }: {
   audit: SiteAudit;
   orgId: string;
   onBack: () => void;
   onGenerateDoc: () => void;
   onGeneratePDF: () => void;
+  onStartWebPass: () => void;
 }) {
   const router = useRouter();
   const [generatingDoc, setGeneratingDoc] = useState(false);
@@ -219,7 +222,7 @@ function AuditResults({
         <p className="text-sm text-pm-muted mb-4">
           Use this audit to create a structured project with tasks generated from the findings.
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Remediation */}
           <button
             onClick={() => handleStartWorkflow("remediation")}
@@ -272,6 +275,30 @@ function AuditResults({
             {creatingWorkflow === "rebuild" && (
               <div className="mt-3 text-xs text-pm-accent animate-pulse">Creating project...</div>
             )}
+          </button>
+
+          {/* 5-Pass Guided Rebuild */}
+          <button
+            onClick={onStartWebPass}
+            disabled={creatingWorkflow !== null}
+            className="card text-left border-emerald-500/30 hover:border-emerald-500/60 transition-all cursor-pointer group"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-9 h-9 rounded-lg bg-emerald-600/20 flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" />
+                </svg>
+              </div>
+              <div className="flex items-center gap-2">
+                <h4 className="font-semibold text-pm-text">Guided Rebuild</h4>
+                <span className="px-2 py-0.5 bg-emerald-600/20 text-emerald-400 text-[10px] font-bold rounded uppercase tracking-wider">
+                  5-Pass
+                </span>
+              </div>
+            </div>
+            <p className="text-sm text-pm-muted leading-relaxed">
+              Structured discovery → design → content → polish → go-live workflow with client review at each pass.
+            </p>
           </button>
         </div>
       </div>
@@ -563,6 +590,7 @@ export function ToolsTab({
   const [audits, setAudits] = useState<SiteAudit[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeAudit, setActiveAudit] = useState<SiteAudit | null>(null);
+  const [webPassAudit, setWebPassAudit] = useState<SiteAudit | null>(null);
 
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -655,6 +683,10 @@ export function ToolsTab({
 
   if (loading) return <div className="text-pm-muted py-8">Loading tools...</div>;
 
+  if (webPassAudit) {
+    return <WebPassTab org={org} audit={webPassAudit} onBack={() => setWebPassAudit(null)} />;
+  }
+
   if (activeAudit) {
     return (
       <AuditResults
@@ -663,6 +695,7 @@ export function ToolsTab({
         onBack={() => setActiveAudit(null)}
         onGenerateDoc={() => handleGenerateDoc(activeAudit)}
         onGeneratePDF={() => handleGeneratePDF(activeAudit)}
+        onStartWebPass={() => setWebPassAudit(activeAudit)}
       />
     );
   }
