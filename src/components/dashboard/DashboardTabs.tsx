@@ -19,8 +19,7 @@ import { VocabTab } from "./VocabTab";
 import { GapAnalysisTab } from "./GapAnalysisTab";
 import { PortalSettingsTab } from "./PortalSettingsTab";
 import { OrgBrandingTab } from "./OrgBrandingTab";
-import { OnboardingTab } from "./OnboardingTab";
-import { SiteAuditTab } from "@/components/SiteAuditTab";
+// OnboardingTab and SiteAuditTab consolidated under WorkflowsTab
 
 const tabs = [
   { id: "overview", label: "Overview" },
@@ -33,13 +32,11 @@ const tabs = [
   { id: "opportunities", label: "Opportunities" },
   { id: "implementation", label: "Implementation Plan" },
   { id: "kpis", label: "KPIs" },
-  { id: "site-audit", label: "Site Audit" },
   { id: "docs", label: "Docs & SOPs" },
   { id: "kb", label: "Knowledge Base" },
   { id: "departments", label: "Departments" },
   { id: "vocab", label: "Vocabulary" },
   { id: "gap-analysis", label: "Gap Analysis" },
-  { id: "onboarding", label: "Onboarding" },
   { id: "branding", label: "Branding" },
   { id: "portal", label: "Client Portal" },
   { id: "workflows", label: "Workflows" },
@@ -145,13 +142,13 @@ export function DashboardTabs({
       {active === "opportunities" && <OpportunitiesTab org={org} opportunities={filteredOpportunities} projects={projects} selectedProjectId={selectedProjectId} />}
       {active === "implementation" && <ImplementationTab allPhases={filteredPhases} />}
       {active === "kpis" && <KPIsTab org={org} kpis={filteredKpis} projects={projects} selectedProjectId={selectedProjectId} />}
-      {active === "site-audit" && <SiteAuditTab orgId={org.id} />}
+
       {active === "docs" && <DocsTab org={org} documents={filteredDocs} projects={projects} selectedProjectId={selectedProjectId} />}
       {active === "kb" && <KBTab org={org} scope="org" />}
       {active === "departments" && <DepartmentsTab org={org} />}
       {active === "vocab" && <VocabTab org={org} />}
       {active === "gap-analysis" && <GapAnalysisTab org={org} />}
-      {active === "onboarding" && <OnboardingTab org={org} />}
+
       {active === "branding" && <OrgBrandingTab org={org} />}
       {active === "portal" && <PortalSettingsTab org={org} />}
       {active === "workflows" && <WorkflowsTab org={org} />}
