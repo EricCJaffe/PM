@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
         slug: projectSlug,
         org_id: orgId,
         project_type: workflow_type,
-        status: "in-progress",
+        status: "active",
       })
       .select()
       .single();
