@@ -13,7 +13,7 @@ import { DocsTab } from "./DocsTab";
 import { UsersTab } from "./UsersTab";
 import { KBTab } from "./KBTab";
 import { ClientTasksTab } from "./ClientTasksTab";
-import { ToolsTab } from "./ToolsTab";
+import { WorkflowsTab } from "./WorkflowsTab";
 import { DepartmentsTab } from "./DepartmentsTab";
 import { VocabTab } from "./VocabTab";
 import { GapAnalysisTab } from "./GapAnalysisTab";
@@ -42,7 +42,7 @@ const tabs = [
   { id: "onboarding", label: "Onboarding" },
   { id: "branding", label: "Branding" },
   { id: "portal", label: "Client Portal" },
-  { id: "tools", label: "Tools" },
+  { id: "workflows", label: "Workflows" },
 ];
 
 function matchesProject<T extends { project_id?: string | null }>(item: T, projectId: string | null): boolean {
@@ -154,7 +154,7 @@ export function DashboardTabs({
       {active === "onboarding" && <OnboardingTab org={org} />}
       {active === "branding" && <OrgBrandingTab org={org} />}
       {active === "portal" && <PortalSettingsTab org={org} />}
-      {active === "tools" && <ToolsTab org={org} />}
+      {active === "workflows" && <WorkflowsTab org={org} />}
     </>
   );
 }
