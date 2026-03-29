@@ -133,17 +133,20 @@ export function PortalDashboard({
               <p className="text-sm text-pm-muted">No open tasks.</p>
             ) : (
               <div className="space-y-3">
-                {tasks.slice(0, 5).map((t) => (
-                  <div key={t.id as string} className="flex items-center justify-between">
+                {tasks.slice(0, 5).map((t) => {
+                  const task = t as { id: string; name: string; status: string; due_date: string | null };
+                  return (
+                  <div key={task.id} className="flex items-center justify-between">
                     <div className="min-w-0 flex-1 mr-2">
-                      <p className="text-sm text-pm-text truncate">{t.name as string}</p>
-                      {t.due_date && (
-                        <p className="text-xs text-pm-muted">Due: {t.due_date as string}</p>
+                      <p className="text-sm text-pm-text truncate">{task.name}</p>
+                      {task.due_date && (
+                        <p className="text-xs text-pm-muted">Due: {task.due_date}</p>
                       )}
                     </div>
-                    <StatusBadge status={t.status as string} />
+                    <StatusBadge status={task.status} />
                   </div>
-                ))}
+                  );
+                })}
                 {tasks.length > 5 && (
                   <p className="text-xs text-pm-muted">+{tasks.length - 5} more</p>
                 )}
