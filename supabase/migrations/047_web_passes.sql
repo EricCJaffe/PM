@@ -47,10 +47,18 @@ CREATE TABLE pm_web_pass_comments (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- updated_at trigger
+-- updated_at trigger function (inline — no shared function dependency)
+CREATE OR REPLACE FUNCTION pm_web_passes_set_updated_at()
+  RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$;
+
 CREATE TRIGGER pm_web_passes_updated_at
   BEFORE UPDATE ON pm_web_passes
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION pm_web_passes_set_updated_at();
 
 -- Indexes
 CREATE INDEX idx_web_passes_org      ON pm_web_passes(org_id);
