@@ -173,6 +173,11 @@ function AuditResults({
         </div>
       </div>
 
+      {/* ─── Start Workflow Panel (top of results) ─── */}
+      {audit.status === "complete" && audit.overall && (
+        <StartWorkflowPanel audit={audit} />
+      )}
+
       {/* Header with Overall Score */}
       <div className="card">
         <div className="flex items-center justify-between mb-4">
@@ -445,10 +450,6 @@ function AuditResults({
         </div>
       )}
 
-      {/* ─── Start Workflow Panel ─── */}
-      {audit.status === "complete" && audit.overall && (
-        <StartWorkflowPanel audit={audit} />
-      )}
     </div>
   );
 }
@@ -651,7 +652,9 @@ export function WorkflowsTab({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           org_id: org.id,
-          url: formUrl.startsWith("http") ? formUrl : `https://${formUrl}`,
+          url: formUrl.replace(/^https?:\/\//, "").length > 0
+            ? (formUrl.match(/^https?:\/\//) ? formUrl : `https://${formUrl}`)
+            : formUrl,
           vertical: formVertical,
           engagement_id: formEngagementId || null,
           extra_context: formExtraContext || null,
@@ -796,23 +799,19 @@ export function WorkflowsTab({
         </div>
       )}
 
-      {/* Tool Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Site Audit Tool */}
+      {/* Workflow Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Site Audit & Web Project */}
         <div className="card">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-600/20 flex items-center justify-center">
-              <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
-              </svg>
-            </div>
+            <div className="w-10 h-10 rounded-lg bg-blue-600/20 flex items-center justify-center text-blue-400 text-lg">&#9881;</div>
             <div>
-              <h4 className="font-semibold text-pm-text">Site Audit</h4>
-              <p className="text-xs text-pm-muted">Analyze a website against industry standards</p>
+              <h4 className="font-semibold text-pm-text">Site Audit & Web Project</h4>
+              <p className="text-xs text-pm-muted">Analyze, remediate, or rebuild a website</p>
             </div>
           </div>
           <p className="text-sm text-pm-muted mb-4">
-            Enter a URL to automatically analyze SEO, entity authority, AI discoverability, conversion optimization, content quality, and A2A readiness. Generates a scored gap analysis with recommendations.
+            Run a rubric-based audit, then start a remediation or full rebuild workflow with auto-generated tasks.
           </p>
           <button
             onClick={() => setShowForm(true)}
@@ -822,24 +821,49 @@ export function WorkflowsTab({
           </button>
         </div>
 
-        {/* Process Analyzer Placeholder */}
-        <div className="card opacity-60">
+        {/* Client Onboarding */}
+        <div className="card">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-lg bg-purple-600/20 flex items-center justify-center">
-              <svg className="w-5 h-5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
-              </svg>
-            </div>
+            <div className="w-10 h-10 rounded-lg bg-emerald-600/20 flex items-center justify-center text-emerald-400 text-lg">&#10003;</div>
             <div>
-              <h4 className="font-semibold text-pm-text">Process Analyzer</h4>
-              <p className="text-xs text-pm-muted">Analyze and reshape client processes</p>
+              <h4 className="font-semibold text-pm-text">Client Onboarding</h4>
+              <p className="text-xs text-pm-muted">Discovery, gap analysis, and project setup</p>
             </div>
           </div>
           <p className="text-sm text-pm-muted mb-4">
-            Evaluate current client processes against your methodology and generate a transformation roadmap. Coming soon.
+            Structured discovery process: kickoff, interviews, gap analysis, and onboarding checklist for new clients.
           </p>
-          <button disabled className="w-full px-4 py-2 bg-pm-surface text-pm-muted rounded-lg text-sm font-medium cursor-not-allowed">
-            Coming Soon
+          <button
+            onClick={() => {
+              const tab = document.querySelector('[data-tab-id="gap-analysis"]') as HTMLElement | null;
+              if (tab) tab.click();
+            }}
+            className="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            View Gap Analysis
+          </button>
+        </div>
+
+        {/* Proposals & Documents */}
+        <div className="card">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-lg bg-purple-600/20 flex items-center justify-center text-purple-400 text-lg">&#9998;</div>
+            <div>
+              <h4 className="font-semibold text-pm-text">Proposals & Documents</h4>
+              <p className="text-xs text-pm-muted">SOW, NDA, MSA with eSign</p>
+            </div>
+          </div>
+          <p className="text-sm text-pm-muted mb-4">
+            Generate, edit, and send documents for digital signature via DocuSeal. AI-assisted content drafting.
+          </p>
+          <button
+            onClick={() => {
+              const tab = document.querySelector('[data-tab-id="proposals"]') as HTMLElement | null;
+              if (tab) tab.click();
+            }}
+            className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            Open Proposals
           </button>
         </div>
       </div>
