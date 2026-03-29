@@ -114,16 +114,7 @@ export function DashboardTabs({
       {active === "projects" && <ClientProjectsTab org={org} projects={projects} allPhases={filteredPhases} />}
       {active === "proposals" && <ProposalsTab org={org} />}
       {active === "notes" && <NotesTab org={org} />}
-      {active === "workflows" && (
-        <WorkflowsTab
-          org={org}
-          allPhases={filteredPhases}
-          processMaps={filteredProcessMaps}
-          projects={projects}
-          selectedProjectId={selectedProjectId}
-          kpis={filteredKpis}
-        />
-      )}
+      {active === "workflows" && <WorkflowsTab org={org} />}
       {active === "docs" && <DocsTab org={org} documents={filteredDocs} projects={projects} selectedProjectId={selectedProjectId} />}
       {active === "branding" && <OrgBrandingTab org={org} />}
       {active === "portal" && <PortalSettingsTab org={org} />}

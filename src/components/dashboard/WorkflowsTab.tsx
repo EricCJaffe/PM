@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import type { Organization, ProjectWithStats, ProcessMap, PhaseWithTasks, KPI } from "@/types/pm";
+import type { Organization } from "@/types/pm";
 import { ToolsTab } from "./ToolsTab";
 import { OnboardingTab } from "./OnboardingTab";
 import { ProcessAnalyzerTab } from "./ProcessAnalyzerTab";
@@ -46,43 +46,28 @@ const WORKFLOW_CARDS: {
         </svg>
       </div>
     ),
-    buttonLabel: "View Gap Analysis",
+    buttonLabel: "Start Onboarding",
     buttonColor: "bg-emerald-600 hover:bg-emerald-700",
   },
   {
     id: "process-analyzer",
-    title: "Proposals & Documents",
-    subtitle: "SOW, NDA, MSA with eSign",
+    title: "Process Analyzer",
+    subtitle: "Scan documents and score against your standards",
     description:
-      "Generate, edit, and send documents for digital signature via DocuSeal. AI-assisted content drafting.",
+      "Upload client SOPs and business documents. AI ingests and scores them against your methodology, identifies automation opportunities, and generates a ranked action list.",
     icon: (
       <div className="w-10 h-10 rounded-lg bg-purple-600/20 flex items-center justify-center">
         <svg className="w-5 h-5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
         </svg>
       </div>
     ),
-    buttonLabel: "Open Proposals",
+    buttonLabel: "Analyze Processes",
     buttonColor: "bg-purple-600 hover:bg-purple-700",
   },
 ];
 
-export function WorkflowsTab({
-  org,
-  allPhases,
-  processMaps,
-  projects,
-  selectedProjectId,
-  kpis,
-}: {
-  org: Organization;
-  allPhases: { project: ProjectWithStats; phases: PhaseWithTasks[] }[];
-  processMaps: ProcessMap[];
-  projects: ProjectWithStats[];
-  selectedProjectId: string | null;
-  kpis: KPI[];
-}) {
+export function WorkflowsTab({ org }: { org: Organization }) {
   const [activeView, setActiveView] = useState<ActiveView>("cards");
 
   if (activeView === "site-audit") {
@@ -107,11 +92,6 @@ export function WorkflowsTab({
     return (
       <ProcessAnalyzerTab
         org={org}
-        allPhases={allPhases}
-        processMaps={processMaps}
-        projects={projects}
-        selectedProjectId={selectedProjectId}
-        kpis={kpis}
         onBack={() => setActiveView("cards")}
       />
     );

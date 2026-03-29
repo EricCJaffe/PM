@@ -1072,3 +1072,60 @@ export interface ChatMessage {
     affected_entities?: string[];
   };
 }
+
+// ─── Web Design Pass System ──────────────────────────────────────────
+
+export type WebPassType = "discovery" | "foundation" | "content" | "polish" | "go-live";
+export type WebPassStatus = "locked" | "active" | "in-review" | "approved" | "rejected";
+export type WebPassFeedbackType = "approve" | "comment" | "request-change";
+
+export interface WebPass {
+  id: string;
+  project_id: string;
+  org_id: string;
+  pass_number: number;
+  pass_type: WebPassType;
+  status: WebPassStatus;
+  form_data: Record<string, unknown>;
+  deliverable_html: string | null;
+  deliverable_html_b: string | null;
+  selected_option: "a" | "b" | null;
+  share_token: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  rejection_reason: string | null;
+  scoring_results: Record<string, unknown> | null;
+  site_audit_id: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WebPassComment {
+  id: string;
+  pass_id: string;
+  section_id: string;
+  section_label: string | null;
+  feedback_type: WebPassFeedbackType;
+  comment: string | null;
+  commenter_name: string | null;
+  commenter_email: string | null;
+  is_resolved: boolean;
+  resolved_by: string | null;
+  resolved_at: string | null;
+  ai_applied: boolean;
+  created_at: string;
+}
+
+export interface Pass1FormData {
+  vertical: string;
+  business_name: string;
+  tagline: string;
+  brand_colors: { primary: string; secondary: string; accent: string };
+  logo_url: string | null;
+  pages: string[];
+  service_times?: string;
+  target_audience: string;
+  tone: string;
+  reference_sites?: string[];
+}
