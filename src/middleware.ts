@@ -10,7 +10,9 @@ export async function middleware(request: NextRequest) {
     pathname === "/login" ||
     pathname.startsWith("/auth/") ||
     pathname.startsWith("/share/") ||
-    pathname.startsWith("/api/pm/share")
+    pathname.startsWith("/api/pm/share") ||
+    pathname === "/portal/auth" ||
+    pathname.startsWith("/api/pm/portal/invite-accept")
   ) {
     return NextResponse.next();
   }
@@ -60,11 +62,13 @@ export async function middleware(request: NextRequest) {
 
   // Admin route protection — check system_role
   if (pathname.startsWith("/admin")) {
-    // We can't easily query the DB in middleware (no service role available without env),
-    // so we use a lightweight approach: fetch the profile from the API.
-    // However, middleware should be fast. Instead, we'll check a custom claim or cookie.
-    // For now, the /admin page itself and its API routes enforce admin-only access.
+    // The /admin page itself and its API routes enforce admin-only access.
     // The middleware just ensures the user is authenticated.
+  }
+
+  // Portal routes — already authenticated above, let portal layout handle access
+  if (pathname.startsWith("/portal/")) {
+    return response;
   }
 
   return response;
