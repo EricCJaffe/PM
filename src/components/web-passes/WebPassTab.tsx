@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import type { Organization, WebPass, WebPassComment, SiteAudit, Pass1FormData } from "@/types/pm";
 import { PassStepper } from "./PassStepper";
 import { ContentForm } from "./ContentForm";
+import { ScoringGate } from "./ScoringGate";
 
 const PASS_TYPES = ["discovery", "foundation", "content", "polish", "go-live"] as const;
 const PASS_LABELS: Record<string, string> = {
@@ -504,8 +505,20 @@ export function WebPassTab({
                 )}
               </div>
 
-              {/* Comments panel */}
-              <div className="space-y-3">
+              {/* Scoring gate + Comments panel */}
+              <div className="space-y-4">
+                <ScoringGate
+                  pass={activePass}
+                  onScored={(updated) => {
+                    setActivePass(updated);
+                    setPasses((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+                  }}
+                  onApprove={async () => {
+                    await fetch(`/api/pm/web-passes/${activePass.id}/approve`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+                    const updated = await fetch(`/api/pm/web-passes?project_id=${passes[0]?.project_id}`).then(r => r.json());
+                    if (Array.isArray(updated)) setPasses(updated);
+                  }}
+                />
                 <h4 className="font-semibold text-pm-text">Section Feedback</h4>
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {comments.length === 0 ? (
