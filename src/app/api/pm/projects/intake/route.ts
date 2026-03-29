@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { getTemplate, isValidAssignee } from "@/lib/queries";
+import { getTemplate, isValidAssignee, resolveUniqueProjectSlug } from "@/lib/queries";
 import {
   generateProjectVaultFiles,
   generatePhaseVaultFiles,
@@ -85,6 +85,9 @@ export async function POST(request: NextRequest) {
     const template = await getTemplate(template_slug);
     const safeTemplateSlug = template ? template_slug : null;
 
+    // Deduplicate slug within org (appends -2, -3, etc. if taken)
+    const uniqueSlug = await resolveUniqueProjectSlug(org.id, slug);
+
     // Build feature flags from intake_data
     const featureFlags: Record<string, boolean> = {
       seo_enabled: !!intake_data.seo_enabled,
@@ -101,7 +104,7 @@ export async function POST(request: NextRequest) {
       .from("pm_projects")
       .insert({
         org_id: org.id,
-        slug,
+        slug: uniqueSlug,
         name,
         description: description || null,
         owner,
@@ -207,7 +210,7 @@ export async function POST(request: NextRequest) {
     // 3. Generate vault files
     try {
       const vaultFiles = [
-        ...generateProjectVaultFiles(org.slug, slug, {
+        ...generateProjectVaultFiles(org.slug, uniqueSlug, {
           name,
           description: description || "",
           owner,
@@ -220,7 +223,7 @@ export async function POST(request: NextRequest) {
         }),
         ...phases.flatMap(
           (p: { slug: string; name: string; order: number; group?: string }) =>
-            generatePhaseVaultFiles(org.slug, slug, p)
+            generatePhaseVaultFiles(org.slug, uniqueSlug, p)
         ),
       ];
       const { errors } = await writeAllVaultFiles(vaultFiles);

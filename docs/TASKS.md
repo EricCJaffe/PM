@@ -32,6 +32,11 @@
 - [x] Onboarding notes: new users are added via admin console, which creates auth user + links to pm_members with org access. Each user gets a role per org: admin, user, or external (read-only)
 
 ## Bug Fixes
+- [x] Fix duplicate slug constraint error on project creation — `pm_projects` has `UNIQUE(org_id, slug)` but neither seed nor intake routes checked for existing slugs
+  - Added `resolveUniqueProjectSlug()` helper in `src/lib/queries.ts` — queries existing slugs with same prefix and appends `-2`, `-3`, etc. if taken
+  - Updated `/api/pm/projects/seed` route to deduplicate slug before insert
+  - Updated `/api/pm/projects/intake` route to deduplicate slug before insert
+  - Vault file paths also use the deduplicated slug for consistency
 - [x] Fix standup generation 500 error — `pm_daily_logs.date` was renamed to `log_date` in live DB but code still used `date`, causing NOT NULL violation on insert
   - Updated all Supabase queries in standup/generate, standup list, reports/standup routes
   - Updated StandupWidget and AIReportsPanel components to use `log_date`

@@ -168,6 +168,33 @@ export async function getTemplate(slug: string): Promise<ProjectTemplate | null>
   return data as ProjectTemplate | null;
 }
 
+// ─── Slug Helpers ────────────────────────────────────────────────────
+
+/**
+ * Resolve a unique project slug within an org. If the slug already exists,
+ * appends `-2`, `-3`, etc. until a free slot is found.
+ */
+export async function resolveUniqueProjectSlug(orgId: string, baseSlug: string): Promise<string> {
+  const supabase = createServiceClient();
+
+  // Check if the base slug is available
+  const { data: existing } = await supabase
+    .from("pm_projects")
+    .select("slug")
+    .eq("org_id", orgId)
+    .like("slug", `${baseSlug}%`);
+
+  if (!existing || existing.length === 0) return baseSlug;
+
+  const taken = new Set(existing.map((r: { slug: string }) => r.slug));
+  if (!taken.has(baseSlug)) return baseSlug;
+
+  // Find the next available numeric suffix
+  let n = 2;
+  while (taken.has(`${baseSlug}-${n}`)) n++;
+  return `${baseSlug}-${n}`;
+}
+
 // ─── Projects ────────────────────────────────────────────────────────
 
 export async function getProjects(orgId?: string, includePersonal = false): Promise<ProjectWithStats[]> {
