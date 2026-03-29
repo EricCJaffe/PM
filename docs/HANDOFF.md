@@ -52,6 +52,60 @@ Env vars changed: [yes — list / no]
 <!-- Entries below — newest first -->
 
 ---
+## 2026-03-29 — claude
+
+### PLAIN-LANGUAGE SUMMARY
+What we worked on: Built the entire Web Project Workflow System — client portal, workflow engine, and AI content generation — from plan to working code in one session.
+What got done:
+- Client portal at /portal/[org-slug] with branded layout, magic link auth, dashboard
+- Workflow engine: audit → remediation or rebuild project with auto-generated tasks
+- 14-section church website admin checklist (50+ items)
+- AI content generation for page copy from audit data + client intake
+- Claude Code build prompt generator (saves to KB)
+- Renamed Tools → Workflows tab with active workflow list
+- Start Workflow panel on audit results (Remediation / Rebuild)
+- Portal views: remediation checklist with score progress, rebuild 4-step wizard
+What is still in progress:
+- Migration 047 needs to be run in Supabase
+- Content generation and build prompt buttons need wiring into admin UI
+- Portal invite email sending (currently just creates invite record)
+Decisions the team should know:
+- "Tools" renamed to "Workflows" throughout
+- Client portal is a separate route (/portal/) with its own minimal layout
+- Portal auth uses magic link (email OTP) — no passwords
+- Client sees 4 simple steps, admin sees full 14-section checklist
+Blockers needing non-dev input:
+- Run migration 047 in Supabase SQL Editor
+
+### TECHNICAL HANDOFF
+Session goal: Build complete Web Project Workflow System (Phases A-F)
+Completed:
+- Phase A: Portal foundation (10 files: layout, auth, dashboard, 4 sub-pages, invite-accept API, PortalShell, PortalDashboard)
+- Phase B: Migration 047, AuditWorkflow types, workflow-generator.ts (500+ lines)
+- Phase C: 4 API route files (workflow CRUD, re-audit, refresh-tasks)
+- Phase D: WorkflowsTab.tsx with StartWorkflowPanel, DashboardTabs rename
+- Phase E: PortalRemediationView, PortalRebuildWizard
+- Phase F: generate-content and build-prompts API routes
+Files changed:
+- src/app/portal/* — NEW portal route tree (7 files)
+- src/components/portal/* — NEW portal components (4 files)
+- src/app/api/pm/portal/invite-accept/ — NEW invite acceptance
+- src/app/api/pm/site-audit/workflow/* — NEW workflow APIs (6 files)
+- src/lib/workflow-generator.ts — NEW workflow generator
+- src/components/dashboard/WorkflowsTab.tsx — NEW (renamed from ToolsTab)
+- src/components/dashboard/DashboardTabs.tsx — Tools → Workflows
+- src/types/pm.ts — AuditWorkflow, ProjectCategory extensions
+- src/middleware.ts — Portal auth routes
+- supabase/migrations/047_audit_workflows.sql — NEW
+Next session startup:
+1. Run migration 047 in Supabase SQL Editor
+2. Test portal: create invite → send magic link → login → see dashboard
+3. Test workflow: run audit → Start Remediation → verify tasks generated
+4. Wire content generation and build prompt buttons into admin workflow detail view
+Branch: claude/review-project-docs-TbBoa
+Migrations run: no (047 pending) | Env vars changed: no
+
+---
 ## 2026-03-26 — claude
 
 ### PLAIN-LANGUAGE SUMMARY

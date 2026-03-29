@@ -110,6 +110,44 @@
   - 5-point checklist for creating new eSign-ready document templates
   - DocuSeal field injection reference
 
+## Web Project Workflow System (NEW)
+- [x] Client Portal foundation (`/portal/[orgSlug]`)
+  - Branded layout with org logo, accent color, portal title
+  - Magic link auth (email OTP, zero password)
+  - Invite acceptance API with org access linking
+  - Dashboard home: workflow status + documents + tasks cards
+  - Portal settings enforcement (show_workflow, show_documents, show_tasks)
+  - Workflow, Documents, Tasks sub-pages
+- [x] Migration 047: `pm_audit_workflows` table
+  - Links site audits to remediation/rebuild projects
+  - target_scores, current_score, latest_audit_id tracking
+  - Portal settings: show_site_audit, show_workflow toggles
+  - Gap analysis: audit_id traceability column
+  - RLS policies (internal full, external read-only)
+- [x] Workflow generator (`src/lib/workflow-generator.ts`)
+  - generateRemediationPhases(): audit gaps → 8 phases (Quick Wins + 6 dimensions + Re-Audit)
+  - generateRebuildPhases(): 8 phases (Intake → Discovery → Design → Architecture → Content → Build → Review → Launch)
+  - generateGapItemsFromAudit(): audit gaps → pm_gap_analysis rows
+  - generateAdminChecklist(): 14-section church website checklist (50+ items)
+- [x] Workflow API routes
+  - CRUD: POST/GET /api/pm/site-audit/workflow, GET/PATCH/DELETE /[id]
+  - Re-audit: POST /[id]/re-audit (triggers new audit, updates scores)
+  - Refresh tasks: POST /[id]/refresh-tasks (diffs new audit, adds net-new tasks)
+  - Content generation: POST /[id]/generate-content (AI page copy from audit + intake)
+  - Build prompts: POST /[id]/build-prompts (Claude Code prompts → KB article)
+- [x] Admin UI: Tools → Workflows tab rename
+  - Active workflows list with type badge, score progress, status
+  - Start Workflow panel on audit results (Remediation / Rebuild cards)
+  - Auto-highlights recommended option based on rebuild_recommended
+- [x] Portal workflow views
+  - PortalRemediationView: score progress, task checklist by phase, score history
+  - PortalRebuildWizard: 4-step wizard (Tell Us → Review Plan → Review Drafts → Launch)
+- [ ] Run migration 047 in Supabase
+- [ ] Test end-to-end: audit → start workflow → verify tasks generated
+- [ ] Test portal: invite client → magic link → portal dashboard
+- [ ] Wire up content generation button in admin workflow view
+- [ ] Wire up build prompts button in admin workflow view
+
 ## New Features — Planned
 - [x] Centralized branding system (ADR 0002)
   - `pm_platform_branding` table (singleton) — company name, logos, colors, fonts, email settings
