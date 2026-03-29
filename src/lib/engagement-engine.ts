@@ -46,15 +46,20 @@ async function spawnStageTasks(
   eng: { id: string; org_id: string; engagement_type: string | null },
   toStage: string
 ) {
-  const { data: templates } = await supabase
+  // Build filter: templates with no service_line (universal) OR matching this engagement's type
+  let query = supabase
     .from("pm_engagement_task_templates")
     .select("*")
     .eq("trigger_stage", toStage)
-    .eq("is_active", true)
-    .or(
-      `service_line.is.null,service_line.eq.${eng.engagement_type ?? "__none__"}`
-    )
-    .order("sort_order");
+    .eq("is_active", true);
+
+  if (eng.engagement_type) {
+    query = query.or(`service_line.is.null,service_line.eq.${eng.engagement_type}`);
+  } else {
+    query = query.is("service_line", null);
+  }
+
+  const { data: templates } = await query.order("sort_order");
 
   if (!templates || templates.length === 0) return;
 

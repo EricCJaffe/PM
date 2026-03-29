@@ -163,7 +163,6 @@ export function WebPassTab({
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
-      // Refresh passes
       const refreshed = await fetch(`/api/pm/web-passes?org_id=${org.id}`).then((r) => r.json());
       if (Array.isArray(refreshed)) {
         setPasses(refreshed);
@@ -174,6 +173,25 @@ export function WebPassTab({
       setError(err instanceof Error ? err.message : "Approval failed");
     } finally {
       setApproving(false);
+    }
+  };
+
+  const rejectPass = async () => {
+    if (!activePass) return;
+    const reason = prompt("Reason for rejection (optional):");
+    if (reason === null) return; // cancelled
+    try {
+      const res = await fetch(`/api/pm/web-passes/${activePass.id}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rejection_reason: reason || null, rejected_by: "admin" }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setActivePass(data);
+      setPasses((prev) => prev.map((p) => (p.id === data.id ? data : p)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Rejection failed");
     }
   };
 
@@ -297,13 +315,35 @@ export function WebPassTab({
                 </button>
               )}
               {(activePass.status === "active" || activePass.status === "in-review") && (
-                <button
-                  onClick={approvePass}
-                  disabled={approving}
-                  className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm rounded-lg font-medium transition-colors"
-                >
-                  {approving ? "Approving…" : "Approve & Advance"}
-                </button>
+                <>
+                  <button
+                    onClick={rejectPass}
+                    className="px-3 py-1.5 border border-red-500/40 text-red-400 hover:bg-red-500/10 text-sm rounded-lg transition-colors"
+                  >
+                    Request Changes
+                  </button>
+                  <button
+                    onClick={approvePass}
+                    disabled={approving}
+                    className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm rounded-lg font-medium transition-colors"
+                  >
+                    {approving ? "Approving…" : "Approve & Advance"}
+                  </button>
+                </>
+              )}
+              {activePass.status === "rejected" && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-red-400 max-w-xs truncate">
+                    {activePass.rejection_reason ?? "Changes requested"}
+                  </span>
+                  <button
+                    onClick={approvePass}
+                    disabled={approving}
+                    className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm rounded-lg font-medium transition-colors"
+                  >
+                    Approve After Rework
+                  </button>
+                </div>
               )}
             </div>
           </div>
