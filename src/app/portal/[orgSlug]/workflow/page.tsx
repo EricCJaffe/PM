@@ -39,7 +39,7 @@ export default async function PortalWorkflowPage({
     .eq("org_id", org.id)
     .order("created_at", { ascending: false });
 
-  const activeWorkflow = workflows?.find((w) => w.status === "active") || workflows?.[0] || null;
+  const activeWorkflow = workflows?.find((w: { id: string; workflow_type: string; status: string; target_scores: unknown; current_score: unknown; created_at: string; updated_at: string }) => w.status === "active") || workflows?.[0] || null;
 
   if (!activeWorkflow) {
     return (

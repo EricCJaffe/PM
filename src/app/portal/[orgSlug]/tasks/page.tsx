@@ -32,7 +32,7 @@ export default async function PortalTasksPage({
     .limit(50);
 
   const statusOrder = ["in-progress", "not-started", "pending", "blocked", "complete"];
-  const sorted = (tasks || []).sort((a, b) => {
+  const sorted = (tasks || []).sort((a: { id: string; name: string; description: string | null; status: string; due_date: string | null; owner: string | null; assigned_to: string | null; phase_id: string | null; project_id: string | null; subtasks: unknown }, b: { id: string; name: string; description: string | null; status: string; due_date: string | null; owner: string | null; assigned_to: string | null; phase_id: string | null; project_id: string | null; subtasks: unknown }) => {
     const ai = statusOrder.indexOf(a.status);
     const bi = statusOrder.indexOf(b.status);
     return ai - bi;
@@ -57,7 +57,7 @@ export default async function PortalTasksPage({
               </tr>
             </thead>
             <tbody>
-              {sorted.map((t) => (
+              {sorted.map((t: { id: string; name: string; description: string | null; status: string; due_date: string | null }) => (
                 <tr key={t.id} className="border-b border-pm-border/50 last:border-0">
                   <td className="px-4 py-3">
                     <p className="text-pm-text font-medium">{t.name}</p>

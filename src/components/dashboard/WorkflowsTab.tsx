@@ -623,7 +623,7 @@ export function WorkflowsTab({
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
-      setAudits((prev) => [data, ...prev]);
+      setAudits((prev: SiteAudit[]) => [data, ...prev]);
       setActiveAudit(data);
       setShowForm(false);
       setFormUrl("");
@@ -643,7 +643,7 @@ export function WorkflowsTab({
 
       const updatedAudit = { ...audit, document_id: data.document_id };
       setActiveAudit(updatedAudit);
-      setAudits((prev) => prev.map((a) => (a.id === audit.id ? updatedAudit : a)));
+      setAudits((prev: SiteAudit[]) => prev.map((a: SiteAudit) => (a.id === audit.id ? updatedAudit : a)));
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to generate document");
     }
@@ -673,7 +673,7 @@ export function WorkflowsTab({
     const res = await fetch(`/api/pm/site-audit/${id}`, { method: "DELETE" });
     const data = await res.json();
     if (data.error) { alert(data.error); return; }
-    setAudits((prev) => prev.filter((a) => a.id !== id));
+    setAudits((prev: SiteAudit[]) => prev.filter((a: SiteAudit) => a.id !== id));
     if (activeAudit?.id === id) setActiveAudit(null);
   };
 
@@ -703,7 +703,7 @@ export function WorkflowsTab({
       {workflows.length > 0 && (
         <div className="space-y-3">
           <h4 className="text-sm font-semibold text-pm-muted uppercase tracking-wider">Active Workflows</h4>
-          {workflows.map((wf) => {
+          {workflows.map((wf: Record<string, unknown>) => {
             const project = wf.pm_projects as { name: string; slug: string } | null;
             const baseAudit = wf.pm_site_audits as { url: string; overall: { grade: string; score: number } | null } | null;
             const target = (wf.target_scores as Record<string, number>)?.overall || 80;
@@ -804,7 +804,7 @@ export function WorkflowsTab({
                 type="text"
                 required
                 value={formUrl}
-                onChange={(e) => setFormUrl(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormUrl(e.target.value)}
                 className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
                 placeholder="https://example.com"
                 autoFocus
@@ -814,7 +814,7 @@ export function WorkflowsTab({
               <label className="block text-sm font-medium text-pm-muted mb-1">Vertical / Standards</label>
               <select
                 value={formVertical}
-                onChange={(e) => setFormVertical(e.target.value as AuditVertical)}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFormVertical(e.target.value as AuditVertical)}
                 className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
               >
                 {VERTICALS.map((v) => (
@@ -859,7 +859,7 @@ export function WorkflowsTab({
             Past Audits ({audits.length})
           </h4>
           <div className="space-y-2">
-            {audits.map((audit) => {
+            {audits.map((audit: SiteAudit) => {
               const ov = getOverall(audit);
               return (
                 <div key={audit.id} className="card flex items-center justify-between">
@@ -903,7 +903,7 @@ export function WorkflowsTab({
                     </div>
                   </button>
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleDelete(audit.id); }}
+                    onClick={(e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); handleDelete(audit.id); }}
                     className="p-1.5 text-pm-muted hover:text-red-400 transition-colors ml-2"
                     title="Delete"
                   >

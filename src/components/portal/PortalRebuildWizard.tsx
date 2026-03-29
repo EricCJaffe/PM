@@ -53,7 +53,7 @@ export function PortalRebuildWizard({
   useEffect(() => {
     fetch(`/api/pm/site-audit/workflow/${workflowId}`)
       .then((r) => r.json())
-      .then((data) => {
+      .then((data: { phases?: (Phase & { tasks?: Task[] })[] }) => {
         if (data.phases) setPhases(data.phases);
         // Flatten tasks from all phases
         const allTasks: Task[] = [];
@@ -124,12 +124,12 @@ export function PortalRebuildWizard({
         {/* Show tasks for current step's phases */}
         <div className="space-y-3">
           {phases
-            .filter((p) => (STEP_MAP[p.slug] ?? -1) === currentStep)
-            .map((phase) => {
-              const phaseTasks = tasks.filter((t) => t.phase_id === phase.id);
+            .filter((p: Phase) => (STEP_MAP[p.slug] ?? -1) === currentStep)
+            .map((phase: Phase) => {
+              const phaseTasks = tasks.filter((t: Task) => t.phase_id === phase.id);
               return (
                 <div key={phase.id}>
-                  {phaseTasks.map((t) => (
+                  {phaseTasks.map((t: Task) => (
                     <div key={t.id} className="flex items-start gap-3 py-2 border-b border-pm-border/30 last:border-0">
                       <span className={`mt-0.5 w-5 h-5 rounded border flex-shrink-0 flex items-center justify-center text-xs ${
                         t.status === "complete"
@@ -161,9 +161,9 @@ export function PortalRebuildWizard({
       <div className="bg-pm-card border border-pm-border rounded-lg p-5">
         <h4 className="text-sm font-semibold text-pm-muted uppercase tracking-wider mb-3">Project Phases</h4>
         <div className="space-y-2">
-          {phases.map((p) => {
-            const phaseTasks = tasks.filter((t) => t.phase_id === p.id);
-            const done = phaseTasks.filter((t) => t.status === "complete").length;
+          {phases.map((p: Phase) => {
+            const phaseTasks = tasks.filter((t: Task) => t.phase_id === p.id);
+            const done = phaseTasks.filter((t: Task) => t.status === "complete").length;
             const total = phaseTasks.length;
             return (
               <div key={p.id} className="flex items-center justify-between text-sm">

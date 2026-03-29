@@ -36,7 +36,7 @@ export function PortalRemediationView({
   useEffect(() => {
     fetch(`/api/pm/site-audit/workflow/${workflowId}`)
       .then((r) => r.json())
-      .then((data) => {
+      .then((data: { phases?: { id: string; name: string; phase_order: number; status: string; tasks?: { id: string; name: string; description: string | null; status: string }[] }[] }) => {
         // Flatten phases + tasks
         if (data.phases) {
           const allTasks: RemediationTask[] = [];
@@ -60,7 +60,7 @@ export function PortalRemediationView({
     if (workflowId) {
       fetch(`/api/pm/site-audit/workflow/${workflowId}`)
         .then((r) => r.json())
-        .then((data) => {
+        .then((data: { snapshots?: ScoreSnapshot[] }) => {
           if (data.snapshots) setSnapshots(data.snapshots);
         })
         .catch(() => {});
@@ -70,11 +70,11 @@ export function PortalRemediationView({
   const score = currentScore || 0;
   const progress = Math.min(100, Math.round((score / targetScore) * 100));
   const totalTasks = tasks.length;
-  const completeTasks = tasks.filter((t) => t.status === "complete").length;
+  const completeTasks = tasks.filter((t: RemediationTask) => t.status === "complete").length;
   const taskProgress = totalTasks > 0 ? Math.round((completeTasks / totalTasks) * 100) : 0;
 
   // Group tasks by phase
-  const phaseGroups = tasks.reduce<Record<string, RemediationTask[]>>((acc, t) => {
+  const phaseGroups = tasks.reduce<Record<string, RemediationTask[]>>((acc: Record<string, RemediationTask[]>, t: RemediationTask) => {
     if (!acc[t.phase_name]) acc[t.phase_name] = [];
     acc[t.phase_name].push(t);
     return acc;
@@ -118,7 +118,7 @@ export function PortalRemediationView({
         <div className="bg-pm-card border border-pm-border rounded-lg p-5">
           <h3 className="text-sm font-semibold text-pm-muted uppercase tracking-wider mb-3">Score History</h3>
           <div className="space-y-2">
-            {snapshots.map((s, i) => (
+            {snapshots.map((s: ScoreSnapshot, i: number) => (
               <div key={i} className="flex items-center justify-between text-sm">
                 <span className="text-pm-muted">{new Date(s.audit_date).toLocaleDateString()}</span>
                 <div className="flex items-center gap-2">
@@ -134,9 +134,9 @@ export function PortalRemediationView({
       {/* Task Checklist by Phase */}
       <div className="space-y-4">
         <h3 className="text-sm font-semibold text-pm-muted uppercase tracking-wider">Remediation Tasks</h3>
-        {Object.entries(phaseGroups).map(([phaseName, phaseTasks]) => {
-          const phaseComplete = phaseTasks.every((t) => t.status === "complete");
-          const phaseCount = phaseTasks.filter((t) => t.status === "complete").length;
+        {Object.entries(phaseGroups).map(([phaseName, phaseTasks]: [string, RemediationTask[]]) => {
+          const phaseComplete = phaseTasks.every((t: RemediationTask) => t.status === "complete");
+          const phaseCount = phaseTasks.filter((t: RemediationTask) => t.status === "complete").length;
 
           return (
             <div key={phaseName} className="bg-pm-card border border-pm-border rounded-lg overflow-hidden">
@@ -148,7 +148,7 @@ export function PortalRemediationView({
                 <span className="text-xs text-pm-muted">{phaseCount} / {phaseTasks.length}</span>
               </div>
               <div className="divide-y divide-pm-border/50">
-                {phaseTasks.map((t) => (
+                {phaseTasks.map((t: RemediationTask) => (
                   <div key={t.id} className="px-4 py-3 flex items-start gap-3">
                     <span className={`mt-0.5 w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center text-xs ${
                       t.status === "complete"

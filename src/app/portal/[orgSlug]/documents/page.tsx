@@ -39,7 +39,7 @@ export default async function PortalDocumentsPage({
         </div>
       ) : (
         <div className="space-y-3">
-          {documents.map((doc) => {
+          {documents.map((doc: { id: string; title: string; status: string; esign_status: string | null; esign_sent_at: string | null; esign_completed_at: string | null; sent_at: string | null; signed_at: string | null; created_at: string; document_types: { name: string } | null }) => {
             const dt = doc.document_types as { name: string } | null;
             const esign = doc.esign_status;
 
