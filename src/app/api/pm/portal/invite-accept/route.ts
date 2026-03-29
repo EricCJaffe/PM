@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     // Check if user already exists in auth
     const { data: existingUsers } = await supabase.auth.admin.listUsers();
     const existingUser = existingUsers?.users?.find(
-      (u) => u.email?.toLowerCase() === email.toLowerCase()
+      (u: { email?: string }) => u.email?.toLowerCase() === email.toLowerCase()
     );
 
     // If user exists, ensure they have org access
