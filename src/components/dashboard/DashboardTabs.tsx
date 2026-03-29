@@ -2,7 +2,6 @@
 import { useState, useMemo } from "react";
 import type { Organization, ProjectWithStats, ProcessMap, Opportunity, KPI, PMDocument, PhaseWithTasks } from "@/types/pm";
 import { OverviewTab } from "./OverviewTab";
-import { InfoTab } from "./InfoTab";
 import { ProposalsTab } from "./ProposalsTab";
 import { NotesTab } from "./NotesTab";
 import { WorkflowsTab } from "./WorkflowsTab";
@@ -19,8 +18,7 @@ import { OnboardingTab } from "./OnboardingTab";
 import { SiteAuditTab } from "@/components/SiteAuditTab";
 
 const tabs = [
-  { id: "overview", label: "Overview" },
-  { id: "info", label: "Info" },
+  { id: "details", label: "Details" },
   { id: "tasks", label: "Tasks" },
   { id: "workflows", label: "Workflows" },
   { id: "proposals", label: "Proposals" },
@@ -59,7 +57,7 @@ export function DashboardTabs({
   documents: PMDocument[];
   allPhases: { project: ProjectWithStats; phases: PhaseWithTasks[] }[];
 }) {
-  const [active, setActive] = useState("overview");
+  const [active, setActive] = useState("details");
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
   const filteredProcessMaps = useMemo(
@@ -119,12 +117,7 @@ export function DashboardTabs({
         )}
       </div>
 
-      {active === "info" && <InfoTab org={org} projects={projects} />}
-      {active === "tasks" && <ClientTasksTab org={org} />}
-      {active === "proposals" && <ProposalsTab org={org} />}
-      {active === "notes" && <NotesTab org={org} />}
-      {active === "users" && <UsersTab org={org} />}
-      {active === "overview" && (
+      {active === "details" && (
         <OverviewTab
           org={org}
           projects={projects}
@@ -133,6 +126,10 @@ export function DashboardTabs({
           allPhases={filteredPhases}
         />
       )}
+      {active === "tasks" && <ClientTasksTab org={org} />}
+      {active === "proposals" && <ProposalsTab org={org} />}
+      {active === "notes" && <NotesTab org={org} />}
+      {active === "users" && <UsersTab org={org} />}
       {active === "workflows" && (
         <WorkflowsTab
           org={org}
