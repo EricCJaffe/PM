@@ -265,3 +265,114 @@ stores intake_data and client_context, generates zip with pre-filled markdown fi
 Regenerate download zip for an existing project with intake data.
 
 **Response:** `{ download_url }`
+
+---
+
+## Web Passes (5-Pass Website Build Workflow)
+
+### `GET /api/pm/web-passes?project_id=<uuid>`
+List all passes for a project (ordered by pass_number).
+
+### `GET /api/pm/web-passes?org_id=<uuid>`
+List all passes for an org.
+
+### `POST /api/pm/web-passes`
+Create a pass manually.
+
+**Body:** `{ project_id, org_id, pass_number, pass_type, status?, share_token?, site_audit_id?, form_data? }`
+
+### `GET /api/pm/web-passes/[id]`
+Get single pass with comments.
+
+### `PATCH /api/pm/web-passes/[id]`
+Update pass fields (form_data, status, deliverable_html, etc.).
+
+### `POST /api/pm/web-passes/[id]/generate`
+GPT-4o generate mockup HTML for the pass.
+- Foundation: generates 2 layout variants
+- Content: renders content into chosen foundation layout
+- Polish: applies polish notes + injects SEO meta
+
+**Response:** `{ pass, variant_a?, variant_b? }` (foundation returns both variants)
+
+### `POST /api/pm/web-passes/[id]/approve`
+Approve current pass and unlock the next one.
+
+**Response:** `{ approved, next_pass? }`
+
+### `POST /api/pm/web-passes/[id]/reject`
+Reject pass and set status back for rework.
+
+**Body:** `{ rejection_reason?: string, rejected_by?: string }`
+
+### `POST /api/pm/web-passes/[id]/score`
+GPT-4o score deliverable HTML against quality gate rubric.
+Dimensions: seo (≥70), conversion (≥70), ai_discoverability (≥60), content (≥60).
+Saves results to scoring_results column.
+
+**Response:** `{ scores: { seo, conversion, ai_discoverability, content }, overall_pass: boolean, blocking_issues: string[], recommendations: string[] }`
+
+### `POST /api/pm/web-passes/[id]/deploy`
+Mark go-live pass complete, link final audit, build before/after comparison.
+
+**Body:** `{ final_audit_id?: string, deployed_url?: string }`
+**Response:** `{ success, pass, comparison, project_marked_complete }`
+
+### `GET /api/pm/web-passes/[id]/comments`
+List comments for a pass.
+
+### `POST /api/pm/web-passes/[id]/comments`
+Add a section comment.
+
+**Body:** `{ section_id, section_label?, comment, commenter_name?, type: "approve"|"request-change"|"comment" }`
+
+### `PATCH /api/pm/web-passes/[id]/comments`
+Resolve a comment.
+
+**Body:** `{ comment_id, resolved_by? }`
+
+### `GET /api/pm/web-passes/share/[token]`
+Public endpoint — load pass data for client review portal (no auth).
+
+### `POST /api/pm/web-passes/share/[token]`
+Public endpoint — submit client comments/option selection.
+
+**Body:** `{ comments: [{section_id, section_label, comment, commenter_name, type}], selected_option?: "a"|"b" }`
+
+---
+
+## Engagements
+
+### `GET /api/pm/engagements?org_id=<uuid>`
+List engagements for an org.
+
+### `POST /api/pm/engagements`
+Create an engagement.
+
+**Body:** `{ org_id, title, engagement_type?, deal_stage?, value?, website_url?, projected_mrr?, projected_one_time?, owner?, notes? }`
+
+### `GET /api/pm/engagements/[id]`
+Get single engagement with attachments.
+
+### `PATCH /api/pm/engagements/[id]`
+Update engagement. If deal_stage changes, fires `onEngagementStageChange()` (non-blocking):
+- Spawns tasks from matching pm_engagement_task_templates
+- If `engagement_type=website_build` and new stage is `closed_won`, auto-creates project + 5 web passes
+
+### `DELETE /api/pm/engagements/[id]`
+Delete engagement.
+
+### `GET /api/pm/engagements/[id]/attachments`
+List engagement file attachments.
+
+### `POST /api/pm/engagements/[id]/attachments`
+Upload file attachment (multipart/form-data).
+
+### `DELETE /api/pm/engagements/[id]/attachments`
+Delete attachment by id.
+
+### `GET /api/pm/engagements/[id]/attachments/download`
+Get signed download URL for an attachment.
+
+### `POST /api/pm/engagements/[id]/project-files`
+Re-generate project init files and save as engagement attachment.

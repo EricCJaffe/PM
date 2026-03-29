@@ -498,6 +498,54 @@ Migration: 035
 - `pm_projects.projected_mrr` — DECIMAL(12,2), default 0, monthly recurring revenue
 - `pm_projects.projected_one_time` — DECIMAL(12,2), default 0, one-time project revenue
 
+### Additional columns added by migration 049 (Website Build Engagements)
+- `pm_engagements.website_url` — TEXT, target website URL for website_build engagements
+- `pm_engagements.owner` — TEXT, member slug for engagement owner
+- `pm_engagements.notes` — TEXT, free-text engagement notes
+
+### Additional columns added by migration 050 (Engagement Task Template Service Line)
+- `pm_engagement_task_templates.service_line` — TEXT DEFAULT NULL; when set, template only fires for engagements with matching engagement_type (e.g. `website_build`)
+
+### pm_web_passes
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | PK |
+| project_id | UUID | FK → pm_projects (CASCADE) |
+| org_id | UUID | FK → pm_organizations (CASCADE) |
+| pass_number | INT | 0–4 (discovery=0 → go-live=4) |
+| pass_type | TEXT | discovery, foundation, content, polish, go-live |
+| status | TEXT | locked, active, in-review, approved, rejected |
+| share_token | UUID | Random token for public /web-review/[token] URL |
+| deliverable_html | TEXT | GPT-4o generated mockup HTML |
+| form_data | JSONB | Client intake data for this pass (content pages, etc.) |
+| scoring_results | JSONB | GPT-4o quality gate scores + before_after comparison |
+| site_audit_id | UUID | FK → pm_site_audits (SET NULL); discovery pass links before audit |
+| approved_by | TEXT | Who approved |
+| approved_at | TIMESTAMPTZ | When approved |
+| rejection_reason | TEXT | Rejection notes |
+| notes | TEXT | Misc notes (used for deployed_url on go-live pass) |
+| created_at | TIMESTAMPTZ | Auto |
+| updated_at | TIMESTAMPTZ | Auto (trigger) |
+
+Migration: 047
+
+### pm_web_pass_comments
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | PK |
+| pass_id | UUID | FK → pm_web_passes (CASCADE) |
+| section_id | TEXT | Identifies which page/section the comment is on |
+| section_label | TEXT | Human-readable section name |
+| comment | TEXT | Comment content |
+| commenter_name | TEXT | Name of person leaving comment |
+| type | TEXT | approve, request-change, comment |
+| is_resolved | BOOLEAN | Default false |
+| resolved_by | TEXT | Who resolved |
+| resolved_at | TIMESTAMPTZ | When resolved |
+| created_at | TIMESTAMPTZ | Auto |
+
+Migration: 047
+
 ### Storage
 - Bucket: `documents` (private, for PDF storage)
 - Bucket: `vault` (private, engagement attachments stored at `{org-slug}/engagements/{engagement-id}/...`)

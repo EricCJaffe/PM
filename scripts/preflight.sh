@@ -26,7 +26,7 @@ fi
 
 # .gitignore check
 if [ -f "$PROJECT_ROOT/.gitignore" ]; then
-  if grep -q ".env.local" "$PROJECT_ROOT/.gitignore"; then
+  if grep -qE "\.env\.local|\.env\*" "$PROJECT_ROOT/.gitignore"; then
     echo "  OK  .env.local in .gitignore"
   else
     echo "  CRITICAL .env.local NOT in .gitignore — fix immediately"
