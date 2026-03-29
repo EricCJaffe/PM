@@ -2,7 +2,7 @@
 
 import { useState, useEffect, lazy, Suspense } from "react";
 import type {
-  Organization, SiteAudit, AuditVertical, AuditGrade,
+  Organization, SiteAudit, AuditVertical, AuditGrade, AuditStatus,
   AuditScores, AuditDimensionScore, AuditOverall,
 } from "@/types/pm";
 
@@ -603,6 +603,43 @@ export function WorkflowsTab({
     }).finally(() => setLoading(false));
   }, [org.id]);
 
+  // Poll for audit completion when an audit is running
+  useEffect(() => {
+    if (!activeAudit || activeAudit.status !== "running") return;
+    let pollCount = 0;
+    const MAX_POLLS = 72; // 72 * 2.5s = 3 minutes
+    const interval = setInterval(async () => {
+      pollCount++;
+      if (pollCount > MAX_POLLS) {
+        clearInterval(interval);
+        setRunning(false);
+        setActiveAudit((prev: SiteAudit | null) =>
+          prev ? { ...prev, status: "failed" as AuditStatus, audit_summary: "Audit timed out — please try again" } : prev
+        );
+        return;
+      }
+      try {
+        const res = await fetch(`/api/pm/site-audit/${activeAudit.id}`);
+        const data = await res.json();
+        if (data.id) {
+          setActiveAudit(data);
+          if (data.status === "complete" || data.status === "failed") {
+            clearInterval(interval);
+            setRunning(false);
+            // Refresh audits list
+            fetch(`/api/pm/site-audit?org_id=${org.id}`)
+              .then((r) => r.json())
+              .then((d) => { if (Array.isArray(d)) setAudits(d); });
+          }
+        }
+      } catch {
+        /* retry on next tick */
+      }
+    }, 2500);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeAudit?.id, activeAudit?.status, org.id]);
+
   const runAudit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formUrl) return;
@@ -628,6 +665,20 @@ export function WorkflowsTab({
       setShowForm(false);
       setFormUrl("");
       setFormExtraContext("");
+
+      // Fire-and-forget: trigger background processing.
+      // Polling (below) detects completion/failure via DB status.
+      fetch("/api/pm/site-audit/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          audit_id: data.id,
+          url: data.url,
+          vertical: formVertical,
+          org_id: org.id,
+          extra_context: formExtraContext || null,
+        }),
+      }).catch((err) => console.error("Audit process fetch error:", err));
     } catch (err) {
       alert(err instanceof Error ? err.message : "Audit failed");
     } finally {
