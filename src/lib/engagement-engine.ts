@@ -9,8 +9,9 @@ import { SupabaseClient } from "@supabase/supabase-js";
 const PASS_TYPES = ["discovery", "foundation", "content", "polish", "go-live"] as const;
 
 /**
- * Auto-create a website-build project + 5 web passes when a
- * website_build engagement transitions to closed_won.
+ * Main entry point — called after every deal_stage change.
+ * Spawns task templates for the new stage AND runs service-line
+ * specific automation (e.g. auto-create web project on closed_won).
  */
 export async function onEngagementStageChange(
   supabase: SupabaseClient,
@@ -18,27 +19,88 @@ export async function onEngagementStageChange(
   fromStage: string,
   toStage: string
 ) {
-  if (toStage !== "closed_won") return;
-
-  // Load the engagement
+  // Load engagement
   const { data: eng } = await supabase
     .from("pm_engagements")
     .select("id, org_id, title, engagement_type, website_url")
     .eq("id", engagementId)
     .single();
 
-  if (!eng || eng.engagement_type !== "website_build") return;
+  if (!eng) return;
 
-  // Check if web passes already exist for this org (avoid duplicates)
+  // 1. Spawn tasks from matching templates for this stage + service line
+  await spawnStageTasks(supabase, eng, toStage);
+
+  // 2. Service-line specific automation
+  if (eng.engagement_type === "website_build" && toStage === "closed_won") {
+    await autoCreateWebProject(supabase, eng);
+  }
+}
+
+/**
+ * Spawn pm_tasks from pm_engagement_task_templates that match
+ * the new stage and the engagement's service line.
+ */
+async function spawnStageTasks(
+  supabase: SupabaseClient,
+  eng: { id: string; org_id: string; engagement_type: string | null },
+  toStage: string
+) {
+  const { data: templates } = await supabase
+    .from("pm_engagement_task_templates")
+    .select("*")
+    .eq("trigger_stage", toStage)
+    .eq("is_active", true)
+    .or(
+      `service_line.is.null,service_line.eq.${eng.engagement_type ?? "__none__"}`
+    )
+    .order("sort_order");
+
+  if (!templates || templates.length === 0) return;
+
+  const today = new Date();
+  const taskInserts = templates.map((t: {
+    id: string;
+    title: string;
+    description: string | null;
+    due_offset_days: number;
+    nudge_after_days: number | null;
+  }) => {
+    const due = new Date(today);
+    due.setDate(due.getDate() + (t.due_offset_days ?? 0));
+    return {
+      org_id: eng.org_id,
+      engagement_id: eng.id,
+      name: t.title,
+      description: t.description ?? null,
+      status: "not-started",
+      due_date: due.toISOString().slice(0, 10),
+      nudge_after_days: t.nudge_after_days ?? null,
+      sort_order: 0,
+    };
+  });
+
+  await supabase.from("pm_tasks").insert(taskInserts);
+}
+
+/**
+ * Auto-create a website-build project + 5 web passes when
+ * a website_build engagement transitions to closed_won.
+ */
+async function autoCreateWebProject(
+  supabase: SupabaseClient,
+  eng: { id: string; org_id: string; title: string; website_url: string | null }
+) {
+  // Avoid duplicates — check if passes already exist for this org
   const { data: existing } = await supabase
     .from("pm_web_passes")
     .select("id")
     .eq("org_id", eng.org_id)
     .limit(1);
 
-  if (existing && existing.length > 0) return; // already seeded
+  if (existing && existing.length > 0) return;
 
-  // Look up the website-build template
+  // Look up website-build template
   const { data: template } = await supabase
     .from("pm_project_templates")
     .select("id")
@@ -47,7 +109,7 @@ export async function onEngagementStageChange(
 
   if (!template) return;
 
-  // Load the org for slug/name
+  // Load org
   const { data: org } = await supabase
     .from("pm_organizations")
     .select("id, slug, name")
@@ -56,7 +118,7 @@ export async function onEngagementStageChange(
 
   if (!org) return;
 
-  // Create the project via the seed endpoint (reuse existing logic)
+  // Create project
   const projectSlug = `${org.slug}-website-${Date.now()}`;
   const { data: project, error: projectError } = await supabase
     .from("pm_projects")
@@ -73,7 +135,7 @@ export async function onEngagementStageChange(
 
   if (projectError || !project) return;
 
-  // Find the most recent site audit for this org to pre-link
+  // Pre-link to most recent site audit if available
   const { data: audit } = await supabase
     .from("pm_site_audits")
     .select("id")

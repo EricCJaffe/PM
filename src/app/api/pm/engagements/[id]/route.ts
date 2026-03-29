@@ -58,9 +58,9 @@ export async function PATCH(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Fire stage-change automation (non-blocking)
+  // Fire stage-change automation for any stage transition (non-blocking)
   if (current && body.deal_stage && current.deal_stage !== body.deal_stage) {
-    onEngagementStageChange(supabase, id, current.deal_stage, body.deal_stage).catch(
+    onEngagementStageChange(supabase, id, current.deal_stage as string, body.deal_stage as string).catch(
       (err) => console.error("[engagement-engine]", err)
     );
   }

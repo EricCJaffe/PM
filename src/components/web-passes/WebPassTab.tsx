@@ -4,6 +4,7 @@ import type { Organization, WebPass, WebPassComment, SiteAudit, Pass1FormData } 
 import { PassStepper } from "./PassStepper";
 import { ContentForm } from "./ContentForm";
 import { ScoringGate } from "./ScoringGate";
+import { BeforeAfterReport } from "./BeforeAfterReport";
 
 const PASS_TYPES = ["discovery", "foundation", "content", "polish", "go-live"] as const;
 const PASS_LABELS: Record<string, string> = {
@@ -560,23 +561,154 @@ export function WebPassTab({
 
           {/* Go-Live pass */}
           {activePass.pass_type === "go-live" && (
-            <div className="card space-y-4">
-              <h4 className="font-semibold text-pm-text">Go-Live Checklist</h4>
-              <ul className="space-y-2 text-sm text-pm-muted">
-                <li className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-400" /> All passes approved</li>
-                <li className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-amber-400" /> Deploy to Vercel (manual step — see deployment runbook)</li>
-                <li className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-pm-muted" /> Run final site audit on deployed URL</li>
-                <li className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-pm-muted" /> Generate before/after PDF comparison</li>
-              </ul>
-              {activePass.deliverable_html && (
-                <div className="w-full h-64 border border-pm-border rounded-lg overflow-hidden">
-                  <iframe srcDoc={activePass.deliverable_html} className="w-full h-full border-0" />
-                </div>
-              )}
-            </div>
+            <GoLivePanel
+              pass={activePass}
+              orgId={org.id}
+              onCompleted={(updated) => {
+                setActivePass(updated);
+                setPasses((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+              }}
+            />
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function GoLivePanel({
+  pass,
+  orgId,
+  onCompleted,
+}: {
+  pass: WebPass;
+  orgId: string;
+  onCompleted: (updated: WebPass) => void;
+}) {
+  const [finalAuditId, setFinalAuditId] = useState("");
+  const [deployedUrl, setDeployedUrl] = useState(pass.notes ?? "");
+  const [deploying, setDeploying] = useState(false);
+  const [audits, setAudits] = useState<{ id: string; url: string; created_at: string }[]>([]);
+
+  // Load org audits for final audit picker
+  useEffect(() => {
+    fetch(`/api/pm/site-audit?org_id=${orgId}`)
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setAudits(data); });
+  }, [orgId]);
+
+  const scoringResults = pass.scoring_results as Record<string, unknown> | null;
+  const beforeAfter = scoringResults?.before_after as Parameters<typeof BeforeAfterReport>[0]["data"] | null;
+  const isComplete = pass.status === "approved";
+
+  const handleDeploy = async () => {
+    setDeploying(true);
+    try {
+      const res = await fetch(`/api/pm/web-passes/${pass.id}/deploy`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          final_audit_id: finalAuditId || null,
+          deployed_url: deployedUrl || null,
+        }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      onCompleted(data.pass);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Deploy failed");
+    } finally {
+      setDeploying(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Checklist */}
+      <div className="card space-y-4">
+        <h4 className="font-semibold text-pm-text">Go-Live Checklist</h4>
+        <ul className="space-y-3">
+          {[
+            { label: "All passes approved", done: true },
+            { label: "Scoring gate passed", done: !!(scoringResults && (scoringResults as { overall_pass?: boolean }).overall_pass) },
+            { label: "Domain DNS configured", done: false },
+            { label: "Site deployed to production", done: !!deployedUrl },
+            { label: "Analytics tracking verified", done: false },
+            { label: "Contact forms tested", done: false },
+          ].map(({ label, done }) => (
+            <li key={label} className="flex items-center gap-3 text-sm">
+              <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                done ? "bg-emerald-600/20 border-emerald-500 text-emerald-400" : "border-pm-border"
+              }`}>
+                {done && <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
+              </span>
+              <span className={done ? "text-pm-text" : "text-pm-muted"}>{label}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Deploy form */}
+      {!isComplete && (
+        <div className="card space-y-4">
+          <h4 className="font-semibold text-pm-text">Mark as Launched</h4>
+          <div>
+            <label className="block text-xs font-medium text-pm-muted mb-1">Deployed URL</label>
+            <input
+              value={deployedUrl}
+              onChange={(e) => setDeployedUrl(e.target.value)}
+              placeholder="https://clientsite.com"
+              className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text text-sm focus:outline-none focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-pm-muted mb-1">
+              Final Site Audit (optional — select a post-launch audit for before/after report)
+            </label>
+            <select
+              value={finalAuditId}
+              onChange={(e) => setFinalAuditId(e.target.value)}
+              className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text text-sm focus:outline-none focus:border-blue-500"
+            >
+              <option value="">— skip before/after report —</option>
+              {audits.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.url} ({new Date(a.created_at).toLocaleDateString()})
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-pm-muted mt-1">
+              Run a new Site Audit on the live URL first, then select it here.
+            </p>
+          </div>
+          <button
+            onClick={handleDeploy}
+            disabled={deploying || !deployedUrl}
+            className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg font-semibold transition-colors"
+          >
+            {deploying ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Completing project…
+              </span>
+            ) : "Mark as Launched & Complete Project"}
+          </button>
+        </div>
+      )}
+
+      {isComplete && (
+        <div className="card border-emerald-500/30 bg-emerald-600/10 text-center py-6 space-y-2">
+          <div className="text-2xl">🚀</div>
+          <p className="font-semibold text-emerald-400">Project Complete — Site is Live!</p>
+          {deployedUrl && (
+            <a href={deployedUrl} target="_blank" rel="noopener noreferrer"
+              className="text-sm text-pm-accent hover:underline">{deployedUrl}</a>
+          )}
+        </div>
+      )}
+
+      {/* Before/After Report */}
+      {beforeAfter && <BeforeAfterReport data={beforeAfter} />}
     </div>
   );
 }
