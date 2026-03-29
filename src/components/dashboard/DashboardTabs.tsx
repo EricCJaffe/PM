@@ -5,14 +5,10 @@ import { OverviewTab } from "./OverviewTab";
 import { ProposalsTab } from "./ProposalsTab";
 import { NotesTab } from "./NotesTab";
 import { WorkflowsTab } from "./WorkflowsTab";
-import { KPIsTab } from "./KPIsTab";
 import { DocsTab } from "./DocsTab";
-import { UsersTab } from "./UsersTab";
 import { ClientProjectsTab } from "./ClientProjectsTab";
-import { DepartmentsTab } from "./DepartmentsTab";
 import { PortalSettingsTab } from "./PortalSettingsTab";
 import { OrgBrandingTab } from "./OrgBrandingTab";
-import { SiteAuditTab } from "@/components/SiteAuditTab";
 
 const tabs = [
   { id: "details", label: "Details" },
@@ -20,11 +16,7 @@ const tabs = [
   { id: "workflows", label: "Workflows" },
   { id: "proposals", label: "Proposals" },
   { id: "notes", label: "Notes" },
-  { id: "users", label: "Users" },
-  { id: "kpis", label: "KPIs" },
-  { id: "site-audit", label: "Site Audit" },
   { id: "docs", label: "Docs & SOPs" },
-  { id: "departments", label: "Departments" },
   { id: "branding", label: "Branding" },
   { id: "portal", label: "Client Portal" },
 ];
@@ -122,7 +114,6 @@ export function DashboardTabs({
       {active === "projects" && <ClientProjectsTab org={org} projects={projects} allPhases={filteredPhases} />}
       {active === "proposals" && <ProposalsTab org={org} />}
       {active === "notes" && <NotesTab org={org} />}
-      {active === "users" && <UsersTab org={org} />}
       {active === "workflows" && (
         <WorkflowsTab
           org={org}
@@ -130,12 +121,10 @@ export function DashboardTabs({
           processMaps={filteredProcessMaps}
           projects={projects}
           selectedProjectId={selectedProjectId}
+          kpis={filteredKpis}
         />
       )}
-      {active === "kpis" && <KPIsTab org={org} kpis={filteredKpis} projects={projects} selectedProjectId={selectedProjectId} />}
-      {active === "site-audit" && <SiteAuditTab orgId={org.id} />}
       {active === "docs" && <DocsTab org={org} documents={filteredDocs} projects={projects} selectedProjectId={selectedProjectId} />}
-      {active === "departments" && <DepartmentsTab org={org} />}
       {active === "branding" && <OrgBrandingTab org={org} />}
       {active === "portal" && <PortalSettingsTab org={org} />}
     </>

@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Organization, ProjectWithStats, ProcessMap, Opportunity, PipelineStatus } from "@/types/pm";
 import { StandupWidget } from "../StandupWidget";
+import { UsersTab } from "./UsersTab";
+import { DepartmentsTab } from "./DepartmentsTab";
 
 const RichTextEditor = lazy(() => import("@/components/RichTextEditor"));
 
@@ -118,6 +120,32 @@ export function OverviewTab({
 
   return (
     <div className="space-y-6">
+      {/* Morning Standup */}
+      <StandupWidget orgId={org.id} />
+
+      {/* Activity Summary */}
+      <div className="card">
+        <h3 className="font-semibold text-pm-text mb-4">Activity Summary</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-pm-text">{projects.length}</div>
+            <div className="text-xs text-pm-muted">Total Projects</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-pm-in-progress">{activeProjects}</div>
+            <div className="text-xs text-pm-muted">Active</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-pm-text">{totalTasks}</div>
+            <div className="text-xs text-pm-muted">Total Tasks</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-pm-complete">{completeTasks}</div>
+            <div className="text-xs text-pm-muted">Completed</div>
+          </div>
+        </div>
+      </div>
+
       {/* Actions bar: Edit / Delete */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-pm-text">Client Details</h2>
@@ -302,31 +330,11 @@ export function OverviewTab({
         </div>
       </div>
 
-      {/* Morning Standup */}
-      <StandupWidget orgId={org.id} />
+      {/* Users */}
+      <UsersTab org={org} />
 
-      {/* Activity Summary */}
-      <div className="card">
-        <h3 className="font-semibold text-pm-text mb-4">Activity Summary</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-pm-text">{projects.length}</div>
-            <div className="text-xs text-pm-muted">Total Projects</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-pm-in-progress">{activeProjects}</div>
-            <div className="text-xs text-pm-muted">Active</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-pm-text">{totalTasks}</div>
-            <div className="text-xs text-pm-muted">Total Tasks</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-pm-complete">{completeTasks}</div>
-            <div className="text-xs text-pm-muted">Completed</div>
-          </div>
-        </div>
-      </div>
+      {/* Departments */}
+      <DepartmentsTab org={org} />
 
     </div>
   );

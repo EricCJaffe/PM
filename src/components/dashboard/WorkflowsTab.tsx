@@ -1,15 +1,16 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import type { Organization, ProjectWithStats, ProcessMap, ProcessMapStep, PhaseWithTasks } from "@/types/pm";
+import type { Organization, ProjectWithStats, ProcessMap, ProcessMapStep, PhaseWithTasks, KPI } from "@/types/pm";
 import { ProgressBar } from "../ProgressBar";
 import { StatusBadge } from "../StatusBadge";
 import { ProcessMapsTab } from "./ProcessMapsTab";
 import { ToolsTab } from "./ToolsTab";
 import { OnboardingTab } from "./OnboardingTab";
 import { VocabTab } from "./VocabTab";
+import { KPIsTab } from "./KPIsTab";
 
-type SubTab = "implementation" | "process-maps" | "site-audit" | "onboarding" | "vocab";
+type SubTab = "implementation" | "process-maps" | "vocab" | "kpis" | "site-audit" | "onboarding";
 
 export function WorkflowsTab({
   org,
@@ -17,12 +18,14 @@ export function WorkflowsTab({
   processMaps,
   projects,
   selectedProjectId,
+  kpis,
 }: {
   org: Organization;
   allPhases: { project: ProjectWithStats; phases: PhaseWithTasks[] }[];
   processMaps: ProcessMap[];
   projects: ProjectWithStats[];
   selectedProjectId: string | null;
+  kpis: KPI[];
 }) {
   const [subTab, setSubTab] = useState<SubTab>("implementation");
 
@@ -30,6 +33,7 @@ export function WorkflowsTab({
     { id: "implementation", label: "Implementation Plan" },
     { id: "process-maps", label: "Process Maps" },
     { id: "vocab", label: "Vocabulary" },
+    { id: "kpis", label: "KPIs" },
     { id: "site-audit", label: "Site Audit" },
     { id: "onboarding", label: "Onboarding" },
   ];
@@ -63,6 +67,7 @@ export function WorkflowsTab({
         />
       )}
       {subTab === "vocab" && <VocabTab org={org} />}
+      {subTab === "kpis" && <KPIsTab org={org} kpis={kpis} projects={projects} selectedProjectId={selectedProjectId} />}
       {subTab === "site-audit" && <ToolsTab org={org} />}
       {subTab === "onboarding" && <OnboardingTab org={org} />}
     </div>
