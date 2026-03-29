@@ -785,6 +785,24 @@ export interface SiteAudit {
   updated_at: string;
 }
 
+export type WorkflowType = "remediation" | "rebuild";
+export type WorkflowStatus = "active" | "paused" | "complete";
+
+export interface AuditWorkflow {
+  id: string;
+  audit_id: string;
+  org_id: string | null;
+  project_id: string | null;
+  workflow_type: WorkflowType;
+  status: WorkflowStatus;
+  target_scores: Record<string, number>;
+  current_score: number | null;
+  latest_audit_id: string | null;
+  config: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface AuditSnapshot {
   id: string;
   audit_id: string;
@@ -906,7 +924,7 @@ export interface PortalInvite {
 
 // ─── Discovery / Onboarding Types ───────────────────────────────────
 
-export type ProjectCategory = "standard" | "onboarding" | "personal";
+export type ProjectCategory = "standard" | "onboarding" | "personal" | "remediation" | "rebuild";
 export type OnboardingStatus = "not-started" | "discovery" | "gap-analysis" | "planning" | "active" | "complete";
 export type GapSeverity = "low" | "medium" | "high" | "critical";
 export type GapStatus = "identified" | "acknowledged" | "planned" | "in-progress" | "resolved";
