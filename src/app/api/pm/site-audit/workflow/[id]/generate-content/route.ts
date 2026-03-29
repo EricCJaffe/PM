@@ -78,9 +78,10 @@ export async function POST(
     let updatedCount = 0;
 
     // Generate content per page in batch
-    const pageList = tasks.map((t: { id: string; name: string; description: string | null }) => {
+    interface PageEntry { taskId: string; pageName: string; slug: string; notes: string }
+    const pageList: PageEntry[] = tasks.map((t: { id: string; name: string; description: string | null }) => {
       const pageName = t.name.replace("Content for: ", "");
-      const pageInfo = pages.find((p) => p.title === pageName);
+      const pageInfo = pages.find((p: { title: string; slug: string; notes: string }) => p.title === pageName);
       return {
         taskId: t.id,
         pageName,
@@ -121,7 +122,7 @@ Old site URL: ${audit.url}
 ${audit.audit_summary ? `Audit summary: ${audit.audit_summary}` : ""}
 
 Pages to generate:
-${pageList.map((p) => `- ${p.pageName} (${p.slug}): ${p.notes}`).join("\n")}`,
+${pageList.map((p: PageEntry) => `- ${p.pageName} (${p.slug}): ${p.notes}`).join("\n")}`,
         },
       ],
     });
@@ -150,7 +151,7 @@ ${pageList.map((p) => `- ${p.pageName} (${p.slug}): ${p.notes}`).join("\n")}`,
       const htmlContent = [
         `<h3>${page.hero_headline}</h3>`,
         `<p><em>${page.hero_subtext}</em></p>`,
-        ...page.sections.map((s) => `<h4>${s.heading}</h4>\n<p>${s.body}</p>`),
+        ...page.sections.map((s: { heading: string; body: string }) => `<h4>${s.heading}</h4>\n<p>${s.body}</p>`),
         `<p><strong>CTA:</strong> ${page.cta_text}</p>`,
         `<p><strong>Meta description:</strong> ${page.meta_description}</p>`,
       ].join("\n\n");
