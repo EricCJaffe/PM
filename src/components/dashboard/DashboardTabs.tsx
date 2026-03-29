@@ -2,7 +2,7 @@
 import { useState, useMemo } from "react";
 import type { Organization, ProjectWithStats, ProcessMap, Opportunity, KPI, PMDocument, PhaseWithTasks } from "@/types/pm";
 import { OverviewTab } from "./OverviewTab";
-import { InfoTab } from "./InfoTab";
+// InfoTab consolidated into OverviewTab
 import { ProposalsTab } from "./ProposalsTab";
 import { NotesTab } from "./NotesTab";
 import { ProcessMapsTab } from "./ProcessMapsTab";
@@ -23,7 +23,6 @@ import { OrgBrandingTab } from "./OrgBrandingTab";
 
 const tabs = [
   { id: "overview", label: "Overview" },
-  { id: "info", label: "Info" },
   { id: "tasks", label: "Tasks" },
   { id: "proposals", label: "Proposals" },
   { id: "notes", label: "Notes" },
@@ -124,19 +123,13 @@ export function DashboardTabs({
         )}
       </div>
 
-      {active === "info" && <InfoTab org={org} projects={projects} />}
+
       {active === "tasks" && <ClientTasksTab org={org} />}
       {active === "proposals" && <ProposalsTab org={org} />}
       {active === "notes" && <NotesTab org={org} />}
       {active === "users" && <UsersTab org={org} />}
       {active === "overview" && (
-        <OverviewTab
-          org={org}
-          projects={projects}
-          processMaps={filteredProcessMaps}
-          opportunities={filteredOpportunities}
-          allPhases={filteredPhases}
-        />
+        <OverviewTab org={org} projects={projects} />
       )}
       {active === "process-maps" && <ProcessMapsTab org={org} processMaps={filteredProcessMaps} projects={projects} selectedProjectId={selectedProjectId} />}
       {active === "opportunities" && <OpportunitiesTab org={org} opportunities={filteredOpportunities} projects={projects} selectedProjectId={selectedProjectId} />}
