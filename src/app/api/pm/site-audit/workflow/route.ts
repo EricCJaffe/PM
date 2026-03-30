@@ -29,9 +29,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!["remediation", "rebuild"].includes(workflow_type)) {
+    if (!["remediation", "rebuild", "guided_rebuild"].includes(workflow_type)) {
       return NextResponse.json(
-        { error: "workflow_type must be 'remediation' or 'rebuild'" },
+        { error: "workflow_type must be 'remediation', 'rebuild', or 'guided_rebuild'" },
         { status: 400 }
       );
     }
@@ -74,6 +74,8 @@ export async function POST(request: NextRequest) {
     // Create the project
     const projectName = workflow_type === "remediation"
       ? `${orgName} — Site Remediation`
+      : workflow_type === "guided_rebuild"
+      ? `${orgName} — Guided Website Rebuild`
       : `${orgName} — Website Rebuild`;
 
     const projectSlug = `${workflow_type}-${audit_id.slice(0, 8)}`;

@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS pm_audit_workflows (
   audit_id         UUID NOT NULL REFERENCES pm_site_audits(id) ON DELETE CASCADE,
   org_id           UUID REFERENCES pm_organizations(id) ON DELETE CASCADE,
   project_id       UUID REFERENCES pm_projects(id) ON DELETE SET NULL,
-  workflow_type    TEXT NOT NULL CHECK (workflow_type IN ('remediation', 'rebuild')),
+  workflow_type    TEXT NOT NULL CHECK (workflow_type IN ('remediation', 'rebuild', 'guided_rebuild')),
   status           TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'complete')),
   target_scores    JSONB NOT NULL DEFAULT '{"overall": 80}',
   current_score    INTEGER,

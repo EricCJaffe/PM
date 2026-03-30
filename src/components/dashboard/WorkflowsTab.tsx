@@ -456,15 +456,45 @@ function AuditResults({
 
 // ─── Start Workflow Panel ───────────────────────────────────────────
 
+interface ExistingWorkflow {
+  id: string;
+  workflow_type: string;
+  status: string;
+  project_id: string | null;
+  pm_projects: { name: string; slug: string } | null;
+}
+
 function StartWorkflowPanel({ audit }: { audit: SiteAudit }) {
   const [creating, setCreating] = useState(false);
-  const [result, setResult] = useState<{ workflow_type: string; project_id: string; tasks_created: number } | null>(null);
+  const [existing, setExisting] = useState<ExistingWorkflow[]>([]);
   const [error, setError] = useState("");
 
   const isRebuildRecommended = audit.overall?.rebuild_recommended === true;
 
-  async function handleCreate(workflowType: "remediation" | "rebuild") {
-    if (!confirm(`Start a ${workflowType === "rebuild" ? "Website Rebuild" : "Site Remediation"} workflow for this audit?`)) return;
+  // Check for existing workflows linked to this audit
+  useEffect(() => {
+    if (!audit.org_id) return;
+    fetch(`/api/pm/site-audit/workflow?org_id=${audit.org_id}`)
+      .then((r) => r.json())
+      .then((data: ExistingWorkflow[]) => {
+        if (Array.isArray(data)) {
+          // Filter to workflows linked to this audit
+          const linked = data.filter((w: ExistingWorkflow) =>
+            (w as unknown as { audit_id: string }).audit_id === audit.id
+          );
+          setExisting(linked);
+        }
+      })
+      .catch(() => {});
+  }, [audit.id, audit.org_id]);
+
+  async function handleCreate(workflowType: "remediation" | "rebuild" | "guided_rebuild") {
+    const labels: Record<string, string> = {
+      remediation: "Site Remediation",
+      rebuild: "Website Rebuild",
+      guided_rebuild: "Guided Rebuild",
+    };
+    if (!confirm(`Start a ${labels[workflowType]} workflow for this audit?`)) return;
     setCreating(true);
     setError("");
     try {
@@ -478,7 +508,14 @@ function StartWorkflowPanel({ audit }: { audit: SiteAudit }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setResult({ workflow_type: workflowType, project_id: data.project_id, tasks_created: data.tasks_created });
+      // Add to existing list
+      setExisting((prev) => [...prev, {
+        id: data.workflow?.id || data.project_id,
+        workflow_type: workflowType,
+        status: "active",
+        project_id: data.project_id,
+        pm_projects: { name: labels[workflowType], slug: "" },
+      }]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create workflow");
     } finally {
@@ -486,83 +523,108 @@ function StartWorkflowPanel({ audit }: { audit: SiteAudit }) {
     }
   }
 
-  if (result) {
-    return (
-      <div className="card border-emerald-500/30 bg-emerald-500/5">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-emerald-400 text-lg">&#10003;</span>
-          <h3 className="font-semibold text-pm-text">
-            {result.workflow_type === "rebuild" ? "Website Rebuild" : "Remediation"} Workflow Created
-          </h3>
-        </div>
-        <p className="text-sm text-pm-muted mb-3">
-          {result.tasks_created} tasks generated from audit findings.
-        </p>
-        <a
-          href={`/projects`}
-          className="text-sm text-blue-400 hover:text-blue-300"
-        >
-          View project &rarr;
-        </a>
-      </div>
-    );
+  function getExistingForType(type: string): ExistingWorkflow | undefined {
+    return existing.find((w) => w.workflow_type === type && w.status !== "complete");
   }
+
+  const WORKFLOW_OPTIONS: Array<{
+    type: "remediation" | "rebuild" | "guided_rebuild";
+    label: string;
+    icon: string;
+    description: string;
+    color: string;
+    bgActive: string;
+    bgHover: string;
+    recommended: boolean;
+  }> = [
+    {
+      type: "remediation",
+      label: "Remediation",
+      icon: "\u2699",
+      description: "Keep the current site. Fix gaps and issues identified by the audit. Re-audit to track improvement.",
+      color: "blue",
+      bgActive: "border-blue-500/50 bg-blue-500/5",
+      bgHover: "hover:bg-blue-500/10",
+      recommended: !isRebuildRecommended,
+    },
+    {
+      type: "rebuild",
+      label: "Website Rebuild",
+      icon: "\u2605",
+      description: "Build a new site from scratch using rubric best practices. Guided discovery, design, content, and review process.",
+      color: "purple",
+      bgActive: "border-purple-500/50 bg-purple-500/5",
+      bgHover: "hover:bg-purple-500/10",
+      recommended: isRebuildRecommended,
+    },
+    {
+      type: "guided_rebuild",
+      label: "Guided Rebuild",
+      icon: "\u2728",
+      description: "Structured discovery \u2192 design \u2192 content \u2192 polish \u2192 go-live workflow with client review at each pass.",
+      color: "emerald",
+      bgActive: "border-emerald-500/50 bg-emerald-500/5",
+      bgHover: "hover:bg-emerald-500/10",
+      recommended: false,
+    },
+  ];
 
   return (
     <div className="card">
-      <h3 className="font-semibold text-pm-text mb-1">Start a Workflow</h3>
+      <h3 className="font-semibold text-pm-text mb-1">Workflows</h3>
       <p className="text-sm text-pm-muted mb-4">
-        Use this audit to create a structured project with tasks generated from the findings.
+        Start a new workflow or continue an existing one from this audit.
       </p>
 
       {error && (
         <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">{error}</div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Remediation Card */}
-        <button
-          onClick={() => handleCreate("remediation")}
-          disabled={creating}
-          className={`text-left p-4 rounded-lg border transition-colors ${
-            !isRebuildRecommended
-              ? "border-blue-500/50 bg-blue-500/5 hover:bg-blue-500/10"
-              : "border-pm-border hover:bg-pm-bg"
-          } disabled:opacity-50`}
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-blue-400 text-lg">&#9881;</span>
-            <span className="font-semibold text-pm-text">Remediation</span>
-            {!isRebuildRecommended && (
-              <span className="text-xs px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded">Recommended</span>
-            )}
-          </div>
-          <p className="text-xs text-pm-muted">
-            Keep the current site. Fix gaps and issues identified by the audit. Re-audit to track improvement.
-          </p>
-        </button>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {WORKFLOW_OPTIONS.map((opt) => {
+          const existingWf = getExistingForType(opt.type);
+          const isInProgress = !!existingWf;
 
-        {/* Rebuild Card */}
-        <button
-          onClick={() => handleCreate("rebuild")}
-          disabled={creating}
-          className={`text-left p-4 rounded-lg border transition-colors ${
-            isRebuildRecommended
-              ? "border-purple-500/50 bg-purple-500/5 hover:bg-purple-500/10"
-              : "border-pm-border hover:bg-pm-bg"
-          } disabled:opacity-50`}
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-purple-400 text-lg">&#9733;</span>
-            <span className="font-semibold text-pm-text">Website Rebuild</span>
-            {isRebuildRecommended && (
-              <span className="text-xs px-1.5 py-0.5 bg-purple-500/20 text-purple-400 rounded">Recommended</span>
-            )}
-          </div>
-          <p className="text-xs text-pm-muted">
-            Build a new site from scratch using rubric best practices. Guided discovery, design, content, and review process.
-          </p>
-        </button>
+          if (isInProgress) {
+            // Show "Continue" card for existing workflow
+            return (
+              <a
+                key={opt.type}
+                href={existingWf.project_id ? `/projects` : "#"}
+                className={`text-left p-4 rounded-lg border transition-colors ${opt.bgActive} ${opt.bgHover}`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">{opt.icon}</span>
+                  <span className="font-semibold text-pm-text">{opt.label}</span>
+                  <span className="text-xs px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 rounded">In Progress</span>
+                </div>
+                <p className="text-xs text-pm-muted mb-3">{existingWf.pm_projects?.name || "Active workflow"}</p>
+                <span className={`text-xs font-medium text-${opt.color}-400`}>Continue &rarr;</span>
+              </a>
+            );
+          }
+
+          // Show "Start" card
+          return (
+            <button
+              key={opt.type}
+              onClick={() => handleCreate(opt.type)}
+              disabled={creating}
+              className={`text-left p-4 rounded-lg border transition-colors ${
+                opt.recommended ? opt.bgActive : "border-pm-border"
+              } ${opt.bgHover} disabled:opacity-50`}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-lg">{opt.icon}</span>
+                <span className="font-semibold text-pm-text">{opt.label}</span>
+                {opt.recommended && (
+                  <span className={`text-xs px-1.5 py-0.5 bg-${opt.color}-500/20 text-${opt.color}-400 rounded`}>Recommended</span>
+                )}
+              </div>
+              <p className="text-xs text-pm-muted">{opt.description}</p>
+            </button>
+          );
+        })}
       </div>
 
       {creating && (
@@ -767,9 +829,13 @@ export function WorkflowsTab({
               <div key={wf.id as string} className="card flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    wf.workflow_type === "rebuild" ? "bg-purple-500/20 text-purple-400" : "bg-blue-500/20 text-blue-400"
+                    wf.workflow_type === "rebuild" ? "bg-purple-500/20 text-purple-400" :
+                    wf.workflow_type === "guided_rebuild" ? "bg-emerald-500/20 text-emerald-400" :
+                    "bg-blue-500/20 text-blue-400"
                   }`}>
-                    {wf.workflow_type === "rebuild" ? "Rebuild" : "Remediation"}
+                    {wf.workflow_type === "rebuild" ? "Rebuild" :
+                     wf.workflow_type === "guided_rebuild" ? "Guided Rebuild" :
+                     "Remediation"}
                   </span>
                   <div>
                     <p className="text-sm font-medium text-pm-text">{project?.name || "Workflow"}</p>
@@ -936,6 +1002,11 @@ export function WorkflowsTab({
           <div className="space-y-2">
             {audits.map((audit: SiteAudit) => {
               const ov = getOverall(audit);
+              const auditWorkflow = workflows.find((w: Record<string, unknown>) =>
+                (w as unknown as { audit_id: string }).audit_id === audit.id
+              );
+              const wfType = auditWorkflow?.workflow_type as string | undefined;
+              const wfLabel = wfType === "guided_rebuild" ? "Guided Rebuild" : wfType === "rebuild" ? "Rebuild" : wfType === "remediation" ? "Remediation" : null;
               return (
                 <div key={audit.id} className="card flex items-center justify-between">
                   <button
@@ -961,7 +1032,13 @@ export function WorkflowsTab({
                           <span>{VERTICALS.find((v) => v.value === audit.vertical)?.label}</span>
                           <span>&middot;</span>
                           <span>{new Date(audit.created_at).toLocaleDateString()}</span>
-                          {ov.rebuild_recommended && (
+                          {wfLabel && (
+                            <>
+                              <span>&middot;</span>
+                              <span className="text-emerald-400">{wfLabel} in progress</span>
+                            </>
+                          )}
+                          {!wfLabel && ov.rebuild_recommended && (
                             <>
                               <span>&middot;</span>
                               <span className="text-red-400">Rebuild recommended</span>

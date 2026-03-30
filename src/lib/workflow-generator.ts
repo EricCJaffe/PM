@@ -476,7 +476,9 @@ export function generatePhases(
   audit: SiteAudit,
   workflowType: WorkflowType
 ): PhaseDef[] {
-  return workflowType === "remediation"
-    ? generateRemediationPhases(audit)
-    : generateRebuildPhases(audit);
+  if (workflowType === "remediation") return generateRemediationPhases(audit);
+  // Both "rebuild" and "guided_rebuild" use the same phase structure.
+  // The difference is in how the client portal presents them
+  // (guided_rebuild uses the 5-pass stepper UI).
+  return generateRebuildPhases(audit);
 }

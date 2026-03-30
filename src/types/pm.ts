@@ -785,7 +785,7 @@ export interface SiteAudit {
   updated_at: string;
 }
 
-export type WorkflowType = "remediation" | "rebuild";
+export type WorkflowType = "remediation" | "rebuild" | "guided_rebuild";
 export type WorkflowStatus = "active" | "paused" | "complete";
 
 export interface AuditWorkflow {
