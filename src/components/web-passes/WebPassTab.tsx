@@ -288,10 +288,28 @@ export function WebPassTab({
     );
   }
 
+  // Unlock an approved pass so it can be edited again
+  const unlockPass = async (pass: WebPass) => {
+    if (!confirm(`Unlock "${PASS_LABELS[pass.pass_type]}" for editing? This will set it back to active status.`)) return;
+    try {
+      const res = await fetch(`/api/pm/web-passes/${pass.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "active" }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setPasses((prev) => prev.map((p) => (p.id === data.id ? data : p)));
+      setActivePass(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to unlock pass");
+    }
+  };
+
   // Project exists — show pass workflow
   return (
     <div className="space-y-6">
-      <PassStepper passes={passes} activePassId={activePass?.id ?? null} onSelectPass={setActivePass} />
+      <PassStepper passes={passes} activePassId={activePass?.id ?? null} onSelectPass={setActivePass} onUnlockPass={unlockPass} />
 
       {error && <div className="card border-red-500/30 bg-red-500/10 text-red-400 text-sm">{error}</div>}
 
@@ -425,7 +443,7 @@ export function WebPassTab({
                     </div>
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-pm-muted mb-2">Pages to Include</label>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-2 mb-3">
                         {COMMON_PAGES.map((page) => {
                           const selected = pass1Form.pages.includes(page);
                           return (
@@ -442,6 +460,34 @@ export function WebPassTab({
                             </button>
                           );
                         })}
+                        {/* Show custom pages that aren't in COMMON_PAGES */}
+                        {pass1Form.pages.filter((p) => !COMMON_PAGES.includes(p)).map((page) => (
+                          <button key={page} type="button"
+                            onClick={() => setPass1Form((f) => ({ ...f, pages: f.pages.filter((p) => p !== page) }))}
+                            className="px-3 py-1 rounded-full text-sm border bg-purple-600 border-purple-600 text-white"
+                          >
+                            {page} ×
+                          </button>
+                        ))}
+                      </div>
+                      {/* Add custom page */}
+                      <div className="flex gap-2">
+                        <input
+                          placeholder="Add custom page (e.g. Ministries, FAQ, Resources)"
+                          className="flex-1 bg-pm-bg border border-pm-border rounded-lg px-3 py-1.5 text-pm-text text-sm focus:outline-none focus:border-blue-500"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              const val = (e.target as HTMLInputElement).value.trim();
+                              if (val && !pass1Form.pages.includes(val.toLowerCase().replace(/\s+/g, "-"))) {
+                                const slug = val.toLowerCase().replace(/\s+/g, "-");
+                                setPass1Form((f) => ({ ...f, pages: [...f.pages, slug] }));
+                                (e.target as HTMLInputElement).value = "";
+                              }
+                            }
+                          }}
+                        />
+                        <span className="text-xs text-pm-muted self-center">Press Enter to add</span>
                       </div>
                     </div>
                   </div>
