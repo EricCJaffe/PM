@@ -62,12 +62,13 @@ export default async function ClientDetailPage({
   const activeProjects = projects.filter((p) => p.status === "active").length;
   const openProposals = proposals.filter((p) => !["signed", "archived"].includes(p.status)).length;
 
-  // Get phases for all projects (for workflows tab)
-  const allPhases = [];
-  for (const project of projects) {
-    const phases = await getPhasesWithTasks(project.id);
-    allPhases.push({ project, phases });
-  }
+  // Get phases for all projects in parallel (was sequential N+1, now concurrent)
+  const allPhases = await Promise.all(
+    projects.map(async (project) => {
+      const phases = await getPhasesWithTasks(project.id);
+      return { project, phases };
+    })
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-6">

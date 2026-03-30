@@ -281,25 +281,26 @@ export async function getPhases(projectId: string): Promise<Phase[]> {
 
 export async function getPhasesWithTasks(projectId: string): Promise<PhaseWithTasks[]> {
   const supabase = createServiceClient();
-  const { data: phases } = await supabase
-    .from("pm_phases")
-    .select("*")
-    .eq("project_id", projectId)
-    .order("phase_order");
+
+  // Fetch phases and all tasks for the project in parallel (2 queries instead of N+1)
+  const [{ data: phases }, { data: tasks }] = await Promise.all([
+    supabase.from("pm_phases").select("*").eq("project_id", projectId).order("phase_order"),
+    supabase.from("pm_tasks").select("*").eq("project_id", projectId).order("sort_order").order("created_at"),
+  ]);
 
   if (!phases?.length) return [];
 
-  const result: PhaseWithTasks[] = [];
-  for (const phase of phases) {
-    const { data: tasks } = await supabase
-      .from("pm_tasks")
-      .select("*")
-      .eq("phase_id", phase.id)
-      .order("sort_order")
-      .order("created_at");
-    result.push({ ...(phase as Phase), tasks: (tasks ?? []) as Task[] });
+  const tasksByPhase = new Map<string, Task[]>();
+  for (const task of tasks ?? []) {
+    const list = tasksByPhase.get((task as Task).phase_id ?? "") ?? [];
+    list.push(task as Task);
+    tasksByPhase.set((task as Task).phase_id ?? "", list);
   }
-  return result;
+
+  return (phases as Phase[]).map((phase) => ({
+    ...phase,
+    tasks: tasksByPhase.get(phase.id) ?? [],
+  }));
 }
 
 // ─── Tasks ───────────────────────────────────────────────────────────
