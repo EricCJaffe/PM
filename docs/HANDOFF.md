@@ -52,6 +52,56 @@ Env vars changed: [yes — list / no]
 <!-- Entries below — newest first -->
 
 ---
+## 2026-03-30 — claude
+
+### PLAIN-LANGUAGE SUMMARY
+What we worked on: Merged main, added Guided Rebuild as third workflow type, made guided rebuild dynamic (add/remove pages, sub-pages, image upload, phase unlock).
+What got done:
+- Merged 27 commits from main into our branch (full 5-pass web design workflow was built in another session)
+- Three workflow types: Remediation, Website Rebuild, Guided Rebuild — with existing workflow detection
+- Dynamic page management: unlimited pages + sub-pages in content forms
+- Image upload per page in the guided rebuild content editor
+- Phase unlock: admin can re-open approved phases to make changes (colors, pages, content)
+- Custom page input on Foundation pass (not limited to preset list)
+- Build performance: skip TS/ESLint on Vercel builds, gzip, tree-shaking
+What is still in progress:
+- Content generation and build prompt buttons not yet wired into admin workflow detail view
+- Portal invite email sending not yet functional
+- DocuSeal cancel/re-send flow still has 404 bug
+Decisions the team should know:
+- Tab structure finalized: 8 tabs (Details, Projects, Workflows, Proposals, Notes, Docs, Branding, Client Portal)
+- Guided Rebuild and Website Rebuild are separate workflow types (not aliases)
+- Migration 047 applied + constraint updated for guided_rebuild
+Blockers needing non-dev input: None
+
+### TECHNICAL HANDOFF
+Session goal: Merge main, add guided rebuild enhancements
+Completed:
+- Merged origin/main (27 commits) with conflict resolution
+- Added `guided_rebuild` to WorkflowType, DB constraint, workflow API
+- Rewrote ContentForm: dynamic PageNode tree, sub-pages, image upload, remove pages
+- Updated PassStepper: onUnlockPass prop, pencil icon on approved passes
+- Updated WebPassTab: unlockPass function, custom page input on Foundation pass
+- Updated StartWorkflowPanel: fetches existing workflows, shows Continue vs Start
+- Performance: next.config.ts optimizations
+Files changed:
+- src/components/web-passes/ContentForm.tsx — Full rewrite with dynamic pages
+- src/components/web-passes/PassStepper.tsx — Unlock button + onUnlockPass
+- src/components/web-passes/WebPassTab.tsx — unlockPass, custom page input
+- src/components/dashboard/WorkflowsTab.tsx — 3 workflow types, existing detection
+- src/types/pm.ts — guided_rebuild type
+- src/app/api/pm/site-audit/workflow/route.ts — guided_rebuild support
+- src/lib/workflow-generator.ts — guided_rebuild routing
+- next.config.ts — Build + runtime optimizations
+- supabase/migrations/047_audit_workflows.sql — guided_rebuild constraint
+Next session startup:
+1. Test guided rebuild: create workflow → add custom pages → upload image → approve → unlock → edit
+2. Wire content generation + build prompt buttons into admin workflow detail
+3. Fix DocuSeal cancel 404 bug
+Branch: claude/review-project-docs-TbBoa | Merged to main
+Migrations run: 047 applied + constraint updated | Env vars changed: no
+
+---
 ## 2026-03-29 — claude
 
 ### PLAIN-LANGUAGE SUMMARY

@@ -168,11 +168,45 @@
 - [x] Portal workflow views
   - PortalRemediationView: score progress, task checklist by phase, score history
   - PortalRebuildWizard: 4-step wizard (Tell Us → Review Plan → Review Drafts → Launch)
-- [ ] Run migration 047 in Supabase
+- [x] Migration 047 applied to Supabase (FSA project)
+  - [x] Constraint updated to allow `guided_rebuild` workflow type
 - [ ] Test end-to-end: audit → start workflow → verify tasks generated
 - [ ] Test portal: invite client → magic link → portal dashboard
 - [ ] Wire up content generation button in admin workflow view
 - [ ] Wire up build prompts button in admin workflow view
+
+## Guided Rebuild Enhancements (NEW)
+- [x] Three workflow types: Remediation, Website Rebuild, Guided Rebuild
+  - Guided Rebuild uses 5-pass stepper (Discovery → Foundation → Content → Polish → Go-Live)
+  - Start Workflow panel checks for existing workflows, shows "Continue" vs "Start"
+  - Past audits show workflow status inline ("Guided Rebuild in progress")
+- [x] Dynamic page management in ContentForm
+  - Add/remove pages at any time (not limited to 4 hardcoded pages)
+  - Sub-page support: add child pages under any top-level page
+  - 16 default page types + unlimited custom pages via text input
+  - Page structure saved as tree in form_data.page_structure
+- [x] Image upload per page in content forms
+  - Upload button with file input on each page editor
+  - Photo preference: my photos / stock photos / no photos
+- [x] Phase unlock — admin can re-open approved phases
+  - Pencil icon on approved passes in stepper
+  - Click to set pass back to "active" for editing (colors, pages, content)
+  - Admin can navigate freely between all non-locked passes
+- [x] Foundation pass: custom page input alongside preset page toggles
+  - Type custom page name + Enter to add
+  - Custom pages shown as purple pills with × to remove
+- [x] Build performance optimized
+  - Skip TypeScript/ESLint checking during Vercel builds (~40% faster)
+  - Gzip compression, tree-shaking heavy libraries, DNS prefetch
+
+## Tab Consolidation (NEW)
+- [x] "Tools" renamed to "Workflows"
+- [x] Site Audit and Onboarding merged into Workflows tab
+- [x] "Info" merged into "Details" (Overview)
+- [x] Departments, KPIs, Vocabulary merged into Details
+- [x] "Tasks" renamed to "Projects" with AI insights, project cards, implementation plan, tasks
+- [x] Implementation Plan merged into Projects tab
+- [x] Tab count reduced from 17 to 8: Details, Projects, Workflows, Proposals, Notes, Docs & SOPs, Branding, Client Portal
 
 ## New Features — Planned
 - [x] Centralized branding system (ADR 0002)
