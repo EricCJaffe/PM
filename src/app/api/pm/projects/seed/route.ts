@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { getTemplate, isValidAssignee } from "@/lib/queries";
+import { getTemplate, isValidAssignee, resolveUniqueProjectSlug } from "@/lib/queries";
 import {
   generateProjectVaultFiles,
   generatePhaseVaultFiles,
@@ -115,12 +115,15 @@ export async function POST(request: NextRequest) {
     // Use null for template_slug if template doesn't exist in DB (avoids FK violation)
     const safeTemplateSlug = template ? template_slug : null;
 
+    // Deduplicate slug within org (appends -2, -3, etc. if taken)
+    const uniqueSlug = await resolveUniqueProjectSlug(resolvedOrgId, slug);
+
     // 1. Create project row
     const { data: project, error: projectError } = await supabase
       .from("pm_projects")
       .insert({
         org_id: resolvedOrgId,
-        slug,
+        slug: uniqueSlug,
         name,
         description,
         owner,
@@ -244,7 +247,7 @@ export async function POST(request: NextRequest) {
 
     // 4. Generate vault files
     const vaultFiles = [
-      ...generateProjectVaultFiles(resolvedOrgSlug, slug, {
+      ...generateProjectVaultFiles(resolvedOrgSlug, uniqueSlug, {
         name,
         description,
         owner,
@@ -256,7 +259,7 @@ export async function POST(request: NextRequest) {
         phases: phases.map((p: { slug: string }) => p.slug),
       }),
       ...phases.flatMap((p: { slug: string; name: string; order: number; group?: string }) =>
-        generatePhaseVaultFiles(resolvedOrgSlug, slug, p)
+        generatePhaseVaultFiles(resolvedOrgSlug, uniqueSlug, p)
       ),
     ];
 

@@ -42,7 +42,6 @@ export function NavBar() {
     { href: "/projects", label: "Projects" },
     { href: "/clients", label: "Clients" },
     { href: "/kb", label: "KB" },
-    { href: "/site-audit", label: "Audit" },
     ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
   ];
 

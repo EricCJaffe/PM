@@ -55,55 +55,54 @@ Env vars changed: [yes — list / no]
 ## 2026-03-29 — claude
 
 ### PLAIN-LANGUAGE SUMMARY
-What we worked on: Built the entire Web Project Workflow System — client portal, workflow engine, and AI content generation — from plan to working code in one session.
+What we worked on: Built the entire 5-pass website build workflow end-to-end — the guided process that takes a client from discovery audit through to a live deployed website with before/after scoring.
 What got done:
-- Client portal at /portal/[org-slug] with branded layout, magic link auth, dashboard
-- Workflow engine: audit → remediation or rebuild project with auto-generated tasks
-- 14-section church website admin checklist (50+ items)
-- AI content generation for page copy from audit data + client intake
-- Claude Code build prompt generator (saves to KB)
-- Renamed Tools → Workflows tab with active workflow list
-- Start Workflow panel on audit results (Remediation / Rebuild)
-- Portal views: remediation checklist with score progress, rebuild 4-step wizard
-What is still in progress:
-- Migration 047 needs to be run in Supabase
-- Content generation and build prompt buttons need wiring into admin UI
-- Portal invite email sending (currently just creates invite record)
+- 5-pass workflow (discovery → foundation → content → polish → go-live) fully operational with GPT-4o mockup generation, quality gate scoring, section-level client comments, and go-live deployment
+- Public client review portal at /web-review/[token] — clients can select layout options and leave section feedback with no login
+- Client portal page at /portal/[slug] — the public-facing project status page for clients (was returning "page not found")
+- Engagement engine auto-creates a website-build project + 5 passes when a website_build engagement moves to closed_won
+- Stage-triggered task templates fire automatically when a deal changes stages
+- All migrations 047–050 applied and complete
 Decisions the team should know:
-- "Tools" renamed to "Workflows" throughout
-- Client portal is a separate route (/portal/) with its own minimal layout
-- Portal auth uses magic link (email OTP) — no passwords
-- Client sees 4 simple steps, admin sees full 14-section checklist
+- Scoring gate blocks polish pass approval until all 4 dimensions pass their thresholds (SEO≥70, Conversion≥70, AI Discoverability≥60, Content≥60)
+- Before/after comparison is built at deploy time from the discovery audit (linked to pass 0) and the final audit (provided on deploy)
+- Engagement engine deduplicates: if passes already exist for an org it won't create duplicates
 Blockers needing non-dev input:
-- Run migration 047 in Supabase SQL Editor
+- None
 
 ### TECHNICAL HANDOFF
-Session goal: Build complete Web Project Workflow System (Phases A-F)
+Session goal: Complete 5-pass workflow, engagement engine, scoring gate, go-live automation, and client portal page
 Completed:
-- Phase A: Portal foundation (10 files: layout, auth, dashboard, 4 sub-pages, invite-accept API, PortalShell, PortalDashboard)
-- Phase B: Migration 047, AuditWorkflow types, workflow-generator.ts (500+ lines)
-- Phase C: 4 API route files (workflow CRUD, re-audit, refresh-tasks)
-- Phase D: WorkflowsTab.tsx with StartWorkflowPanel, DashboardTabs rename
-- Phase E: PortalRemediationView, PortalRebuildWizard
-- Phase F: generate-content and build-prompts API routes
-Files changed:
-- src/app/portal/* — NEW portal route tree (7 files)
-- src/components/portal/* — NEW portal components (4 files)
-- src/app/api/pm/portal/invite-accept/ — NEW invite acceptance
-- src/app/api/pm/site-audit/workflow/* — NEW workflow APIs (6 files)
-- src/lib/workflow-generator.ts — NEW workflow generator
-- src/components/dashboard/WorkflowsTab.tsx — NEW (renamed from ToolsTab)
-- src/components/dashboard/DashboardTabs.tsx — Tools → Workflows
-- src/types/pm.ts — AuditWorkflow, ProjectCategory extensions
-- src/middleware.ts — Portal auth routes
-- supabase/migrations/047_audit_workflows.sql — NEW
+- `supabase/migrations/047_web_passes.sql` — pm_web_passes + pm_web_pass_comments tables (inlined updated_at trigger)
+- `supabase/migrations/048_website_build_template.sql` — website-build template via pure SQL upsert (5 phases, 23 tasks)
+- `supabase/migrations/049_engagements_website_build.sql` — website_url, owner, notes on pm_engagements; dropped old CHECK constraint
+- `supabase/migrations/050_engagement_task_template_service_line.sql` — service_line column + 12 website_build task templates seeded
+- `src/lib/engagement-engine.ts` — onEngagementStageChange, spawnStageTasks, autoCreateWebProject
+- `src/app/api/pm/engagements/route.ts` + `[id]/route.ts` — full engagement CRUD with engine hook on PATCH
+- `src/app/api/pm/web-passes/[id]/score/route.ts` — GPT-4o quality gate scorer
+- `src/app/api/pm/web-passes/[id]/reject/route.ts` — reject pass with reason
+- `src/app/api/pm/web-passes/[id]/deploy/route.ts` — go-live: approve, complete project, build before/after comparison
+- `src/components/web-passes/ContentForm.tsx` — Pass 2 page-by-page content editor
+- `src/components/web-passes/ScoringGate.tsx` — Quality gate UI with dimension scores
+- `src/components/web-passes/BeforeAfterReport.tsx` — Before/after audit comparison renderer
+- `src/components/web-passes/WebPassTab.tsx` — Full workflow UI with GoLivePanel
+- `src/app/web-review/[token]/page.tsx` — Public client review portal (no login)
+- `src/app/portal/[slug]/page.tsx` — Client portal server component (fixed "page not found")
+- `src/types/pm.ts` — Added website_build to EngagementServiceLine, Pass2PageContent, Pass2FormData types
+- `src/components/dashboard/ToolsTab.tsx` — Wired "Guided Rebuild (5-Pass)" card into WebPassTab
+- `CLAUDE.md` — Added all new tables, routes, and project templates
+- `docs/TASKS.md`, `docs/SUPABASE.md`, `docs/API.md`, `docs/HANDOFF.md` — Updated
+Files changed: All files listed above
+Decisions: Service role client used throughout (no auth on public web-review and portal pages); pass deduplication by org; trigger inlined to avoid missing shared function
+In progress: Nothing — all phases complete
+Blockers: None
 Next session startup:
-1. Run migration 047 in Supabase SQL Editor
-2. Test portal: create invite → send magic link → login → see dashboard
-3. Test workflow: run audit → Start Remediation → verify tasks generated
-4. Wire content generation and build prompt buttons into admin workflow detail view
-Branch: claude/review-project-docs-TbBoa
-Migrations run: no (047 pending) | Env vars changed: no
+1. `git pull origin main`
+2. Review docs/TASKS.md for any pending backlog items
+3. Check if DocuSeal cancel/re-send flow needs to be tackled next
+Branch: main | Commits: 04d2d60, 5a2af5c, 7cc1dea, 6ad84e2, cb6b1a2 | PR: merged
+Migrations run: yes — 047, 048, 049, 050
+Env vars changed: no
 
 ---
 ## 2026-03-26 — claude

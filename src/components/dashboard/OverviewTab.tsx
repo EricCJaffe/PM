@@ -1,8 +1,11 @@
 "use client";
-
-import { useState, useEffect, lazy, Suspense } from "react";
-import type { Organization, ProjectWithStats, PipelineStatus, KPI } from "@/types/pm";
+import { useState, lazy, Suspense } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import type { Organization, ProjectWithStats, ProcessMap, Opportunity, PipelineStatus } from "@/types/pm";
 import { StandupWidget } from "../StandupWidget";
+import { UsersTab } from "./UsersTab";
+import { DepartmentsTab } from "./DepartmentsTab";
 
 const RichTextEditor = lazy(() => import("@/components/RichTextEditor"));
 
@@ -19,12 +22,39 @@ const PIPELINE_STAGES: { value: PipelineStatus; label: string; color: string }[]
 export function OverviewTab({
   org,
   projects,
-  kpis,
+  processMaps,
+  opportunities,
 }: {
   org: Organization;
   projects: ProjectWithStats[];
-  kpis?: KPI[];
+  processMaps: ProcessMap[];
+  opportunities: Opportunity[];
 }) {
+  const router = useRouter();
+
+  // --- Edit / Delete state ---
+  const [confirming, setConfirming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/pm/organizations", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: org.id }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      router.push("/clients");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to delete client");
+      setDeleting(false);
+      setConfirming(false);
+    }
+  };
+
+  // --- Company info edit state ---
   const [saving, setSaving] = useState(false);
   const [pipelineStatus, setPipelineStatus] = useState<PipelineStatus>(org.pipeline_status || "lead");
   const [editing, setEditing] = useState(false);
@@ -93,6 +123,72 @@ export function OverviewTab({
       {/* Morning Standup */}
       <StandupWidget orgId={org.id} />
 
+      {/* Activity Summary */}
+      <div className="card">
+        <h3 className="font-semibold text-pm-text mb-4">Activity Summary</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-pm-text">{projects.length}</div>
+            <div className="text-xs text-pm-muted">Total Projects</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-pm-in-progress">{activeProjects}</div>
+            <div className="text-xs text-pm-muted">Active</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-pm-text">{totalTasks}</div>
+            <div className="text-xs text-pm-muted">Total Tasks</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-pm-complete">{completeTasks}</div>
+            <div className="text-xs text-pm-muted">Completed</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Actions bar: Edit / Delete */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-pm-text">Client Details</h2>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/clients?edit=${org.slug}`}
+            className="px-3 py-2 border border-pm-border text-pm-text hover:bg-pm-card rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-1.5"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Edit Client
+          </Link>
+          {confirming ? (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="px-3 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                {deleting ? "Deleting..." : "Confirm Delete"}
+              </button>
+              <button
+                onClick={() => setConfirming(false)}
+                className="px-3 py-2 text-pm-muted hover:text-pm-text rounded-lg text-sm font-medium transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirming(true)}
+              className="px-3 py-2 border border-red-600/30 text-red-400 hover:bg-red-600/10 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-1.5"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Delete Client
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Pipeline Status */}
       <div className="card">
         <div className="flex items-center justify-between mb-4">
@@ -128,8 +224,8 @@ export function OverviewTab({
         )}
       </div>
 
+      {/* Company Details + Primary Contact */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Company Details */}
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-pm-text">Company Details</h3>
@@ -145,87 +241,41 @@ export function OverviewTab({
             <div className="space-y-3">
               <div>
                 <label className="block text-xs text-pm-muted mb-1">Phone</label>
-                <input
-                  type="tel"
-                  value={form.phone}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                  className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text"
-                />
+                <input type="tel" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text" />
               </div>
               <div>
                 <label className="block text-xs text-pm-muted mb-1">Website</label>
-                <input
-                  type="url"
-                  value={form.website}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, website: e.target.value }))}
-                  className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text"
-                />
+                <input type="url" value={form.website} onChange={(e) => setForm((f) => ({ ...f, website: e.target.value }))} className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text" />
               </div>
               <div>
                 <label className="block text-xs text-pm-muted mb-1">Address Line 1</label>
-                <input
-                  type="text"
-                  value={form.address}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, address: e.target.value }))}
-                  className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text"
-                  placeholder="123 Main St"
-                />
+                <input type="text" value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text" placeholder="123 Main St" />
               </div>
               <div>
                 <label className="block text-xs text-pm-muted mb-1">Address Line 2</label>
-                <input
-                  type="text"
-                  value={form.address_line2}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, address_line2: e.target.value }))}
-                  className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text"
-                  placeholder="Suite 200"
-                />
+                <input type="text" value={form.address_line2} onChange={(e) => setForm((f) => ({ ...f, address_line2: e.target.value }))} className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text" placeholder="Suite 200" />
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="block text-xs text-pm-muted mb-1">City</label>
-                  <input
-                    type="text"
-                    value={form.city}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, city: e.target.value }))}
-                    className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text"
-                  />
+                  <input type="text" value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text" />
                 </div>
                 <div>
                   <label className="block text-xs text-pm-muted mb-1">State</label>
-                  <input
-                    type="text"
-                    value={form.state}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, state: e.target.value }))}
-                    className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text"
-                  />
+                  <input type="text" value={form.state} onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))} className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text" />
                 </div>
                 <div>
                   <label className="block text-xs text-pm-muted mb-1">ZIP</label>
-                  <input
-                    type="text"
-                    value={form.zip}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, zip: e.target.value }))}
-                    className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text"
-                  />
+                  <input type="text" value={form.zip} onChange={(e) => setForm((f) => ({ ...f, zip: e.target.value }))} className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text" />
                 </div>
               </div>
               <div>
                 <label className="block text-xs text-pm-muted mb-1">Notes</label>
                 <Suspense fallback={<div className="h-[120px] bg-pm-bg border border-pm-border rounded flex items-center justify-center text-pm-muted text-sm">Loading editor...</div>}>
-                  <RichTextEditor
-                    value={form.notes}
-                    onChange={(html: string) => setForm((f) => ({ ...f, notes: html }))}
-                    placeholder="Notes about this organization..."
-                  />
+                  <RichTextEditor value={form.notes} onChange={(html) => setForm((f) => ({ ...f, notes: html }))} placeholder="Notes about this organization..." />
                 </Suspense>
               </div>
-              <button
-                onClick={() => setEditing(false)}
-                className="text-xs text-pm-muted hover:text-pm-text"
-              >
-                Cancel
-              </button>
+              <button onClick={() => setEditing(false)} className="text-xs text-pm-muted hover:text-pm-text">Cancel</button>
             </div>
           ) : (
             <div className="space-y-3">
@@ -247,7 +297,6 @@ export function OverviewTab({
           )}
         </div>
 
-        {/* Primary Contact */}
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-pm-text">Primary Contact</h3>
@@ -257,33 +306,15 @@ export function OverviewTab({
             <div className="space-y-3">
               <div>
                 <label className="block text-xs text-pm-muted mb-1">Name</label>
-                <input
-                  type="text"
-                  value={form.contact_name}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, contact_name: e.target.value }))}
-                  className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text"
-                  placeholder="Jane Smith"
-                />
+                <input type="text" value={form.contact_name} onChange={(e) => setForm((f) => ({ ...f, contact_name: e.target.value }))} className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text" placeholder="Jane Smith" />
               </div>
               <div>
                 <label className="block text-xs text-pm-muted mb-1">Email</label>
-                <input
-                  type="email"
-                  value={form.contact_email}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, contact_email: e.target.value }))}
-                  className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text"
-                  placeholder="jane@acme.com"
-                />
+                <input type="email" value={form.contact_email} onChange={(e) => setForm((f) => ({ ...f, contact_email: e.target.value }))} className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text" placeholder="jane@acme.com" />
               </div>
               <div>
                 <label className="block text-xs text-pm-muted mb-1">Phone</label>
-                <input
-                  type="tel"
-                  value={form.contact_phone}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, contact_phone: e.target.value }))}
-                  className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text"
-                  placeholder="(555) 987-6543"
-                />
+                <input type="tel" value={form.contact_phone} onChange={(e) => setForm((f) => ({ ...f, contact_phone: e.target.value }))} className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text" placeholder="(555) 987-6543" />
               </div>
             </div>
           ) : (
@@ -299,126 +330,12 @@ export function OverviewTab({
         </div>
       </div>
 
-      {/* Quick Stats */}
-      <div className="card">
-        <h3 className="font-semibold text-pm-text mb-4">Activity Summary</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-pm-text">{projects.length}</div>
-            <div className="text-xs text-pm-muted">Total Projects</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-pm-in-progress">{activeProjects}</div>
-            <div className="text-xs text-pm-muted">Active</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-pm-text">{totalTasks}</div>
-            <div className="text-xs text-pm-muted">Total Tasks</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-pm-complete">{completeTasks}</div>
-            <div className="text-xs text-pm-muted">Completed</div>
-          </div>
-        </div>
-      </div>
-      {/* KPIs */}
-      {kpis && kpis.length > 0 && (
-        <div className="card">
-          <h3 className="font-semibold text-pm-text mb-4">Key Performance Indicators</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {kpis.map((kpi: KPI) => (
-              <div key={kpi.id} className="bg-pm-bg border border-pm-border rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-pm-text">{kpi.name}</span>
-                  <span className={`text-xs px-1.5 py-0.5 rounded ${
-                    kpi.trend === "up" ? "bg-emerald-500/20 text-emerald-400" :
-                    kpi.trend === "down" ? "bg-red-500/20 text-red-400" :
-                    "bg-gray-500/20 text-gray-400"
-                  }`}>
-                    {kpi.trend === "up" ? "↑" : kpi.trend === "down" ? "↓" : "→"} {kpi.trend}
-                  </span>
-                </div>
-                <div className="text-2xl font-bold text-pm-text">
-                  {kpi.current_value}{kpi.unit ? ` ${kpi.unit}` : ""}
-                </div>
-                {kpi.target_value != null && (
-                  <div className="mt-2">
-                    <div className="flex justify-between text-xs text-pm-muted mb-1">
-                      <span>Target: {kpi.target_value}{kpi.unit ? ` ${kpi.unit}` : ""}</span>
-                      <span>{Math.min(100, Math.round((kpi.current_value / kpi.target_value) * 100))}%</span>
-                    </div>
-                    <div className="w-full h-1.5 bg-pm-border rounded-full">
-                      <div className="h-full bg-pm-accent rounded-full" style={{ width: `${Math.min(100, Math.round((kpi.current_value / kpi.target_value) * 100))}%` }} />
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Users */}
+      <UsersTab org={org} />
 
-      {/* Departments & Vocabulary */}
-      <DepartmentsSection orgId={org.id} />
-    </div>
-  );
-}
+      {/* Departments */}
+      <DepartmentsTab org={org} />
 
-function DepartmentsSection({ orgId }: { orgId: string }) {
-  const [departments, setDepartments] = useState<Array<{ id: string; name: string; description: string | null; head_name: string | null; member_count: number | null; is_active: boolean }>>([]);
-  const [vocab, setVocab] = useState<Array<{ base_term: string; display_label: string }>>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    Promise.all([
-      fetch(`/api/pm/departments?org_id=${orgId}`).then((r) => r.json()),
-      fetch(`/api/pm/departments/vocab?org_id=${orgId}`).then((r) => r.json()),
-    ]).then(([deptData, vocabData]) => {
-      if (Array.isArray(deptData)) setDepartments(deptData);
-      if (Array.isArray(vocabData)) setVocab(vocabData);
-    }).finally(() => setLoading(false));
-  }, [orgId]);
-
-  if (loading) return null;
-  if (departments.length === 0 && vocab.length === 0) return null;
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {departments.length > 0 && (
-        <div className="card">
-          <h3 className="font-semibold text-pm-text mb-4">Departments</h3>
-          <div className="space-y-2">
-            {departments.filter((d) => d.is_active).map((dept) => (
-              <div key={dept.id} className="flex items-center justify-between py-2 border-b border-pm-border/50 last:border-0">
-                <div>
-                  <span className="text-sm font-medium text-pm-text">{dept.name}</span>
-                  {dept.head_name && <span className="text-xs text-pm-muted ml-2">— {dept.head_name}</span>}
-                </div>
-                {dept.member_count != null && dept.member_count > 0 && (
-                  <span className="text-xs text-pm-muted">{dept.member_count} members</span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {vocab.length > 0 && (
-        <div className="card">
-          <h3 className="font-semibold text-pm-text mb-4">Custom Vocabulary</h3>
-          <div className="space-y-2">
-            {vocab.filter((v) => v.base_term !== v.display_label).map((v) => (
-              <div key={v.base_term} className="flex items-center justify-between py-2 border-b border-pm-border/50 last:border-0">
-                <span className="text-xs text-pm-muted">{v.base_term}</span>
-                <span className="text-sm text-pm-text">→ {v.display_label}</span>
-              </div>
-            ))}
-            {vocab.every((v) => v.base_term === v.display_label) && (
-              <p className="text-sm text-pm-muted">Using default vocabulary.</p>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
