@@ -156,6 +156,10 @@ export function SiteAuditTab({ engagementId, orgId, prospectName, defaultUrl }: 
       fetch("/api/pm/site-audit/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // keepalive: true ensures the request survives page navigation/refresh.
+        // Without it, browsers cancel in-flight fetches on route changes,
+        // which is why audits get stuck in "running" indefinitely.
+        keepalive: true,
         body: JSON.stringify({
           audit_id: data.id,
           url: data.url,

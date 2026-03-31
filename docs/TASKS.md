@@ -1,5 +1,16 @@
 # Tasks
 
+## Conventions
+
+**Assignee format:** append `[@handle]` at the end of a task line. Omit if unassigned.
+Example: `- [ ] Fix login redirect bug [@eric]`
+
+**Collaborators:**
+- `@eric` — Eric Jaffe
+- `@david` — David
+
+---
+
 ## Migrations — All Applied
 - [x] Apply migration 005_auth_user_roles.sql to Supabase
 - [x] Apply migration 006_org_contact_fields.sql to Supabase
@@ -555,6 +566,11 @@
 - [ ] Asana import: connect via Asana API for live import (requires PAT)
 
 ## Completed
+- [x] Project AI cleanup: fix chat-based task creation and remove duplicate AI input on project page
+  - Fixed `/api/pm/chat` task inserts by resolving `org_id` from the project before inserting into `pm_tasks`
+  - Verified against the linked production Supabase project that task creation failed without `org_id` and succeeds when `org_id` is present
+  - Removed the redundant `NLPCommandBar` from `/projects/[slug]` so the page has a single primary AI assistant surface
+  - Kept the `/api/pm/nlp` shortcut flow untouched for other areas that may still rely on it
 - [x] Document Generation module with SOW template, AI-assisted content, and preview/PDF
   - Migration 017: document_types, document_intake_fields, generated_documents, document_sections, document_activity tables with indexes + triggers
   - Seed script (seed-docgen.ts): SOW document type with HTML/CSS template, 27 intake fields across 7 sections, 10 default document sections

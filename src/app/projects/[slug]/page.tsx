@@ -9,7 +9,6 @@ import { EditableRiskTable } from "@/components/EditableRiskTable";
 import { SaveAsTemplateButton } from "@/components/SaveAsTemplateButton";
 import { AIReportsPanel } from "@/components/AIReportsPanel";
 import { ClientUpdateTab } from "@/components/ClientUpdateTab";
-import { NLPCommandBar } from "@/components/NLPCommandBar";
 import { TimelineTab } from "@/components/TimelineTab";
 import { BudgetTab } from "@/components/BudgetTab";
 import Link from "next/link";
@@ -51,11 +50,6 @@ export default async function ProjectDetailPage({
         {/* Compact AI Chat Card */}
         <div className="card mb-4">
           <ChatPanel projectId={project.id} projectSlug={project.slug} compact />
-        </div>
-
-        {/* NLP Command Bar */}
-        <div className="mb-4">
-          <NLPCommandBar projectId={project.id} orgId={project.org_id} />
         </div>
 
         <EditProjectHeader project={project} orgId={project.org_id} memberMap={memberMap} />

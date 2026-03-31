@@ -16,7 +16,7 @@
 
 | Developer | Branch | Area / Module | Key files being touched | Status | Updated |
 |---|---|---|---|---|---|
-| eric | main | — | — | Available | 2026-03-29 |
+| eric | fix/docs-upload-and-esign-strings | Doc upload fix + DocuSeal strings | `src/app/api/pm/documents/route.ts`, `src/app/documents/[id]/page.tsx` | Review | 2026-03-31 |
 | [dev2] | — | — | — | Available | — |
 | [dev3] | — | — | — | Available | — |
 

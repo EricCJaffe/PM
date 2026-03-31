@@ -212,3 +212,35 @@ Next session startup:
 4. Add signed document retrieval (download PDF from DocuSeal after submission.completed)
 Branch: `claude/review-project-docs-TbBoa` | PR: not yet created
 Migrations run: no new migrations | Env vars changed: no
+
+---
+## 2026-03-25 17:10 — eric
+
+### PLAIN-LANGUAGE SUMMARY
+What we worked on: Fixed the AI assistant on the project page so it can create tasks again, and removed the second smaller AI command box that was duplicating the main assistant. The issue was not phase setup; the task insert was failing because the chat route did not send the required organization ID.
+What got done:
+- Fixed AI chat task creation on project pages by resolving the project `org_id` before inserting tasks
+- Verified the live Supabase failure mode and confirmed the corrected insert shape works
+- Removed the redundant NLP command bar from the project detail page
+- Added a repo-specific `CODEX.md` startup guide for future sessions
+What is still in progress:
+- Branch is pushed and ready for review or merge
+Decisions the team should know:
+- Keep one primary AI surface on the project page; do not show both chat and the NLP quick-command bar there
+- Leave `/api/pm/nlp` intact for other parts of the product unless a separate consolidation pass is requested
+Blockers needing non-dev input:
+- None
+
+### TECHNICAL HANDOFF
+Session goal: Diagnose and fix project-page AI task creation, then simplify the duplicate AI UI and close out the day.
+Completed:
+- Fixed project chat `add_task` path to derive `org_id` from `pm_projects` in src/app/api/pm/chat/route.ts
+- Removed `NLPCommandBar` from src/app/projects/[slug]/page.tsx
+- Added startup instructions in CODEX.md
+Files changed:
+- src/app/api/pm/chat/route.ts — populate `org_id` for chat-created tasks
+- src/app/projects/[slug]/page.tsx — remove duplicate NLP bar from project detail page
+Decisions: Keep the conversational assistant as the only AI input on project detail pages.
+In progress: PR/merge not yet completed.
+Blockers: None.
+Branch: fix/chat-task-org-id | Migrations run: no | Env vars changed: no
