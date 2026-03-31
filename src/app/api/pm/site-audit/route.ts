@@ -1,5 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+
+// Allow up to 120s to cover the after() background processing on Vercel Pro
+export const maxDuration = 120;
 
 // GET /api/pm/site-audit?org_id=...  OR  ?prospect_name=...
 export async function GET(request: NextRequest) {
@@ -98,7 +101,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: insertErr?.message || "Failed to create audit" }, { status: 500 });
     }
 
-    // Return immediately — frontend triggers processing and polls for completion
+    // Schedule processing to run AFTER this response is sent.
+    // This is server-side (no browser fetch), so it can't be cancelled by navigation.
+    const origin = request.nextUrl.origin;
+    after(async () => {
+      try {
+        await fetch(`${origin}/api/pm/site-audit/process`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            audit_id: audit.id,
+            url: audit.url,
+            vertical: audit.vertical,
+            org_id: org_id || null,
+            prospect_name: prospect_name || null,
+            extra_context: extra_context || null,
+          }),
+        });
+      } catch (afterErr) {
+        console.error("after(): failed to trigger audit processing:", afterErr);
+      }
+    });
+
     return NextResponse.json(audit, { status: 202 });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Internal error" }, { status: 500 });

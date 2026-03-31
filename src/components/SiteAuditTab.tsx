@@ -149,29 +149,8 @@ export function SiteAuditTab({ engagementId, orgId, prospectName, defaultUrl }: 
       // POST returns immediately with status "running" — polling takes over
       setActiveAudit(data);
 
-      // Fire-and-forget: trigger processing in the background.
+      // Processing is triggered server-side via after() in the POST handler.
       // Polling (useEffect above) detects completion/failure via DB status.
-      // We intentionally do NOT await this — Vercel may kill long-running
-      // functions and return HTML error pages that break .json() parsing.
-      fetch("/api/pm/site-audit/process", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        // keepalive: true ensures the request survives page navigation/refresh.
-        // Without it, browsers cancel in-flight fetches on route changes,
-        // which is why audits get stuck in "running" indefinitely.
-        keepalive: true,
-        body: JSON.stringify({
-          audit_id: data.id,
-          url: data.url,
-          vertical,
-          org_id: orgId || null,
-          prospect_name: prospectName || null,
-          extra_context: null,
-        }),
-      }).catch((processErr) => {
-        // Network-level failure only — log it, polling will pick up DB status
-        console.error("Audit process fetch error:", processErr);
-      });
     } catch (err) {
       setRunning(false);
       setView("form");
