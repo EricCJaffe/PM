@@ -12,7 +12,9 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/share/") ||
     pathname.startsWith("/api/pm/share") ||
     pathname === "/portal/auth" ||
-    pathname.startsWith("/api/pm/portal/invite-accept")
+    pathname.startsWith("/api/pm/portal/invite-accept") ||
+    // Internal background processing route — uses service role key, called via after()
+    pathname === "/api/pm/site-audit/process"
   ) {
     return NextResponse.next();
   }
