@@ -25,6 +25,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error("Document POST: SUPABASE_SERVICE_ROLE_KEY is not set");
+      return NextResponse.json({ error: "Server misconfiguration: storage key missing" }, { status: 500 });
+    }
+
     const formData = await request.formData();
     const orgId = formData.get("org_id") as string;
     const title = formData.get("title") as string;
@@ -45,13 +50,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Upload file to Supabase Storage
-    const storagePath = `documents/${orgId}/${slug}-${file.name}`;
+    // Sanitize file name and ensure a valid content type
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const storagePath = `documents/${orgId}/${slug}-${safeName}`;
+    const contentType = file.type || "application/octet-stream";
     const bytes = new Uint8Array(await file.arrayBuffer());
     const { error: uploadError } = await supabase.storage
       .from("vault")
-      .upload(storagePath, bytes, { contentType: file.type, upsert: true });
+      .upload(storagePath, bytes, { contentType, upsert: true });
     if (uploadError) {
-      console.error("Document upload error:", uploadError);
+      console.error("Document upload error:", JSON.stringify({ message: uploadError.message, status: (uploadError as { status?: number }).status, cause: String(uploadError) }));
       return NextResponse.json({ error: `Upload failed: ${uploadError.message}` }, { status: 500 });
     }
 
@@ -63,9 +71,9 @@ export async function POST(request: NextRequest) {
       department: (formData.get("department") as string) || null,
       description: (formData.get("description") as string) || null,
       storage_path: storagePath,
-      file_name: file.name,
+      file_name: safeName,
       file_size: file.size,
-      mime_type: file.type || null,
+      mime_type: contentType,
       uploaded_by: (formData.get("uploaded_by") as string) || null,
       project_id: (formData.get("project_id") as string) || null,
     }).select().single();
