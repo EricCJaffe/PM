@@ -70,14 +70,14 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (docType?.variables) {
-      const vars = docType.variables as { sections?: Array<{ section_key: string; title: string; sort_order: number }> };
+      const vars = docType.variables as { sections?: Array<{ section_key: string; title: string; sort_order: number; default_content?: string }> };
       if (vars.sections?.length) {
         const sections = vars.sections.map((s) => ({
           document_id: doc.id,
           section_key: s.section_key,
           title: s.title,
           sort_order: s.sort_order,
-          content_html: "",
+          content_html: s.default_content || "",
         }));
         await supabase.from("document_sections").insert(sections);
       }

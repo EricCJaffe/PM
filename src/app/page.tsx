@@ -441,18 +441,6 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Quick links */}
-      <div className="mt-10 grid grid-cols-2 gap-4">
-        <Link href="/projects" className="card text-center py-4 hover:border-pm-muted/50 transition-colors">
-          <div className="text-sm font-medium text-pm-text">Projects</div>
-          <div className="text-xs text-pm-muted mt-1">View all projects</div>
-        </Link>
-        <Link href="/clients" className="card text-center py-4 hover:border-pm-muted/50 transition-colors">
-          <div className="text-sm font-medium text-pm-text">Clients</div>
-          <div className="text-xs text-pm-muted mt-1">Manage clients</div>
-        </Link>
-      </div>
-
       {/* Task detail modal */}
       {selectedTask && (
         <TaskDetailModal

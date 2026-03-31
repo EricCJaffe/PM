@@ -121,7 +121,9 @@ docs/                       # Project documentation
 | `pm_api_keys` | API keys for external integrations (hashed, scoped permissions) |
 | `pm_engagements` | CRM deal engagements per org (deal_stage, value, type) |
 | `pm_engagement_attachments` | File attachments on engagements (categorized: discovery, proposal, contract, etc.) |
-| `pm_engagement_task_templates` | Stage-triggered auto-task definitions |
+| `pm_engagement_task_templates` | Stage-triggered auto-task definitions (service_line filter for website_build) |
+| `pm_web_passes` | 5-pass website build workflow per project (discovery→foundation→content→polish→go-live) |
+| `pm_web_pass_comments` | Section-by-section client feedback on mockup deliverables |
 | `pm_departments` | Organizational departments within client orgs |
 | `pm_department_vocab` | Flexible vocabulary overrides (base terms → display labels) |
 | `pm_portal_settings` | Per-org client portal visibility/feature toggles |
@@ -139,6 +141,7 @@ docs/                       # Project documentation
 | `saas-rollout` | SaaS App Rollout | 26 phases in BUILD/GTM/GROW/FOUNDATION |
 | `ministry-discovery` | Ministry / Org Discovery | 7 phases with department sublayer cloning |
 | `tech-stack-modernization` | Tech Stack Modernization (PMBOK) | 12 PMBOK management sections |
+| `website-build` | Website Build (5-Pass) | 5 phases: Discovery, Foundation, Content, Polish, Go-Live (23 tasks) |
 | `custom` | Custom | Blank slate |
 
 ## Vault Folder Structure
@@ -218,6 +221,16 @@ vault/[org-slug]/[project-slug]/
 | `/api/pm/onboarding` | POST | Create onboarding project with discovery tasks |
 | `/api/pm/branding` | GET, POST | Get / update platform branding (singleton) |
 | `/api/pm/branding/org` | GET, POST | Get / upsert per-org branding overrides |
+| `/api/pm/web-passes` | GET, POST | List / create web passes (by project_id or org_id) |
+| `/api/pm/web-passes/[id]` | GET, PATCH | View / update pass (form_data, status, deliverables) |
+| `/api/pm/web-passes/[id]/generate` | POST | GPT-4o generate mockup HTML (foundation: 2 variants, content: render, polish: apply+SEO) |
+| `/api/pm/web-passes/[id]/approve` | POST | Approve pass and unlock next pass |
+| `/api/pm/web-passes/[id]/reject` | POST | Reject pass with reason (sets status=rejected, requires rework) |
+| `/api/pm/web-passes/[id]/score` | POST | GPT-4o score deliverable HTML against quality gate rubric |
+| `/api/pm/web-passes/[id]/deploy` | POST | Mark go-live pass complete, link final audit, build before/after comparison |
+| `/api/pm/web-passes/[id]/comments` | GET, POST, PATCH | Section comments CRUD + resolve |
+| `/api/pm/web-passes/share/[token]` | GET, POST | Public client review: load pass + submit comments/option selection |
+| `/web-review/[token]` | — | Public client portal page (no login): mockup review, section feedback, option selection |
 
 ## Security Rules
 - **Never** put OpenAI API keys, service role keys, or GitHub tokens in `NEXT_PUBLIC_*` vars

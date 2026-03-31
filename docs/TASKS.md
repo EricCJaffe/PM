@@ -1,9 +1,5 @@
 # Tasks
 
-## Migrations — Pending
-- [ ] Apply migration 043_site_audit_prospect_support.sql to Supabase
-- [ ] Apply migration 045_rename_daily_logs_date_to_log_date.sql to Supabase
-
 ## Migrations — All Applied
 - [x] Apply migration 005_auth_user_roles.sql to Supabase
 - [x] Apply migration 006_org_contact_fields.sql to Supabase
@@ -19,6 +15,14 @@
 - [x] Apply migration 025_note_visibility.sql to Supabase
 - [x] Apply migration 026_site_audits.sql to Supabase
 - [x] Apply migration 027_site_audit_scoring_v2.sql to Supabase
+- [x] Apply migration 043_site_audit_prospect_support.sql to Supabase
+- [x] Apply migration 044_fix_risks_title_column.sql to Supabase
+- [x] Apply migration 045_rename_daily_logs_date_to_log_date.sql to Supabase
+- [x] Apply migration 046_fix_daily_logs_org_fk.sql to Supabase
+- [x] Apply migration 047_web_passes.sql to Supabase
+- [x] Apply migration 048_website_build_template.sql to Supabase
+- [x] Apply migration 049_engagements_website_build.sql to Supabase
+- [x] Apply migration 050_engagement_task_template_service_line.sql to Supabase
 
 ## Backfill Scripts — Completed
 1. [x] Run FSA site-org backfill: `npx tsx scripts/backfill-fsa-site-org.ts`
@@ -31,7 +35,29 @@
 - [x] End-to-end test: full auth flow (login → admin console → add user → external user scoping)
 - [x] Onboarding notes: new users are added via admin console, which creates auth user + links to pm_members with org access. Each user gets a role per org: admin, user, or external (read-only)
 
+## UI Cleanup — Client Dashboard
+- [x] Consolidate client dashboard tabs from 20 to 15
+  - Merged **Overview** + **Info** into single **Details** tab (pipeline, company info, contact, projects, standup)
+  - Merged **Process Maps** into **Workflows** tab (sub-tabs: Implementation Plan + Process Maps)
+  - Removed **Opportunities** tab (redundant with Proposals)
+  - Removed **Knowledge Base** from client menu (site-level function)
+  - Removed **Gap Analysis** tab (part of process workflow)
+  - Moved **Workflows** next to Tasks for better navigation
+  - Added **portal link** to Client Portal tab (URL, Open Portal, Copy Link)
+- [x] Clean up client header
+  - Replaced process-review stats cards with **Projects**, **Tasks**, **Proposals**, **Overall Progress**
+  - Removed Edit, Delete, + New Project, Share with Client buttons from header
+  - Added **primary contact** name, phone (clickable tel:), email (clickable mailto:) to header
+  - Moved Edit Client + Delete Client into **Details** tab
+  - Moved + New Project button into **Details** tab projects section
+- New tab order: Details, Tasks, Workflows, Proposals, Notes, Users, KPIs, Site Audit, Docs & SOPs, Departments, Vocabulary, Onboarding, Branding, Client Portal, Tools
+
 ## Bug Fixes
+- [x] Fix duplicate slug constraint error on project creation — `pm_projects` has `UNIQUE(org_id, slug)` but neither seed nor intake routes checked for existing slugs
+  - Added `resolveUniqueProjectSlug()` helper in `src/lib/queries.ts` — queries existing slugs with same prefix and appends `-2`, `-3`, etc. if taken
+  - Updated `/api/pm/projects/seed` route to deduplicate slug before insert
+  - Updated `/api/pm/projects/intake` route to deduplicate slug before insert
+  - Vault file paths also use the deduplicated slug for consistency
 - [x] Fix standup generation 500 error — `pm_daily_logs.date` was renamed to `log_date` in live DB but code still used `date`, causing NOT NULL violation on insert
   - Updated all Supabase queries in standup/generate, standup list, reports/standup routes
   - Updated StandupWidget and AIReportsPanel components to use `log_date`
@@ -74,6 +100,113 @@
   - Graceful degradation when RESEND_API_KEY not set
 - [ ] Set up Vercel Cron for daily recurring task generation (/api/pm/series/generate)
 - [ ] Final configuration of DocuSeal (document signing/e-signature integration)
+  - [x] Wire up DocuSeal API client, webhook receiver, and eSign routes
+  - [x] Inject signature/date/name field tags into HTML before sending
+  - [x] Fix API response parsing and submission_id lookup
+  - [x] Add signing link ({{submitter.link}}) to email body
+  - [x] Always include both Client + Provider (FSA) signature blocks with names/titles
+  - [x] Fix Xodo Sign references → DocuSeal throughout UI and migration comments
+  - [x] Use DocuSeal `documents` array API format (not flat html string)
+  - [x] Add `getSubmitter()` to resolve submission_id from submitter_id
+  - [ ] **Cancel & re-send flow**: After sending for eSign, allow canceling, editing the document, and re-sending. Cancel button disappears after first send — needs to remain visible while status is "waiting". After cancel, status should revert to "draft" so document can be edited and re-sent.
+  - [ ] **Signed document retrieval**: When all parties have signed (submission.completed), automatically download the signed PDF from DocuSeal and upload it to the client's document storage in Supabase. Show download link in the eSign status banner.
+  - [ ] **Cancel 404 bug**: The `DELETE /submissions/:id` still returns 404 — the `getSubmitter()` call to resolve submission_id may be failing silently. Debug with live DocuSeal data to confirm the correct ID chain (submitter → submission).
+
+## New Document Templates
+- [x] NDA (Non-Disclosure Agreement) template
+  - FSA-branded cover page, header, footer
+  - 14 editable clause sections with pre-populated default content
+  - Preamble with party details from intake data
+  - Standard signature block for DocuSeal eSign
+  - 13 intake fields: counterparty info, agreement details, provider, settings
+  - Seed: `supabase/seeds/seed-docgen-nda.sql` — run in Supabase SQL Editor to activate
+- [x] MSA (Master Service Agreement) template rebuilt
+  - Replaced old plain-text migration-024 MSA with standardized FSA-branded template
+  - 9 editable clause sections with default content (Services, Term, Compensation, etc.)
+  - Standard signature block for DocuSeal eSign
+  - 11 intake fields using eSign-compatible keys
+  - Seed: `supabase/seeds/seed-docgen-msa.sql` — run in Supabase SQL Editor to activate
+- [x] Document creation route supports `default_content` in variables JSON
+  - Sections pre-populated at creation time for legal templates (NDA, MSA)
+  - SOW sections still created empty for AI generation (backward compatible)
+- [x] SectionEditor upgraded from raw HTML textarea to Tiptap rich text editor
+  - Bold, Italic, Underline, headings, lists, blockquotes, links toolbar
+  - Users no longer see raw HTML tags when editing
+- [x] Reusable template pattern documented in `docs/PROMPT_LIBRARY.md`
+  - 5-point checklist for creating new eSign-ready document templates
+  - DocuSeal field injection reference
+
+## Web Project Workflow System (NEW)
+- [x] Client Portal foundation (`/portal/[orgSlug]`)
+  - Branded layout with org logo, accent color, portal title
+  - Magic link auth (email OTP, zero password)
+  - Invite acceptance API with org access linking
+  - Dashboard home: workflow status + documents + tasks cards
+  - Portal settings enforcement (show_workflow, show_documents, show_tasks)
+  - Workflow, Documents, Tasks sub-pages
+- [x] Migration 047: `pm_audit_workflows` table
+  - Links site audits to remediation/rebuild projects
+  - target_scores, current_score, latest_audit_id tracking
+  - Portal settings: show_site_audit, show_workflow toggles
+  - Gap analysis: audit_id traceability column
+  - RLS policies (internal full, external read-only)
+- [x] Workflow generator (`src/lib/workflow-generator.ts`)
+  - generateRemediationPhases(): audit gaps → 8 phases (Quick Wins + 6 dimensions + Re-Audit)
+  - generateRebuildPhases(): 8 phases (Intake → Discovery → Design → Architecture → Content → Build → Review → Launch)
+  - generateGapItemsFromAudit(): audit gaps → pm_gap_analysis rows
+  - generateAdminChecklist(): 14-section church website checklist (50+ items)
+- [x] Workflow API routes
+  - CRUD: POST/GET /api/pm/site-audit/workflow, GET/PATCH/DELETE /[id]
+  - Re-audit: POST /[id]/re-audit (triggers new audit, updates scores)
+  - Refresh tasks: POST /[id]/refresh-tasks (diffs new audit, adds net-new tasks)
+  - Content generation: POST /[id]/generate-content (AI page copy from audit + intake)
+  - Build prompts: POST /[id]/build-prompts (Claude Code prompts → KB article)
+- [x] Admin UI: Tools → Workflows tab rename
+  - Active workflows list with type badge, score progress, status
+  - Start Workflow panel on audit results (Remediation / Rebuild cards)
+  - Auto-highlights recommended option based on rebuild_recommended
+- [x] Portal workflow views
+  - PortalRemediationView: score progress, task checklist by phase, score history
+  - PortalRebuildWizard: 4-step wizard (Tell Us → Review Plan → Review Drafts → Launch)
+- [x] Migration 047 applied to Supabase (FSA project)
+  - [x] Constraint updated to allow `guided_rebuild` workflow type
+- [ ] Test end-to-end: audit → start workflow → verify tasks generated
+- [ ] Test portal: invite client → magic link → portal dashboard
+- [ ] Wire up content generation button in admin workflow view
+- [ ] Wire up build prompts button in admin workflow view
+
+## Guided Rebuild Enhancements (NEW)
+- [x] Three workflow types: Remediation, Website Rebuild, Guided Rebuild
+  - Guided Rebuild uses 5-pass stepper (Discovery → Foundation → Content → Polish → Go-Live)
+  - Start Workflow panel checks for existing workflows, shows "Continue" vs "Start"
+  - Past audits show workflow status inline ("Guided Rebuild in progress")
+- [x] Dynamic page management in ContentForm
+  - Add/remove pages at any time (not limited to 4 hardcoded pages)
+  - Sub-page support: add child pages under any top-level page
+  - 16 default page types + unlimited custom pages via text input
+  - Page structure saved as tree in form_data.page_structure
+- [x] Image upload per page in content forms
+  - Upload button with file input on each page editor
+  - Photo preference: my photos / stock photos / no photos
+- [x] Phase unlock — admin can re-open approved phases
+  - Pencil icon on approved passes in stepper
+  - Click to set pass back to "active" for editing (colors, pages, content)
+  - Admin can navigate freely between all non-locked passes
+- [x] Foundation pass: custom page input alongside preset page toggles
+  - Type custom page name + Enter to add
+  - Custom pages shown as purple pills with × to remove
+- [x] Build performance optimized
+  - Skip TypeScript/ESLint checking during Vercel builds (~40% faster)
+  - Gzip compression, tree-shaking heavy libraries, DNS prefetch
+
+## Tab Consolidation (NEW)
+- [x] "Tools" renamed to "Workflows"
+- [x] Site Audit and Onboarding merged into Workflows tab
+- [x] "Info" merged into "Details" (Overview)
+- [x] Departments, KPIs, Vocabulary merged into Details
+- [x] "Tasks" renamed to "Projects" with AI insights, project cards, implementation plan, tasks
+- [x] Implementation Plan merged into Projects tab
+- [x] Tab count reduced from 17 to 8: Details, Projects, Workflows, Proposals, Notes, Docs & SOPs, Branding, Client Portal
 
 ## New Features — Planned
 - [x] Centralized branding system (ADR 0002)
@@ -117,6 +250,29 @@
 - [x] Onboarding project → process project handoff (create child project from onboarding)
 
 ## Recently Completed
+- [x] 5-Pass Website Build Workflow (ADR 0001)
+  - **pm_web_passes** table (migration 047): 5 passes per project (discovery, foundation, content, polish, go-live), token-based sharing, status lifecycle, scoring_results JSONB, section comments
+  - **pm_web_pass_comments** table (migration 047): section-level client feedback with type (approve/request-change/comment) and resolve tracking
+  - **Website-build template** (migration 048): seeded via pure SQL upsert with 5 phases (wb-discovery → wb-go-live) and 23 tasks
+  - **Engagement engine** (`src/lib/engagement-engine.ts`): `onEngagementStageChange()` fires on every deal_stage PATCH; `spawnStageTasks()` inserts pm_tasks from pm_engagement_task_templates; `autoCreateWebProject()` auto-creates project + 5 passes on `website_build` + `closed_won`
+  - **Engagements API** (migration 049): added website_url, projected_mrr, projected_one_time, owner, notes columns; dropped old CHECK constraint on engagement_type
+  - **Stage task templates** (migration 050): service_line column on pm_engagement_task_templates; 12 website_build templates seeded across qualified/discovery_complete/closed_won stages
+  - **WebPassTab** component (`src/components/web-passes/WebPassTab.tsx`): full pass lifecycle UI — form input, GPT-4o mockup generation, approve/reject, section comments, go-live deploy panel with checklist
+  - **ContentForm** component (`src/components/web-passes/ContentForm.tsx`): page-by-page content editor for Pass 2 (hero, body, CTA, photo preference) with tab navigation and save-to-pass
+  - **ScoringGate** component (`src/components/web-passes/ScoringGate.tsx`): "Run Scoring Rubric" → GPT-4o scores HTML across 4 dimensions (SEO≥70, Conversion≥70, AI Discoverability≥60, Content≥60); blocks approval until all pass
+  - **BeforeAfterReport** component (`src/components/web-passes/BeforeAfterReport.tsx`): before/after bar chart across 6 audit dimensions with delta badges and grade chips
+  - **Score route** (`/api/pm/web-passes/[id]/score`): GPT-4o scores deliverable HTML, saves to scoring_results
+  - **Reject route** (`/api/pm/web-passes/[id]/reject`): sets status=rejected with reason; blocks re-rejecting approved passes
+  - **Deploy route** (`/api/pm/web-passes/[id]/deploy`): marks go-live pass approved, marks project complete, builds before/after comparison from two site audits
+  - **Public client review portal** (`/web-review/[token]`): no-login token page; foundation shows two iframe mockups with Select A/B; content/polish shows iframe + per-section comment forms; go-live shows checklist + feedback
+  - ToolsTab wired: "Guided Rebuild (5-Pass)" launcher card in Workflows grid passes active audit into WebPassTab
+- [x] Client portal page at /portal/[slug]
+  - `src/app/portal/[slug]/page.tsx` — Server Component resolving org by slug
+  - Loads portal settings, branding, active + completed projects, KPIs, proposals in parallel
+  - Loads phase breakdowns for active projects when show_phases=true
+  - Respects all pm_portal_settings show_* toggles (projects, phases, tasks, risks, KPIs, proposals)
+  - Uses getBranding() for co-branded header with agency/client logos and co-brand mode
+  - Resolves "page not found" error when clicking portal link from PortalSettingsTab
 - [x] SOW Builder billing enhancements
   - **Bug fix**: Print dialog no longer reopens after saving PDF — window closes after print completes
   - **Payment Notes**: New textarea field under payment schedule for additional billing notes

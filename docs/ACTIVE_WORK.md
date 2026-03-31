@@ -7,8 +7,8 @@
 ---
 
 ## Current sprint
-**Dates:** [YYYY-MM-DD] to [YYYY-MM-DD]
-**Goal:** [one sentence describing sprint focus]
+**Dates:** 2026-03-29
+**Goal:** 5-pass website build workflow complete — all migrations applied, all phases shipped
 
 ---
 
@@ -16,9 +16,9 @@
 
 | Developer | Branch | Area / Module | Key files being touched | Status | Updated |
 |---|---|---|---|---|---|
-| eric | fix/chat-task-org-id | AI chat + project page UI | `src/app/api/pm/chat/route.ts`, `src/app/projects/[slug]/page.tsx`, closeout docs | Review | 2026-03-25 |
-| [dev2] | — | — | — | Available | [date] |
-| [dev3] | — | — | — | Available | [date] |
+| eric | fix/docs-upload-and-esign-strings | Doc upload fix + DocuSeal strings | `src/app/api/pm/documents/route.ts`, `src/app/documents/[id]/page.tsx` | Review | 2026-03-31 |
+| [dev2] | — | — | — | Available | — |
+| [dev3] | — | — | — | Available | — |
 
 Status options: Active / In Progress / Blocked / Review / Available / WIP-Incomplete
 
@@ -48,4 +48,4 @@ Status options: Active / In Progress / Blocked / Review / Available / WIP-Incomp
 ## Waiting on review
 | Branch | Developer | PR link | Reviewer | Opened |
 |---|---|---|---|---|
-| fix/chat-task-org-id | eric | https://github.com/EricCJaffe/PM/pull/new/fix/chat-task-org-id | eric | 2026-03-25 |
+| — | — | — | — | — |
