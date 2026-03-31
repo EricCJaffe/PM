@@ -38,6 +38,13 @@ When making changes, update the relevant docs **in the same commit**:
 | Security change | `docs/SECURITY.md` |
 | API change | `docs/API.md` |
 | Supabase schema or vault change | `docs/SUPABASE.md` |
+| Task assigned or reassigned | `docs/TASKS.md` — preserve `[@handle]` assignee format |
+
+## Active Collaborators
+| Handle | Name | Role |
+|---|---|---|
+| `@eric` | Eric Jaffe | Lead / Architect |
+| `@david` | David | Collaborator |
 
 ## Code Conventions
 - **Server Components by default** — only add `'use client'` when interactivity or browser APIs are required

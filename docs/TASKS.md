@@ -1,5 +1,16 @@
 # Tasks
 
+## Conventions
+
+**Assignee format:** append `[@handle]` at the end of a task line. Omit if unassigned.
+Example: `- [ ] Fix login redirect bug [@eric]`
+
+**Collaborators:**
+- `@eric` — Eric Jaffe
+- `@david` — David
+
+---
+
 ## Migrations — All Applied
 - [x] Apply migration 005_auth_user_roles.sql to Supabase
 - [x] Apply migration 006_org_contact_fields.sql to Supabase
