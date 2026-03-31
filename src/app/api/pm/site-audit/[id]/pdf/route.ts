@@ -70,7 +70,6 @@ export async function POST(
     return new NextResponse(html, {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
-        "Content-Disposition": `attachment; filename="${orgSlug}-site-audit-${dateStr}.html"`,
       },
     });
   } catch (err) {

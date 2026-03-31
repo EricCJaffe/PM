@@ -367,6 +367,19 @@ ${quickWinsPage}
 <!-- Closing -->
 ${closingSection}
 
+<!-- Floating Save-as-PDF button (hidden in print) -->
+<div class="print-fab">
+  <button onclick="window.print()">&#8595; Save as PDF</button>
+</div>
+
+<script>
+  // Auto-open the print dialog after content renders.
+  // User selects "Save as PDF" in their print dialog.
+  window.addEventListener('load', function() {
+    setTimeout(function() { window.print(); }, 600);
+  });
+</script>
+
 </body>
 </html>`;
 }
@@ -787,9 +800,16 @@ body {
 
 /* ── Print ── */
 @media print {
+  /* Force ALL backgrounds and colors to print exactly as shown on screen */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
   body { background: #fff; }
   .page { min-height: auto; page-break-inside: avoid; }
   .cover-page { min-height: 100vh; }
+  .print-fab { display: none !important; }
 }
 
 @media screen {
@@ -799,5 +819,28 @@ body {
     margin: 20px auto;
     box-shadow: 0 2px 20px rgba(0,0,0,0.4);
   }
+}
+
+/* ── Floating Save-as-PDF button (screen only) ── */
+.print-fab {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 9999;
+}
+.print-fab button {
+  background: var(--navy);
+  color: #fff;
+  border: none;
+  padding: 13px 24px;
+  font-size: 11pt;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 4px;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.35);
+  letter-spacing: 0.3px;
+}
+.print-fab button:hover {
+  background: var(--slate);
 }
 `;

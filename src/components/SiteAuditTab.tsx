@@ -196,23 +196,21 @@ export function SiteAuditTab({ engagementId, orgId, prospectName, defaultUrl }: 
 
   const downloadReport = useCallback(async (auditId: string) => {
     setPdfLoading(true);
+    // Open the window synchronously (before any await) to avoid popup blockers.
+    // Browsers only allow window.open inside a user-gesture handler; awaiting
+    // a fetch first loses that context and gets the window blocked.
+    const win = window.open("", "_blank");
     try {
       const res = await fetch(`/api/pm/site-audit/${auditId}/pdf`, { method: "POST" });
       if (!res.ok) throw new Error("Failed to generate report");
-
-      const contentType = res.headers.get("Content-Type") || "";
-      if (contentType.includes("text/html")) {
-        // HTML report — open in new tab
-        const html = await res.text();
-        const blob = new Blob([html], { type: "text/html" });
-        const blobUrl = URL.createObjectURL(blob);
-        window.open(blobUrl, "_blank");
-      } else {
-        // JSON with signed URL
-        const data = await res.json();
-        if (data.pdf_url) window.open(data.pdf_url, "_blank");
+      const html = await res.text();
+      if (win) {
+        win.document.open();
+        win.document.write(html);
+        win.document.close();
       }
     } catch (err) {
+      if (win) win.close();
       alert(err instanceof Error ? err.message : "Failed to generate report");
     } finally {
       setPdfLoading(false);
