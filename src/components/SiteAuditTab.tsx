@@ -55,6 +55,8 @@ export function SiteAuditTab({ engagementId, orgId, prospectName, defaultUrl }: 
   const [url, setUrl] = useState(defaultUrl ?? "");
   const [vertical, setVertical] = useState<AuditVertical>("church");
   const [running, setRunning] = useState(false);
+  const [auditStartTime, setAuditStartTime] = useState<number | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -94,16 +96,8 @@ export function SiteAuditTab({ engagementId, orgId, prospectName, defaultUrl }: 
     if (!activeAudit || activeAudit.status !== "running") return;
     let pollCount = 0;
     const MAX_POLLS = 72; // 72 * 2.5s = 3 minutes
-    const interval = setInterval(async () => {
-      pollCount++;
-      if (pollCount > MAX_POLLS) {
-        clearInterval(interval);
-        setRunning(false);
-        setActiveAudit((prev) =>
-          prev ? { ...prev, status: "failed" as const, audit_summary: "Audit timed out — please try again" } : prev
-        );
-        return;
-      }
+
+    const checkAudit = async () => {
       try {
         const res = await fetch(`/api/pm/site-audit/${activeAudit.id}`);
         const data = await res.json();
@@ -114,7 +108,6 @@ export function SiteAuditTab({ engagementId, orgId, prospectName, defaultUrl }: 
             setRunning(false);
             if (data.status === "complete") {
               setView("results");
-              // Refresh the audits list so history is up to date
               loadAudits();
             }
           }
@@ -122,13 +115,56 @@ export function SiteAuditTab({ engagementId, orgId, prospectName, defaultUrl }: 
       } catch {
         /* retry on next tick */
       }
+    };
+
+    const interval = setInterval(async () => {
+      pollCount++;
+      if (pollCount > MAX_POLLS) {
+        clearInterval(interval);
+        // Do one final DB check before declaring failure — the audit may have
+        // completed while poll requests were failing due to a network hiccup.
+        try {
+          const res = await fetch(`/api/pm/site-audit/${activeAudit.id}`);
+          const data = await res.json();
+          if (data.id && (data.status === "complete" || data.status === "failed")) {
+            setActiveAudit(data);
+            setRunning(false);
+            if (data.status === "complete") {
+              setView("results");
+              loadAudits();
+            }
+            return;
+          }
+        } catch { /* fall through to timeout */ }
+        setRunning(false);
+        setActiveAudit((prev) =>
+          prev ? { ...prev, status: "failed" as const, audit_summary: "Audit timed out — please try again" } : prev
+        );
+        return;
+      }
+      await checkAudit();
     }, 2500);
     return () => clearInterval(interval);
   }, [activeAudit?.id, activeAudit?.status, loadAudits]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Elapsed timer while audit is running
+  useEffect(() => {
+    if (activeAudit?.status !== "running" && !running) {
+      setElapsedSeconds(0);
+      return;
+    }
+    if (!auditStartTime) return;
+    const tick = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - auditStartTime) / 1000));
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [activeAudit?.status, running, auditStartTime]);
+
   const runAudit = useCallback(async () => {
     if (!url.trim()) return;
     setRunning(true);
+    setAuditStartTime(Date.now());
+    setElapsedSeconds(0);
     setView("results");
     setSaveSuccess(false);
     try {
@@ -356,14 +392,23 @@ export function SiteAuditTab({ engagementId, orgId, prospectName, defaultUrl }: 
 
   // ── Running State ──
   if (activeAudit?.status === "running" || running) {
+    const phase =
+      elapsedSeconds < 15 ? "Fetching website pages..." :
+      elapsedSeconds < 40 ? "Scanning subpages..." :
+      elapsedSeconds < 90 ? "AI scoring in progress..." :
+      "Finalizing results...";
     return (
       <div className="p-6 text-center py-16">
         <div className="animate-spin w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full mx-auto mb-4" />
+        <p className="text-pm-text text-sm font-medium mb-1">{phase}</p>
         <p className="text-pm-muted text-sm">
-          Analyzing {activeAudit?.url ?? url}... this takes about 15-30 seconds
+          {activeAudit?.url ?? url}
         </p>
-        <p className="text-pm-muted text-xs mt-2">
-          Fetching multiple pages and scoring against rubric
+        <p className="text-pm-muted text-xs mt-3 font-mono">
+          {elapsedSeconds > 0 ? `${elapsedSeconds}s elapsed · typically 45–90s total` : "Starting..."}
+        </p>
+        <p className="text-pm-muted text-xs mt-1 opacity-60">
+          Analysis runs server-side — safe to navigate away and return
         </p>
       </div>
     );
