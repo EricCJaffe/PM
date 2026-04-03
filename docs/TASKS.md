@@ -114,7 +114,7 @@ Example: `- [ ] Fix login redirect bug [@eric]`
   - Integrated into task create/update routes (notify_assignee flag) and admin invite route
   - Graceful degradation when RESEND_API_KEY not set
 - [ ] Set up Vercel Cron for daily recurring task generation (/api/pm/series/generate)
-- [ ] Final configuration of DocuSeal (document signing/e-signature integration)
+- [x] Final configuration of DocuSeal (document signing/e-signature integration)
   - [x] Wire up DocuSeal API client, webhook receiver, and eSign routes
   - [x] Inject signature/date/name field tags into HTML before sending
   - [x] Fix API response parsing and submission_id lookup
@@ -123,9 +123,9 @@ Example: `- [ ] Fix login redirect bug [@eric]`
   - [x] Fix Xodo Sign references → DocuSeal throughout UI and migration comments
   - [x] Use DocuSeal `documents` array API format (not flat html string)
   - [x] Add `getSubmitter()` to resolve submission_id from submitter_id
-  - [ ] **Cancel & re-send flow**: After sending for eSign, allow canceling, editing the document, and re-sending. Cancel button disappears after first send — needs to remain visible while status is "waiting". After cancel, status should revert to "draft" so document can be edited and re-sent.
-  - [ ] **Signed document retrieval**: When all parties have signed (submission.completed), automatically download the signed PDF from DocuSeal and upload it to the client's document storage in Supabase. Show download link in the eSign status banner.
-  - [ ] **Cancel 404 bug**: The `DELETE /submissions/:id` still returns 404 — the `getSubmitter()` call to resolve submission_id may be failing silently. Debug with live DocuSeal data to confirm the correct ID chain (submitter → submission).
+  - [x] **Cancel & re-send flow**: Cancel button stays visible while status is "waiting"; after cancel, status reverts to "draft" so document can be edited and re-sent.
+  - [x] **Signed document retrieval**: On submission.completed, signed PDF downloaded from DocuSeal and uploaded to client's Supabase document storage; download link shown in eSign status banner.
+  - [x] **Cancel 404 bug**: Resolved — submission_id resolution chain confirmed working with live DocuSeal data.
 
 ## New Document Templates
 - [x] NDA (Non-Disclosure Agreement) template

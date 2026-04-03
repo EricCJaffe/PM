@@ -7,8 +7,8 @@
 ---
 
 ## Current sprint
-**Dates:** 2026-03-29
-**Goal:** 5-pass website build workflow complete — all migrations applied, all phases shipped
+**Dates:** 2026-04-03
+**Goal:** DocuSeal complete, branches clean, docs current — ready for next sprint
 
 ---
 
@@ -16,7 +16,7 @@
 
 | Developer | Branch | Area / Module | Key files being touched | Status | Updated |
 |---|---|---|---|---|---|
-| eric | fix/docs-upload-and-esign-strings | Doc upload fix + DocuSeal strings | `src/app/api/pm/documents/route.ts`, `src/app/documents/[id]/page.tsx` | Review | 2026-03-31 |
+| eric | main | — | — | Available | 2026-04-03 |
 | [dev2] | — | — | — | Available | — |
 | [dev3] | — | — | — | Available | — |
 
