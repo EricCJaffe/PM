@@ -179,6 +179,44 @@ Migrations: 001 (base), 029 (org_id, log_type, nullable project_id), 045 (rename
 | `012_recurring_tasks.sql` | Recurring task series, exceptions, instance tracking |
 | `013_auth_system_upgrade.sql` | FK fix on pm_user_org_access, role constraints, user_id on pm_members |
 | `014_rls_policies.sql` | RLS enabled on all 20 PM tables with org-scoped access policies |
+| `015_crm_foundation.sql` | CRM foundation: pm_engagements, pm_proposals, pm_kb_articles, pm_api_keys |
+| `016_address_fields.sql` | Address fields on pm_organizations |
+| `017_document_generation.sql` | Document generation: document_types, document_intake_fields, generated_documents, document_sections, document_activity |
+| `018_user_profile_title.sql` | Add title field to pm_user_profiles |
+| `019_esign_integration.sql` | eSign tracking columns on generated_documents (DocuSeal) |
+| `020_knowledge_base.sql` | pm_kb_articles scoped knowledge base |
+| `021_vault_storage_bucket.sql` | Supabase Storage vault bucket policies |
+| `022_client_tasks_and_api_keys.sql` | API key management, client task scoping |
+| `023_crm_engagement_workflow.sql` | Engagement workflow stages and task templates |
+| `024_msa_document_type.sql` | MSA document type seed |
+| `025_note_visibility.sql` | visibility column on pm_client_notes (internal/client) |
+| `026_site_audits.sql` | pm_site_audits table (rubric-based scoring) |
+| `027_site_audit_scoring_v2.sql` | Site audit scoring v2 columns |
+| `028_site_audit_mockup.sql` | mockup_html + subpages_fetched on pm_site_audits |
+| `029_standup_org_logs.sql` | org_id + log_type on pm_daily_logs, nullable project_id |
+| `030_client_updates.sql` | Client update columns on pm_client_notes |
+| `031_project_intake.sql` | intake_data, client_context, feature_flags, engagement_id on pm_projects |
+| `032_engagement_attachments.sql` | pm_engagement_attachments table |
+| `033_departments.sql` | pm_departments, pm_department_vocab; department_id on tasks/phases |
+| `034_client_portal.sql` | pm_portal_settings, pm_portal_invites |
+| `035_discovery_onboarding.sql` | pm_gap_analysis, pm_discovery_interviews, pm_onboarding_checklists |
+| `036_task_priority.sql` | priority column on pm_tasks |
+| `037_budget_tracking.sql` | estimated_cost + actual_cost on pm_phases and pm_tasks |
+| `038_branding.sql` | pm_platform_branding (singleton), pm_org_branding (per-org overrides) |
+| `039_fix_site_audit_document_fk.sql` | Fix FK on pm_site_audits.document_id → pm_documents |
+| `040_audit_snapshots.sql` | pm_audit_snapshots for denormalized score history and comparison |
+| `041_projected_revenue.sql` | projected_mrr + projected_one_time on pm_engagements and pm_projects |
+| `042_sow_billing_enhancements.sql` | Payment notes, line items, payment terms, T&C on SOW |
+| `043_site_audit_prospect_support.sql` | Prospect/non-client org support for site audits |
+| `044_fix_risks_title_column.sql` | Fix title column on pm_risks |
+| `045_rename_daily_logs_date_to_log_date.sql` | Rename pm_daily_logs.date → log_date |
+| `046_fix_daily_logs_org_fk.sql` | Fix org_id FK on pm_daily_logs |
+| `047_audit_workflows.sql` | pm_audit_workflows (audit → remediation/rebuild project link) |
+| `047_web_passes.sql` | pm_web_passes + pm_web_pass_comments (5-pass website build workflow) |
+| `048_website_build_template.sql` | Website Build (5-Pass) project template seed (5 phases, 23 tasks) |
+| `049_engagements_website_build.sql` | website_url, owner, notes on pm_engagements; drop old CHECK constraint |
+| `050_engagement_task_template_service_line.sql` | service_line on pm_engagement_task_templates; 12 website_build templates seeded |
+| `051_client_referrals_and_contacts.sql` | referred_by, billing/technical/other contact fields on pm_organizations |
 
 ## Row Level Security (RLS)
 

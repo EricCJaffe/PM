@@ -62,8 +62,9 @@ Microsoft sign-in is configured as an OAuth provider through Supabase using the 
 - `CRON_SECRET` — Bearer token for Vercel Cron routes (auto-set by Vercel, or `openssl rand -hex 32` for local)
 - `NEXT_PUBLIC_APP_URL` — App base URL (e.g. `https://your-domain.vercel.app`) used by cron to call internal API routes
 - Cron schedule configured in `vercel.json`:
-  - `/api/cron/standup` — weekdays at 8am (morning standup generation)
-  - `/api/cron/engagement-nudge` — weekdays at 9am (overdue engagement task checks)
+  - `/api/cron/standup` — weekdays at 8am UTC (morning standup generation)
+  - `/api/cron/engagement-nudge` — weekdays at 9am UTC (overdue engagement task checks)
+  - `/api/cron/series-generate` — daily at midnight UTC (recurring task instance generation, 14-day horizon)
 
 ## Security
 - Never put `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`, `RESEND_API_KEY`, `GITHUB_TOKEN`, `CRON_SECRET`, or `DOCUSEAL_API_KEY` in `NEXT_PUBLIC_*` variables

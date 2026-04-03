@@ -217,10 +217,16 @@ List standup history for an org. Default limit 7 (one week).
 **Response:** `DailyLog[]` (filtered to log_type=standup)
 
 ### `POST /api/cron/standup` (Vercel Cron)
-Auto-generates standup for all orgs with active projects. Runs weekdays at 8am.
+Auto-generates standup for all orgs with active projects. Runs weekdays at 8am UTC.
 
 **Auth:** `Authorization: Bearer {CRON_SECRET}`
 **Response:** `{ generated: number, results: [...] }`
+
+### `POST /api/cron/series-generate` (Vercel Cron)
+Generates recurring task instances for all active series with `next_occurrence` within the next 14 days. Runs daily at midnight UTC. Idempotent — safe to call multiple times.
+
+**Auth:** `Authorization: Bearer {CRON_SECRET}`
+**Response:** `{ generated: number, details: [{ series_id, series_name, instances: string[] }] }`
 
 ---
 
