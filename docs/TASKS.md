@@ -113,7 +113,9 @@ Example: `- [ ] Fix login redirect bug [@eric]`
   - `src/lib/email.ts`: sendTaskAssignmentEmail(), sendInviteEmail(), sendEmail()
   - Integrated into task create/update routes (notify_assignee flag) and admin invite route
   - Graceful degradation when RESEND_API_KEY not set
-- [ ] Set up Vercel Cron for daily recurring task generation (/api/pm/series/generate)
+- [x] Set up Vercel Cron for daily recurring task generation (/api/pm/series/generate)
+  - `/api/cron/series-generate/route.ts` — thin wrapper with CRON_SECRET auth, delegates to /api/pm/series/generate
+  - `vercel.json` — scheduled daily at midnight UTC (`0 0 * * *`), 14-day horizon
 - [x] Final configuration of DocuSeal (document signing/e-signature integration)
   - [x] Wire up DocuSeal API client, webhook receiver, and eSign routes
   - [x] Inject signature/date/name field tags into HTML before sending

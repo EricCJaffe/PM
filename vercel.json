@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/standup",
       "schedule": "0 8 * * 1-5"
+    },
+    {
+      "path": "/api/cron/series-generate",
+      "schedule": "0 0 * * *"
     }
   ]
 }
