@@ -42,7 +42,7 @@
 Never run a migration that touches auth.* without coordinating with FSA repo.
 
 **Migration numbering:** Always use the next sequential number.
-Current highest: 014 (check supabase/migrations/ before creating new ones).
+Current highest: 051 (check `supabase/migrations/` before creating a new one).
 
 **RLS:** All 20 PM tables have RLS enabled (migration 014).
 Any new table must include RLS policies in the same migration file.

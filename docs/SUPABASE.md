@@ -16,6 +16,19 @@ This module shares a Supabase project with FSA. Auth and org/tenant schema are r
 | phone | TEXT | Optional, phone number |
 | website | TEXT | Optional, URL |
 | notes | TEXT | Optional, free-text notes |
+| referred_by | TEXT | Optional referral source |
+| contact_name | TEXT | Primary contact name |
+| contact_email | TEXT | Primary contact email |
+| contact_phone | TEXT | Primary contact phone |
+| billing_contact_name | TEXT | Billing contact name |
+| billing_contact_email | TEXT | Billing contact email |
+| billing_contact_phone | TEXT | Billing contact phone |
+| technical_contact_name | TEXT | Technical contact name |
+| technical_contact_email | TEXT | Technical contact email |
+| technical_contact_phone | TEXT | Technical contact phone |
+| other_contact_name | TEXT | Additional contact name |
+| other_contact_email | TEXT | Additional contact email |
+| other_contact_phone | TEXT | Additional contact phone |
 | created_at | TIMESTAMPTZ | Auto |
 
 ### pm_members

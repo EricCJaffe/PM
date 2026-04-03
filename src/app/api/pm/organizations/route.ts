@@ -45,7 +45,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(tableCheck, { status: 503 });
     }
 
-    const { name, slug, address, address_line2, city, state, zip, phone, website, notes, pipeline_status, contact_name, contact_email, contact_phone } = await request.json();
+    const {
+      name,
+      slug,
+      address,
+      address_line2,
+      city,
+      state,
+      zip,
+      phone,
+      website,
+      notes,
+      pipeline_status,
+      referred_by,
+      contact_name,
+      contact_email,
+      contact_phone,
+      billing_contact_name,
+      billing_contact_email,
+      billing_contact_phone,
+      technical_contact_name,
+      technical_contact_email,
+      technical_contact_phone,
+      other_contact_name,
+      other_contact_email,
+      other_contact_phone,
+      converted_at,
+    } = await request.json();
 
     if (!name || !slug) {
       return NextResponse.json({ error: "name and slug are required" }, { status: 400 });
@@ -60,7 +86,18 @@ export async function POST(request: NextRequest) {
         city: city || null, state: state || null, zip: zip || null,
         phone: phone || null, website: website || null, notes: notes || null,
         pipeline_status: pipeline_status || "lead",
+        referred_by: referred_by || null,
         contact_name: contact_name || null, contact_email: contact_email || null, contact_phone: contact_phone || null,
+        billing_contact_name: billing_contact_name || null,
+        billing_contact_email: billing_contact_email || null,
+        billing_contact_phone: billing_contact_phone || null,
+        technical_contact_name: technical_contact_name || null,
+        technical_contact_email: technical_contact_email || null,
+        technical_contact_phone: technical_contact_phone || null,
+        other_contact_name: other_contact_name || null,
+        other_contact_email: other_contact_email || null,
+        other_contact_phone: other_contact_phone || null,
+        converted_at: converted_at || null,
       })
       .select()
       .single();
@@ -101,7 +138,34 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json(tableCheck, { status: 503 });
     }
 
-    const { id, name, slug, address, address_line2, city, state, zip, phone, website, notes, pipeline_status, contact_name, contact_email, contact_phone } = await request.json();
+    const {
+      id,
+      name,
+      slug,
+      address,
+      address_line2,
+      city,
+      state,
+      zip,
+      phone,
+      website,
+      notes,
+      pipeline_status,
+      referred_by,
+      contact_name,
+      contact_email,
+      contact_phone,
+      billing_contact_name,
+      billing_contact_email,
+      billing_contact_phone,
+      technical_contact_name,
+      technical_contact_email,
+      technical_contact_phone,
+      other_contact_name,
+      other_contact_email,
+      other_contact_phone,
+      converted_at,
+    } = await request.json();
 
     if (!id) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
@@ -120,9 +184,20 @@ export async function PUT(request: NextRequest) {
     if (website !== undefined) updates.website = website || null;
     if (notes !== undefined) updates.notes = notes || null;
     if (pipeline_status !== undefined) updates.pipeline_status = pipeline_status;
+    if (referred_by !== undefined) updates.referred_by = referred_by || null;
     if (contact_name !== undefined) updates.contact_name = contact_name || null;
     if (contact_email !== undefined) updates.contact_email = contact_email || null;
     if (contact_phone !== undefined) updates.contact_phone = contact_phone || null;
+    if (billing_contact_name !== undefined) updates.billing_contact_name = billing_contact_name || null;
+    if (billing_contact_email !== undefined) updates.billing_contact_email = billing_contact_email || null;
+    if (billing_contact_phone !== undefined) updates.billing_contact_phone = billing_contact_phone || null;
+    if (technical_contact_name !== undefined) updates.technical_contact_name = technical_contact_name || null;
+    if (technical_contact_email !== undefined) updates.technical_contact_email = technical_contact_email || null;
+    if (technical_contact_phone !== undefined) updates.technical_contact_phone = technical_contact_phone || null;
+    if (other_contact_name !== undefined) updates.other_contact_name = other_contact_name || null;
+    if (other_contact_email !== undefined) updates.other_contact_email = other_contact_email || null;
+    if (other_contact_phone !== undefined) updates.other_contact_phone = other_contact_phone || null;
+    if (converted_at !== undefined) updates.converted_at = converted_at || null;
 
     const { data, error } = await supabase
       .from("pm_organizations")

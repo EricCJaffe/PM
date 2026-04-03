@@ -34,6 +34,7 @@ Example: `- [ ] Fix login redirect bug [@eric]`
 - [x] Apply migration 048_website_build_template.sql to Supabase
 - [x] Apply migration 049_engagements_website_build.sql to Supabase
 - [x] Apply migration 050_engagement_task_template_service_line.sql to Supabase
+- [x] Apply migration 051_client_referrals_and_contacts.sql to Supabase
 
 ## Backfill Scripts — Completed
 1. [x] Run FSA site-org backfill: `npx tsx scripts/backfill-fsa-site-org.ts`
@@ -64,6 +65,9 @@ Example: `- [ ] Fix login redirect bug [@eric]`
 - New tab order: Details, Tasks, Workflows, Proposals, Notes, Users, KPIs, Site Audit, Docs & SOPs, Departments, Vocabulary, Onboarding, Branding, Client Portal, Tools
 
 ## Bug Fixes
+- [x] Expand client records with referral source plus billing/technical/other contacts
+  - Migration 051: added `referred_by`, `billing_contact_*`, `technical_contact_*`, `other_contact_*` to `pm_organizations`
+  - Updated `Organization` type, organizations API route (POST + PUT), clients list page form, `InfoTab`, and `OverviewTab`
 - [x] Fix duplicate slug constraint error on project creation — `pm_projects` has `UNIQUE(org_id, slug)` but neither seed nor intake routes checked for existing slugs
   - Added `resolveUniqueProjectSlug()` helper in `src/lib/queries.ts` — queries existing slugs with same prefix and appends `-2`, `-3`, etc. if taken
   - Updated `/api/pm/projects/seed` route to deduplicate slug before insert

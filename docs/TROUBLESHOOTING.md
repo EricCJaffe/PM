@@ -22,7 +22,12 @@
 ## Migration numbering conflicts
 **Symptom:** Two migrations with same number, Supabase refuses to apply.
 **Prevention:** Always check ls supabase/migrations/ before creating a new migration.
-**Current highest:** 014 — next new migration should be 015.
+**Current highest:** 051 — next new migration should be 052.
+
+## Existing duplicate migration number in repo
+**Symptom:** `supabase/migrations/` currently contains both `047_audit_workflows.sql` and `047_web_passes.sql`.
+**Risk:** Any migration workflow that assumes one file per sequence number can behave unpredictably.
+**Prevention:** Check the directory, not just docs, before choosing the next migration number.
 
 ---
 

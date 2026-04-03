@@ -21,9 +21,19 @@ interface Client {
   website: string | null;
   notes: string | null;
   pipeline_status: PipelineStatus;
+  referred_by: string | null;
   contact_name: string | null;
   contact_email: string | null;
   contact_phone: string | null;
+  billing_contact_name: string | null;
+  billing_contact_email: string | null;
+  billing_contact_phone: string | null;
+  technical_contact_name: string | null;
+  technical_contact_email: string | null;
+  technical_contact_phone: string | null;
+  other_contact_name: string | null;
+  other_contact_email: string | null;
+  other_contact_phone: string | null;
   converted_at: string | null;
   created_at: string;
 }
@@ -87,9 +97,19 @@ export default function ClientsPage() {
     website: "",
     notes: "",
     pipeline_status: "lead" as PipelineStatus,
+    referred_by: "",
     contact_name: "",
     contact_email: "",
     contact_phone: "",
+    billing_contact_name: "",
+    billing_contact_email: "",
+    billing_contact_phone: "",
+    technical_contact_name: "",
+    technical_contact_email: "",
+    technical_contact_phone: "",
+    other_contact_name: "",
+    other_contact_email: "",
+    other_contact_phone: "",
   });
 
   // Search
@@ -157,8 +177,15 @@ export default function ClientsPage() {
       const q = search.toLowerCase();
       result = result.filter((c) =>
         c.name.toLowerCase().includes(q) ||
+        (c.referred_by && c.referred_by.toLowerCase().includes(q)) ||
         (c.contact_name && c.contact_name.toLowerCase().includes(q)) ||
-        (c.contact_email && c.contact_email.toLowerCase().includes(q))
+        (c.contact_email && c.contact_email.toLowerCase().includes(q)) ||
+        (c.billing_contact_name && c.billing_contact_name.toLowerCase().includes(q)) ||
+        (c.billing_contact_email && c.billing_contact_email.toLowerCase().includes(q)) ||
+        (c.technical_contact_name && c.technical_contact_name.toLowerCase().includes(q)) ||
+        (c.technical_contact_email && c.technical_contact_email.toLowerCase().includes(q)) ||
+        (c.other_contact_name && c.other_contact_name.toLowerCase().includes(q)) ||
+        (c.other_contact_email && c.other_contact_email.toLowerCase().includes(q))
       );
     }
     return result;
@@ -185,7 +212,32 @@ export default function ClientsPage() {
   };
 
   const resetForm = () => {
-    setForm({ name: "", slug: "", address: "", address_line2: "", city: "", state: "", zip: "", phone: "", website: "", notes: "", pipeline_status: "lead", contact_name: "", contact_email: "", contact_phone: "" });
+    setForm({
+      name: "",
+      slug: "",
+      address: "",
+      address_line2: "",
+      city: "",
+      state: "",
+      zip: "",
+      phone: "",
+      website: "",
+      notes: "",
+      pipeline_status: "lead",
+      referred_by: "",
+      contact_name: "",
+      contact_email: "",
+      contact_phone: "",
+      billing_contact_name: "",
+      billing_contact_email: "",
+      billing_contact_phone: "",
+      technical_contact_name: "",
+      technical_contact_email: "",
+      technical_contact_phone: "",
+      other_contact_name: "",
+      other_contact_email: "",
+      other_contact_phone: "",
+    });
     setEditingId(null);
     setShowForm(false);
   };
@@ -203,9 +255,19 @@ export default function ClientsPage() {
       website: client.website || "",
       notes: client.notes || "",
       pipeline_status: client.pipeline_status || "lead",
+      referred_by: client.referred_by || "",
       contact_name: client.contact_name || "",
       contact_email: client.contact_email || "",
       contact_phone: client.contact_phone || "",
+      billing_contact_name: client.billing_contact_name || "",
+      billing_contact_email: client.billing_contact_email || "",
+      billing_contact_phone: client.billing_contact_phone || "",
+      technical_contact_name: client.technical_contact_name || "",
+      technical_contact_email: client.technical_contact_email || "",
+      technical_contact_phone: client.technical_contact_phone || "",
+      other_contact_name: client.other_contact_name || "",
+      other_contact_email: client.other_contact_email || "",
+      other_contact_phone: client.other_contact_phone || "",
     });
     setEditingId(client.id);
     setShowForm(true);
@@ -396,6 +458,16 @@ export default function ClientsPage() {
               />
             </div>
             <div>
+              <label className="block text-sm font-medium text-pm-muted mb-1">Referred By</label>
+              <input
+                type="text"
+                value={form.referred_by}
+                onChange={(e) => setForm((f) => ({ ...f, referred_by: e.target.value }))}
+                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
+                placeholder="Person, partner, or organization"
+              />
+            </div>
+            <div>
               <label className="block text-sm font-medium text-pm-muted mb-1">Pipeline Status</label>
               <select
                 value={form.pipeline_status}
@@ -519,6 +591,108 @@ export default function ClientsPage() {
               />
             </div>
 
+            <div className="md:col-span-2 pt-2 border-t border-pm-border">
+              <div className="text-xs font-medium text-pm-muted mb-3 uppercase tracking-wider">Billing Contact</div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-pm-muted mb-1">Name</label>
+              <input
+                type="text"
+                value={form.billing_contact_name}
+                onChange={(e) => setForm((f) => ({ ...f, billing_contact_name: e.target.value }))}
+                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
+                placeholder="Accounts payable contact"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-pm-muted mb-1">Email</label>
+              <input
+                type="email"
+                value={form.billing_contact_email}
+                onChange={(e) => setForm((f) => ({ ...f, billing_contact_email: e.target.value }))}
+                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
+                placeholder="billing@client.com"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-pm-muted mb-1">Phone</label>
+              <input
+                type="tel"
+                value={form.billing_contact_phone}
+                onChange={(e) => setForm((f) => ({ ...f, billing_contact_phone: e.target.value }))}
+                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
+                placeholder="(555) 111-2222"
+              />
+            </div>
+
+            <div className="md:col-span-2 pt-2 border-t border-pm-border">
+              <div className="text-xs font-medium text-pm-muted mb-3 uppercase tracking-wider">Technical Contact</div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-pm-muted mb-1">Name</label>
+              <input
+                type="text"
+                value={form.technical_contact_name}
+                onChange={(e) => setForm((f) => ({ ...f, technical_contact_name: e.target.value }))}
+                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
+                placeholder="Implementation or IT contact"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-pm-muted mb-1">Email</label>
+              <input
+                type="email"
+                value={form.technical_contact_email}
+                onChange={(e) => setForm((f) => ({ ...f, technical_contact_email: e.target.value }))}
+                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
+                placeholder="tech@client.com"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-pm-muted mb-1">Phone</label>
+              <input
+                type="tel"
+                value={form.technical_contact_phone}
+                onChange={(e) => setForm((f) => ({ ...f, technical_contact_phone: e.target.value }))}
+                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
+                placeholder="(555) 222-3333"
+              />
+            </div>
+
+            <div className="md:col-span-2 pt-2 border-t border-pm-border">
+              <div className="text-xs font-medium text-pm-muted mb-3 uppercase tracking-wider">Other Contact</div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-pm-muted mb-1">Name</label>
+              <input
+                type="text"
+                value={form.other_contact_name}
+                onChange={(e) => setForm((f) => ({ ...f, other_contact_name: e.target.value }))}
+                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
+                placeholder="Additional point of contact"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-pm-muted mb-1">Email</label>
+              <input
+                type="email"
+                value={form.other_contact_email}
+                onChange={(e) => setForm((f) => ({ ...f, other_contact_email: e.target.value }))}
+                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
+                placeholder="other@client.com"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-pm-muted mb-1">Phone</label>
+              <input
+                type="tel"
+                value={form.other_contact_phone}
+                onChange={(e) => setForm((f) => ({ ...f, other_contact_phone: e.target.value }))}
+                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
+                placeholder="(555) 333-4444"
+              />
+            </div>
+
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-pm-muted mb-1">Notes</label>
               <Suspense fallback={<div className="h-[120px] bg-pm-bg border border-pm-border rounded-lg flex items-center justify-center text-pm-muted text-sm">Loading editor...</div>}>
@@ -604,6 +778,9 @@ export default function ClientsPage() {
                     </span>
                     {client.contact_name && (
                       <span className="text-sm text-pm-muted hidden sm:inline truncate">{client.contact_name}</span>
+                    )}
+                    {!client.contact_name && client.referred_by && (
+                      <span className="text-sm text-pm-muted hidden sm:inline truncate">Referred by {client.referred_by}</span>
                     )}
                     <span className="ml-auto shrink-0">
                       <PipelineBadge status={client.pipeline_status} />

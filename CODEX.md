@@ -1,29 +1,36 @@
 # CODEX.md — Codex Startup Guide for BusinessOS PM
 
-This file is the project-specific startup contract for Codex.
-It complements `CLAUDE.md` and `AGENTS.md` rather than replacing them.
+This file is the Codex-specific startup contract for this repo.
+It sits on top of `CLAUDE.md` and `AGENTS.md` and tells Codex what "ready to work" means here.
 
 ## Why this exists
-- Codex already has strong built-in rules for editing, verification, and collaboration.
-- This file should stay focused on repo context, startup flow, and what "get up to speed" means in this codebase.
-- Reuse the existing docs-first operating model instead of inventing a separate one.
+- This repo already has strong Claude-oriented operating docs.
+- Codex should follow the same repo workflow, but with one clear startup checklist and one clear session brief.
+- The goal is fast startup with minimal drift between Claude docs and Codex behavior.
+
+## Branch policy for this repo
+- Default Git safety still applies: inspect status before pulling or editing.
+- For this project, the user has explicitly chosen to work directly on `main`.
+- Treat `main` as the normal working branch unless the user asks for a separate branch.
+- If `main` is dirty, do not pull blindly. Report the state first.
 
 ## Default startup trigger
-If the user says any of the following, run this startup routine:
+If the user says any of the following, run the full startup routine:
 - "Get up to speed"
 - "Startup"
 - "Pull latest and get up to speed"
 - "Read in and get ready"
+- "Sync the project"
 
 ## Startup routine
-1. Confirm repo state before changing anything:
-   - `git status --short`
+1. Check repo state first:
+   - `git status --short --branch`
    - `git branch --show-current`
    - `git remote -v`
-2. Sync the branch if safe:
-   - If the worktree is clean, run `git pull --ff-only origin <current-branch>`
-   - If the worktree is dirty, do not pull blindly; report the state and ask whether to stash, commit, or leave it alone
-3. Read the core docs every startup:
+2. Sync Git if safe:
+   - If the worktree is clean, run `git fetch --prune origin` and `git pull --ff-only origin main`
+   - If the worktree is dirty, do not pull until the user confirms how to handle local changes
+3. Read these docs every startup, in this order:
    - `CLAUDE.md`
    - `AGENTS.md`
    - `docs/CONTEXT.md`
@@ -32,37 +39,50 @@ If the user says any of the following, run this startup routine:
    - `docs/RUNBOOK.md`
    - `docs/TEAM.md`
    - `docs/ACTIVE_WORK.md`
-   - `docs/HANDOFF.md` — newest entry only
+   - `docs/HANDOFF.md` — newest meaningful entry only
+   - `docs/PROMPT_LIBRARY.md`
    - `docs/TROUBLESHOOTING.md`
-4. Read additional docs only if relevant to the task:
+   - `docs/PRODUCT_ROADMAP.md`
+4. Read additional docs only when relevant:
    - Supabase or migrations: `docs/SUPABASE.md` and `supabase/migrations/`
-   - Integrations or vendors: `docs/INTEGRATIONS.md`
-   - Product direction: `docs/PRODUCT_ROADMAP.md`
-   - Prompting or agent behavior: `docs/PROMPT_LIBRARY.md`
-   - Architecture work: `docs/DECISIONS/`
-5. Verify local working prerequisites without exposing secrets:
+   - Integrations or vendor APIs: `docs/INTEGRATIONS.md`
+   - Deployment or Vercel: `docs/DEPLOYMENT.md`
+   - Security or auth/RLS: `docs/SECURITY.md`
+   - Architecture decisions: relevant ADRs in `docs/DECISIONS/`
+5. Verify local prerequisites without printing secrets:
    - `.env.local` exists
-   - `supabase/` exists
+   - `.env.local` is ignored by Git
+   - `supabase/migrations/` exists
    - `.vercel/project.json` exists when deployment work is involved
-6. Produce a short session brief before coding.
+6. Produce a short session brief before implementation.
 
 ## Session brief format
-When startup completes, summarize:
+Use the repo’s preflight structure and include:
 - Current branch
-- Whether git was pulled successfully
+- Whether Git was fetched and pulled successfully
 - Whether the worktree is clean or dirty
-- Active or claimed work from `docs/ACTIVE_WORK.md`
-- Latest meaningful handoff from `docs/HANDOFF.md`
-- Open migration or P0/P1 items from `docs/TASKS.md`
-- Risks relevant to the requested work from `docs/TROUBLESHOOTING.md`
-- Any missing setup required before coding
+- Active work by others from `docs/ACTIVE_WORK.md`
+- A two-sentence summary of the latest handoff
+- Open P0/P1 or equivalent current priorities from `docs/TASKS.md`
+- Relevant known issues from `docs/TROUBLESHOOTING.md`
+- Any missing setup, stale docs, or repo risks worth noting up front
+
+## What Codex should treat as repo truth
+- `CLAUDE.md` defines core repo conventions, architecture, and maintenance rules.
+- `AGENTS.md` defines preflight, build, stuck-mode, and closeout expectations.
+- `docs/ACTIVE_WORK.md` is the coordination source before touching shared files.
+- `docs/HANDOFF.md` is the latest session context.
+- `docs/TASKS.md` is the work ledger.
+- `docs/PRODUCT_ROADMAP.md` is the filter for whether new work belongs in the product now.
 
 ## Project-specific rules to remember
-- This repo shares Supabase auth with FSA. Treat `auth.*` migration changes as cross-project changes.
-- Do not create or run a migration without checking the latest numbered file first.
-- Keep docs updated in the same change when architecture, integrations, env vars, or operational behavior change.
-- Never expose server-only keys in client code or `NEXT_PUBLIC_*` variables.
-- Prefer remote Supabase workflows here; Docker-backed local Supabase is not required for normal work on this repo.
+- This repo shares Supabase auth with FSA. Treat any `auth.*` migration as cross-project risk.
+- Never create or run a migration without checking the latest numbered migration first.
+- Never write a migration without RLS policy work in the same file.
+- Keep docs updated in the same change when architecture, integrations, env vars, workflow, or operational behavior change.
+- Never expose server-only keys in client code or `NEXT_PUBLIC_*` vars.
+- Use `getOpenAI()` from `src/lib/openai.ts`; do not instantiate OpenAI at module scope.
+- Prefer remote Supabase workflows here; local Docker Supabase is not required for normal repo work.
 
 ## Practical command map
 - Dev server: `npm run dev`
@@ -71,11 +91,12 @@ When startup completes, summarize:
 - Seed templates: `npm run seed`
 - TypeScript script: `npx tsx scripts/<name>.ts`
 
-## "Ready to work" means
-Codex has:
-- pulled the latest safe git state or explained why it did not
-- read the current project context docs
-- checked local repo prerequisites
-- summarized what matters now
+## Ready-to-work definition
+Codex is ready to build when it has:
+- confirmed Git state
+- synced `main` safely or explained why it did not
+- read the required startup docs
+- checked local prerequisites
+- summarized the current project state in a session brief
 
-At that point, the session can move directly into implementation.
+After that, implementation can start immediately.

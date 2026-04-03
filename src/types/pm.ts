@@ -39,9 +39,19 @@ export interface Organization {
   notes: string | null;
   pipeline_status: PipelineStatus;
   client_status: ClientStatus;
+  referred_by: string | null;
   contact_name: string | null;
   contact_email: string | null;
   contact_phone: string | null;
+  billing_contact_name: string | null;
+  billing_contact_email: string | null;
+  billing_contact_phone: string | null;
+  technical_contact_name: string | null;
+  technical_contact_email: string | null;
+  technical_contact_phone: string | null;
+  other_contact_name: string | null;
+  other_contact_email: string | null;
+  other_contact_phone: string | null;
   converted_at: string | null;
   created_at: string;
 }

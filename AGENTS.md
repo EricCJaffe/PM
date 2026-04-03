@@ -42,7 +42,7 @@ Verify before any build work:
 - [ ] .env.local exists
 - [ ] .env.local in .gitignore
 - [ ] supabase/migrations/ folder exists
-- [ ] On correct branch (not main directly)
+- [ ] On the intended branch for this repo (`main` is allowed only when explicitly chosen for this project)
 
 ---
 
@@ -134,7 +134,7 @@ Create new: [tasks + description]
 ---
 
 ## Never do
-- Push directly to main
+- Push directly to main unless this repo/session has explicitly chosen `main` as the working branch
 - Write migration without RLS policy in same file
 - Attempt same fix more than 3 times
 - Omit open items from handoff note

@@ -107,6 +107,9 @@ export default async function ClientDetailPage({
             </div>
           )}
         </div>
+        {org.referred_by && (
+          <p className="text-sm text-pm-muted mt-2">Referred by: <span className="text-pm-text">{org.referred_by}</span></p>
+        )}
       </div>
 
       {/* Stats Cards */}

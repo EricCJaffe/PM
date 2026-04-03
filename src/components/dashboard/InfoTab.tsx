@@ -26,9 +26,19 @@ export function InfoTab({
   const [pipelineStatus, setPipelineStatus] = useState<PipelineStatus>(org.pipeline_status || "lead");
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
+    referred_by: org.referred_by || "",
     contact_name: org.contact_name || "",
     contact_email: org.contact_email || "",
     contact_phone: org.contact_phone || "",
+    billing_contact_name: org.billing_contact_name || "",
+    billing_contact_email: org.billing_contact_email || "",
+    billing_contact_phone: org.billing_contact_phone || "",
+    technical_contact_name: org.technical_contact_name || "",
+    technical_contact_email: org.technical_contact_email || "",
+    technical_contact_phone: org.technical_contact_phone || "",
+    other_contact_name: org.other_contact_name || "",
+    other_contact_email: org.other_contact_email || "",
+    other_contact_phone: org.other_contact_phone || "",
     phone: org.phone || "",
     website: org.website || "",
     address: org.address || "",
@@ -138,6 +148,16 @@ export function InfoTab({
           {editing ? (
             <div className="space-y-3">
               <div>
+                <label className="block text-xs text-pm-muted mb-1">Referred By</label>
+                <input
+                  type="text"
+                  value={form.referred_by}
+                  onChange={(e) => setForm((f) => ({ ...f, referred_by: e.target.value }))}
+                  className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text"
+                  placeholder="Person, partner, or organization"
+                />
+              </div>
+              <div>
                 <label className="block text-xs text-pm-muted mb-1">Phone</label>
                 <input
                   type="tel"
@@ -226,6 +246,7 @@ export function InfoTab({
             </div>
           ) : (
             <div className="space-y-3">
+              <InfoRow label="Referred By" value={org.referred_by} />
               <InfoRow label="Phone" value={org.phone} />
               <InfoRow label="Website" value={org.website} link />
               <InfoRow label="Address" value={org.address} />
@@ -296,6 +317,61 @@ export function InfoTab({
         </div>
       </div>
 
+      {/* Secondary Contacts */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <ContactCard
+          title="Billing Contact"
+          fieldPrefix="billing_contact"
+          editing={editing}
+          fields={{
+            name: form.billing_contact_name,
+            email: form.billing_contact_email,
+            phone: form.billing_contact_phone,
+          }}
+          onChange={(field, value) => setForm((f) => ({ ...f, [field]: value }))}
+          values={{
+            name: org.billing_contact_name,
+            email: org.billing_contact_email,
+            phone: org.billing_contact_phone,
+          }}
+          emptyMessage="No billing contact yet. Click Edit above to add."
+        />
+        <ContactCard
+          title="Technical Contact"
+          fieldPrefix="technical_contact"
+          editing={editing}
+          fields={{
+            name: form.technical_contact_name,
+            email: form.technical_contact_email,
+            phone: form.technical_contact_phone,
+          }}
+          onChange={(field, value) => setForm((f) => ({ ...f, [field]: value }))}
+          values={{
+            name: org.technical_contact_name,
+            email: org.technical_contact_email,
+            phone: org.technical_contact_phone,
+          }}
+          emptyMessage="No technical contact yet. Click Edit above to add."
+        />
+        <ContactCard
+          title="Other Contact"
+          fieldPrefix="other_contact"
+          editing={editing}
+          fields={{
+            name: form.other_contact_name,
+            email: form.other_contact_email,
+            phone: form.other_contact_phone,
+          }}
+          onChange={(field, value) => setForm((f) => ({ ...f, [field]: value }))}
+          values={{
+            name: org.other_contact_name,
+            email: org.other_contact_email,
+            phone: org.other_contact_phone,
+          }}
+          emptyMessage="No additional contact yet. Click Edit above to add."
+        />
+      </div>
+
       {/* Quick Stats */}
       <div className="card">
         <h3 className="font-semibold text-pm-text mb-4">Activity Summary</h3>
@@ -333,6 +409,75 @@ function InfoRow({ label, value, link }: { label: string; value: string | null; 
         <a href={value} target="_blank" rel="noopener noreferrer" className="text-sm text-pm-accent hover:underline">{value}</a>
       ) : (
         <span className="text-sm text-pm-text">{value}</span>
+      )}
+    </div>
+  );
+}
+
+type ContactFieldPrefix = "billing_contact" | "technical_contact" | "other_contact";
+type ContactFieldLeaf = "name" | "email" | "phone";
+type ContactFieldKey =
+  | "billing_contact_name"
+  | "billing_contact_email"
+  | "billing_contact_phone"
+  | "technical_contact_name"
+  | "technical_contact_email"
+  | "technical_contact_phone"
+  | "other_contact_name"
+  | "other_contact_email"
+  | "other_contact_phone";
+
+function toFieldKey(prefix: ContactFieldPrefix, leaf: ContactFieldLeaf): ContactFieldKey {
+  return `${prefix}_${leaf}` as ContactFieldKey;
+}
+
+function ContactCard({
+  title,
+  fieldPrefix,
+  editing,
+  fields,
+  values,
+  onChange,
+  emptyMessage,
+}: {
+  title: string;
+  fieldPrefix: ContactFieldPrefix;
+  editing: boolean;
+  fields: { name: string; email: string; phone: string };
+  values: { name: string | null; email: string | null; phone: string | null };
+  onChange: (field: ContactFieldKey, value: string) => void;
+  emptyMessage: string;
+}) {
+  return (
+    <div className="card">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-semibold text-pm-text">{title}</h3>
+        {editing && <span className="text-xs text-pm-muted">(editing above)</span>}
+      </div>
+      {editing ? (
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs text-pm-muted mb-1">Name</label>
+            <input type="text" value={fields.name} onChange={(e) => onChange(toFieldKey(fieldPrefix, "name"), e.target.value)} className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text" />
+          </div>
+          <div>
+            <label className="block text-xs text-pm-muted mb-1">Email</label>
+            <input type="email" value={fields.email} onChange={(e) => onChange(toFieldKey(fieldPrefix, "email"), e.target.value)} className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text" />
+          </div>
+          <div>
+            <label className="block text-xs text-pm-muted mb-1">Phone</label>
+            <input type="tel" value={fields.phone} onChange={(e) => onChange(toFieldKey(fieldPrefix, "phone"), e.target.value)} className="w-full bg-pm-bg border border-pm-border rounded px-3 py-1.5 text-sm text-pm-text" />
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <InfoRow label="Name" value={values.name} />
+          <InfoRow label="Email" value={values.email} link />
+          <InfoRow label="Phone" value={values.phone} />
+          {!values.name && !values.email && !values.phone && (
+            <p className="text-sm text-pm-muted italic">{emptyMessage}</p>
+          )}
+        </div>
       )}
     </div>
   );
