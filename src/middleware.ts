@@ -14,7 +14,11 @@ export async function middleware(request: NextRequest) {
     pathname === "/portal/auth" ||
     pathname.startsWith("/api/pm/portal/invite-accept") ||
     // Internal background processing route — uses service role key, called via after()
-    pathname === "/api/pm/site-audit/process"
+    pathname === "/api/pm/site-audit/process" ||
+    // Cron routes — authenticated via CRON_SECRET Bearer token in route handlers
+    pathname.startsWith("/api/cron/") ||
+    // Series generate — uses service role client, called by cron (no user session)
+    pathname === "/api/pm/series/generate"
   ) {
     return NextResponse.next();
   }
