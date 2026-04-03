@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { FSA_LOGO_DATA_URI } from "@/lib/fsa-logo-b64";
 
 // POST /api/pm/docgen/[id]/pdf — compile HTML and store
 // This compiles the final HTML from template + sections. Actual PDF rendering
@@ -54,11 +55,19 @@ export async function POST(
     template = template.replace(/\{\{[^}]+\}\}/g, "");
 
     // Build full HTML document
-    const compiled = `<!DOCTYPE html>
+    let compiled = `<!DOCTYPE html>
 <html><head>
 <meta charset="utf-8">
 <style>${css}</style>
 </head><body>${template}</body></html>`;
+
+    // Inline the FSA logo as a base64 data URI so the compiled HTML is
+    // fully self-contained — works in DocuSeal, email, print, and the
+    // iframe srcDoc preview (relative URLs don't resolve in srcDoc).
+    compiled = compiled.replace(
+      /src="\/FSA_logo_white\.png"/g,
+      `src="${FSA_LOGO_DATA_URI}"`
+    );
 
     // Save compiled HTML
     await supabase

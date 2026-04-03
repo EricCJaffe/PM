@@ -389,7 +389,11 @@ export function SiteAuditTab({ engagementId, orgId, prospectName, defaultUrl }: 
   }
 
   // ── Running State ──
-  if (activeAudit?.status === "running" || running) {
+  // Only show spinner if the audit's DB status is actually "running".
+  // Don't gate on the `running` boolean alone — if setRunning(false) races
+  // with the polling cleanup, the spinner would never clear even though
+  // activeAudit.status is already "complete".
+  if (activeAudit?.status === "running" || (!activeAudit && running)) {
     const phase =
       elapsedSeconds < 15 ? "Fetching website pages..." :
       elapsedSeconds < 40 ? "Scanning subpages..." :
@@ -408,6 +412,12 @@ export function SiteAuditTab({ engagementId, orgId, prospectName, defaultUrl }: 
         <p className="text-pm-muted text-xs mt-1 opacity-60">
           Analysis runs server-side — safe to navigate away and return
         </p>
+        <button
+          onClick={loadAudits}
+          className="mt-6 text-xs text-blue-400 hover:text-blue-300 underline"
+        >
+          Already done? Click to refresh
+        </button>
       </div>
     );
   }

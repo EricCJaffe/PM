@@ -16,14 +16,18 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServiceClient();
 
-    // Clean up stale audits stuck in "running" for > 2 minutes
+    // Clean up stale audits stuck in "running" for > 5 minutes.
+    // The process route has maxDuration=120s + safety timer at 110s, so any
+    // audit still "running" after 5 min is truly orphaned (function was killed
+    // before the safety timer could write "failed").
+    const STALE_THRESHOLD_MS = 5 * 60 * 1000;
     if (orgId) {
       await supabase
         .from("pm_site_audits")
         .update({ status: "failed", audit_summary: "Audit timed out" })
         .eq("org_id", orgId)
         .eq("status", "running")
-        .lt("created_at", new Date(Date.now() - 2 * 60 * 1000).toISOString());
+        .lt("created_at", new Date(Date.now() - STALE_THRESHOLD_MS).toISOString());
     } else if (prospectName) {
       await supabase
         .from("pm_site_audits")
@@ -31,7 +35,7 @@ export async function GET(request: NextRequest) {
         .is("org_id", null)
         .eq("prospect_name", prospectName)
         .eq("status", "running")
-        .lt("created_at", new Date(Date.now() - 2 * 60 * 1000).toISOString());
+        .lt("created_at", new Date(Date.now() - STALE_THRESHOLD_MS).toISOString());
     }
 
     let query = supabase
