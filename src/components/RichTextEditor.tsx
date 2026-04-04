@@ -3,6 +3,12 @@
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
+import Underline from "@tiptap/extension-underline";
+import Link from "@tiptap/extension-link";
+import { Table } from "@tiptap/extension-table";
+import { TableRow } from "@tiptap/extension-table-row";
+import { TableHeader } from "@tiptap/extension-table-header";
+import { TableCell } from "@tiptap/extension-table-cell";
 import { useEffect } from "react";
 
 interface RichTextEditorProps {
@@ -44,15 +50,20 @@ export default function RichTextEditor({ value, onChange, placeholder, className
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
-        link: {
-          openOnClick: false,
-          HTMLAttributes: { class: "text-blue-400 underline" },
-        },
-        underline: {},
+      }),
+      Underline,
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: { class: "text-blue-400 underline" },
       }),
       Placeholder.configure({
         placeholder: placeholder || "Start writing...",
       }),
+      // Table support — preserves AI-generated pricing tables and scope tables
+      Table.configure({ resizable: false }),
+      TableRow,
+      TableHeader,
+      TableCell,
     ],
     content: value,
     onUpdate: ({ editor }) => {
@@ -60,17 +71,20 @@ export default function RichTextEditor({ value, onChange, placeholder, className
     },
     editorProps: {
       attributes: {
-        class: "prose prose-sm prose-invert max-w-none focus:outline-none min-h-[250px] px-3 py-2 text-pm-text",
+        class: "prose prose-sm prose-invert max-w-none focus:outline-none min-h-[200px] px-3 py-2 text-pm-text",
       },
     },
   });
 
-  // Sync external value changes (e.g. when editing a different article)
+  // Sync external value changes without losing cursor if the HTML is functionally the same
   useEffect(() => {
-    if (editor && value !== editor.getHTML()) {
-      editor.commands.setContent(value);
+    if (!editor) return;
+    const current = editor.getHTML();
+    if (value !== current) {
+      editor.commands.setContent(value, false);
     }
-  }, [value, editor]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
 
   if (!editor) return null;
 
@@ -79,6 +93,10 @@ export default function RichTextEditor({ value, onChange, placeholder, className
     if (url) {
       editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
     }
+  };
+
+  const insertTable = () => {
+    editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
   };
 
   return (
@@ -100,9 +118,6 @@ export default function RichTextEditor({ value, onChange, placeholder, className
 
         <span className="w-px h-5 bg-pm-border mx-1" />
 
-        <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} active={editor.isActive("heading", { level: 1 })} title="Heading 1">
-          H1
-        </ToolbarButton>
         <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive("heading", { level: 2 })} title="Heading 2">
           H2
         </ToolbarButton>
@@ -121,9 +136,32 @@ export default function RichTextEditor({ value, onChange, placeholder, className
         <ToolbarButton onClick={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive("blockquote")} title="Blockquote">
           &ldquo; Quote
         </ToolbarButton>
-        <ToolbarButton onClick={() => editor.chain().focus().toggleCodeBlock().run()} active={editor.isActive("codeBlock")} title="Code Block">
-          &lt;/&gt;
+
+        <span className="w-px h-5 bg-pm-border mx-1" />
+
+        {/* Table controls */}
+        <ToolbarButton onClick={insertTable} active={false} title="Insert Table">
+          ⊞ Table
         </ToolbarButton>
+        {editor.isActive("table") && (
+          <>
+            <ToolbarButton onClick={() => editor.chain().focus().addColumnAfter().run()} active={false} title="Add Column">
+              +Col
+            </ToolbarButton>
+            <ToolbarButton onClick={() => editor.chain().focus().addRowAfter().run()} active={false} title="Add Row">
+              +Row
+            </ToolbarButton>
+            <ToolbarButton onClick={() => editor.chain().focus().deleteColumn().run()} active={false} title="Delete Column">
+              -Col
+            </ToolbarButton>
+            <ToolbarButton onClick={() => editor.chain().focus().deleteRow().run()} active={false} title="Delete Row">
+              -Row
+            </ToolbarButton>
+            <ToolbarButton onClick={() => editor.chain().focus().deleteTable().run()} active={false} title="Delete Table">
+              ✕Tbl
+            </ToolbarButton>
+          </>
+        )}
 
         <span className="w-px h-5 bg-pm-border mx-1" />
 
@@ -143,7 +181,14 @@ export default function RichTextEditor({ value, onChange, placeholder, className
         </ToolbarButton>
       </div>
 
-      {/* Editor area */}
+      {/* Editor area — table styles scoped here */}
+      <style>{`
+        .tiptap table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+        .tiptap table th, .tiptap table td { border: 1px solid #334155; padding: 8px 12px; text-align: left; font-size: 13px; }
+        .tiptap table th { background: #1e293b; font-weight: 600; color: #94a3b8; }
+        .tiptap table tr:nth-child(even) td { background: #0f172a40; }
+        .tiptap table .selectedCell { background: #2563eb30; }
+      `}</style>
       <EditorContent editor={editor} />
     </div>
   );

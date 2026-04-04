@@ -29,6 +29,7 @@ export default function DocumentEditorPage() {
   const [esignSigners, setEsignSigners] = useState<Array<{ name: string; email: string; status: string; signed: boolean }>>([]);
   const [esignSending, setEsignSending] = useState(false);
   const [esignError, setEsignError] = useState("");
+  const [duplicating, setDuplicating] = useState(false);
 
   // Load document, fields, sections
   useEffect(() => {
@@ -183,6 +184,28 @@ export default function DocumentEditorPage() {
     }
   }
 
+  // Duplicate document
+  async function handleDuplicate() {
+    if (!id) return;
+    const newTitle = window.prompt("Title for the new document:", `${doc?.title ?? "Document"} (Copy)`);
+    if (!newTitle) return;
+    setDuplicating(true);
+    try {
+      const res = await fetch(`/api/pm/docgen/${id}/duplicate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: newTitle }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      router.push(`/documents/${data.id}`);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to duplicate");
+    } finally {
+      setDuplicating(false);
+    }
+  }
+
   // Cancel eSign
   async function handleCancelEsign() {
     if (!id || !confirm("Cancel the signature request?")) return;
@@ -263,6 +286,14 @@ export default function DocumentEditorPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={handleDuplicate}
+            disabled={duplicating}
+            className="px-3 py-1.5 text-sm border border-pm-border text-pm-muted hover:text-pm-text hover:border-pm-text/40 disabled:opacity-50 rounded-lg font-medium"
+            title="Duplicate this document as a new draft — great for reusing an SOW for a new client"
+          >
+            {duplicating ? "Duplicating..." : "Duplicate as New"}
+          </button>
           {/* Status dropdown */}
           <select
             value={doc.status}
@@ -409,6 +440,7 @@ export default function DocumentEditorPage() {
           ) : (
             <>
               <SectionEditor
+                documentId={id}
                 sections={sections}
                 onUpdate={handleSectionUpdate}
                 onToggleLock={handleToggleLock}
