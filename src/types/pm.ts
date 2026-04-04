@@ -1173,3 +1173,35 @@ export interface Pass2PageContent {
 export interface Pass2FormData {
   pages: Record<string, Pass2PageContent>;
 }
+
+// ─── Agent Job Types ──────────────────────────────────────────────────────────
+
+export type AgentJobType =
+  | "engagement_risk_scan"
+  | "weekly_rollup"
+  | "audit_follow_up"
+  | "document_draft";
+
+export type AgentJobStatus = "pending" | "running" | "complete" | "failed" | "skipped";
+
+export interface AgentJob {
+  id: string;
+  org_id: string | null;
+  job_type: AgentJobType;
+  payload: Record<string, unknown>;
+  status: AgentJobStatus;
+  scheduled_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  result: Record<string, unknown> | null;
+  error: string | null;
+  created_at: string;
+}
+
+export interface EnqueueJobOptions {
+  org_id?: string;
+  job_type: AgentJobType;
+  payload?: Record<string, unknown>;
+  /** ISO string — defaults to now */
+  scheduled_at?: string;
+}

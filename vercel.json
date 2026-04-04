@@ -11,6 +11,14 @@
     {
       "path": "/api/cron/series-generate",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/agent-runner",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/agent-scheduler",
+      "schedule": "0 2 * * *"
     }
   ]
 }

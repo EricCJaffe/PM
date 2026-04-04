@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getOpenAI } from "@/lib/openai";
+import { scheduleAuditFollowUp } from "@/lib/agent-jobs";
 import { assembleKBContext } from "@/lib/kb";
 import { fetchSiteContent } from "@/lib/site-fetcher";
 import { generateMockupHtml } from "@/lib/audit-mockup";
@@ -240,6 +241,14 @@ export async function POST(request: NextRequest) {
 
     if (updateErr) throw new Error(`DB update failed: ${updateErr.message} (code: ${updateErr.code || "unknown"}, details: ${updateErr.details || "none"})`);
     if (safetyTimer) clearTimeout(safetyTimer);
+
+    // Enqueue autonomous follow-up: gap analysis generation (fire-and-forget)
+    if (org_id) {
+      scheduleAuditFollowUp(org_id, audit_id).catch((e) =>
+        console.error("Failed to enqueue audit_follow_up job:", e)
+      );
+    }
+
     return NextResponse.json({ success: true });
 
   } catch (err) {
