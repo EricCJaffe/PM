@@ -17,18 +17,35 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
 
 export default function DocumentsPage() {
   const [docs, setDocs] = useState<GeneratedDocument[]>([]);
+  const [orgs, setOrgs] = useState<Array<{ id: string; name: string }>>([]);
+  const [docTypes, setDocTypes] = useState<Array<{ slug: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("");
+  const [orgFilter, setOrgFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
   const [search, setSearch] = useState("");
 
   useEffect(() => {
+    // Load filter options once
+    Promise.all([
+      fetch("/api/pm/organizations").then((r) => r.json()),
+      fetch("/api/pm/document-types").then((r) => r.json()),
+    ]).then(([orgData, typeData]) => {
+      if (Array.isArray(orgData)) setOrgs(orgData);
+      if (Array.isArray(typeData)) setDocTypes(typeData);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
     loadDocs();
-  }, [statusFilter]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter, orgFilter, typeFilter]);
 
   async function loadDocs() {
     setLoading(true);
     const params = new URLSearchParams();
     if (statusFilter) params.set("status", statusFilter);
+    if (orgFilter) params.set("org_id", orgFilter);
     const res = await fetch(`/api/pm/docgen?${params}`);
     if (res.ok) setDocs(await res.json());
     setLoading(false);
@@ -40,12 +57,14 @@ export default function DocumentsPage() {
     setDocs((prev) => prev.filter((d) => d.id !== id));
   }
 
-  const filtered = search
-    ? docs.filter((d) =>
-        d.title.toLowerCase().includes(search.toLowerCase()) ||
-        (d.document_type_name ?? "").toLowerCase().includes(search.toLowerCase())
-      )
-    : docs;
+  const filtered = docs.filter((d) => {
+    if (typeFilter && d.document_type_slug !== typeFilter) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      return d.title.toLowerCase().includes(q) || (d.document_type_name ?? "").toLowerCase().includes(q);
+    }
+    return true;
+  });
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-8">
@@ -66,14 +85,34 @@ export default function DocumentsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex flex-wrap items-center gap-3 mb-6">
         <input
           type="text"
           placeholder="Search documents..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 max-w-xs bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text text-sm focus:outline-none focus:border-blue-500"
+          className="w-52 bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text text-sm focus:outline-none focus:border-blue-500"
         />
+        {orgs.length > 0 && (
+          <select
+            value={orgFilter}
+            onChange={(e) => setOrgFilter(e.target.value)}
+            className="bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text text-sm focus:outline-none focus:border-blue-500"
+          >
+            <option value="">All clients</option>
+            {orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+          </select>
+        )}
+        {docTypes.length > 0 && (
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text text-sm focus:outline-none focus:border-blue-500"
+          >
+            <option value="">All types</option>
+            {docTypes.map((t) => <option key={t.slug} value={t.slug}>{t.name}</option>)}
+          </select>
+        )}
         <div className="flex gap-1">
           {STATUS_FILTERS.map((sf) => (
             <button

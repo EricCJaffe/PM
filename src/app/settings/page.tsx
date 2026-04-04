@@ -174,6 +174,27 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* Admin tools */}
+      <div className="mt-8 pt-6 border-t border-pm-border">
+        <h2 className="text-sm font-semibold text-pm-muted uppercase tracking-wider mb-3">Admin</h2>
+        <div className="space-y-1">
+          <Link
+            href="/settings/agent-jobs"
+            className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-pm-card transition-colors text-sm text-pm-text"
+          >
+            <span>Agent Job Queue</span>
+            <span className="text-pm-muted">→</span>
+          </Link>
+          <Link
+            href="/projects/import"
+            className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-pm-card transition-colors text-sm text-pm-text"
+          >
+            <span>Import from Asana</span>
+            <span className="text-pm-muted">→</span>
+          </Link>
+        </div>
+      </div>
+
     </div>
   );
 }

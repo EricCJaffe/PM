@@ -108,6 +108,11 @@ function AuditResults({
   const [generatingDoc, setGeneratingDoc] = useState(false);
   const [generatingPDF, setGeneratingPDF] = useState(false);
   const [creatingWorkflow, setCreatingWorkflow] = useState<"remediation" | "rebuild" | null>(null);
+  const [rebuildWorkflowId, setRebuildWorkflowId] = useState<string | null>(null);
+  const [generatingContent, setGeneratingContent] = useState(false);
+  const [generatingPrompts, setGeneratingPrompts] = useState(false);
+  const [contentDone, setContentDone] = useState(false);
+  const [promptsDone, setPromptsDone] = useState(false);
 
   const handleGenerateDoc = async () => {
     setGeneratingDoc(true);
@@ -122,6 +127,47 @@ function AuditResults({
   const overall = audit.status === "complete" && audit.scores ? getOverall(audit) : null;
   const isRebuildRecommended = overall?.rebuild_recommended ?? false;
 
+  // Load existing rebuild workflow for this audit on mount
+  useEffect(() => {
+    fetch(`/api/pm/site-audit/workflow?org_id=${orgId}`)
+      .then((r) => r.json())
+      .then((data: Array<{ id: string; audit_id: string; workflow_type: string }>) => {
+        if (!Array.isArray(data)) return;
+        const existing = data.find((w) => w.audit_id === audit.id && w.workflow_type === "rebuild");
+        if (existing) setRebuildWorkflowId(existing.id);
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audit.id]);
+
+  const handleGenerateContent = async () => {
+    if (!rebuildWorkflowId) return;
+    setGeneratingContent(true);
+    try {
+      const res = await fetch(`/api/pm/site-audit/workflow/${rebuildWorkflowId}/generate-content`, { method: "POST" });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Failed"); }
+      setContentDone(true);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Content generation failed");
+    } finally {
+      setGeneratingContent(false);
+    }
+  };
+
+  const handleBuildPrompts = async () => {
+    if (!rebuildWorkflowId) return;
+    setGeneratingPrompts(true);
+    try {
+      const res = await fetch(`/api/pm/site-audit/workflow/${rebuildWorkflowId}/build-prompts`, { method: "POST" });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Failed"); }
+      setPromptsDone(true);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Build prompts failed");
+    } finally {
+      setGeneratingPrompts(false);
+    }
+  };
+
   const handleStartWorkflow = async (type: "remediation" | "rebuild") => {
     setCreatingWorkflow(type);
     try {
@@ -131,15 +177,33 @@ function AuditResults({
         : `Site Remediation — ${siteName}`;
       const slug = `${type}-${siteName.replace(/[^a-z0-9]/gi, "-").toLowerCase()}-${Date.now().toString(36)}`;
 
+      if (type === "rebuild") {
+        // Use the workflow API — creates pm_audit_workflows + project + phases/tasks
+        const res = await fetch("/api/pm/site-audit/workflow", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            audit_id: audit.id,
+            workflow_type: "rebuild",
+            config: { name, slug },
+          }),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        setRebuildWorkflowId(data.id);
+        // Also navigate to the project
+        router.push(`/projects/${data.project_slug || slug}`);
+        return;
+      }
+
+      // Remediation: seed a basic project
       const res = await fetch("/api/pm/projects/seed", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
           slug,
-          description: type === "rebuild"
-            ? `Full website rebuild based on site audit of ${audit.url}. Overall score: ${overall?.score ?? "N/A"}%. Build a new site from scratch using rubric best practices.`
-            : `Remediation project based on site audit of ${audit.url}. Overall score: ${overall?.score ?? "N/A"}%. Fix gaps and issues identified by the audit.`,
+          description: `Remediation project based on site audit of ${audit.url}. Overall score: ${overall?.score ?? "N/A"}%. Fix gaps and issues identified by the audit.`,
           template_slug: "custom",
           org_id: orgId,
         }),
@@ -301,6 +365,27 @@ function AuditResults({
             </p>
           </button>
         </div>
+
+        {/* AI Actions — only shown when a rebuild workflow exists */}
+        {rebuildWorkflowId && (
+          <div className="mt-4 pt-4 border-t border-pm-border flex flex-wrap items-center gap-3">
+            <span className="text-xs text-pm-muted">Rebuild workflow active —</span>
+            <button
+              onClick={handleGenerateContent}
+              disabled={generatingContent || contentDone}
+              className="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg font-medium"
+            >
+              {contentDone ? "✓ Content Generated" : generatingContent ? "Generating..." : "Generate Page Content"}
+            </button>
+            <button
+              onClick={handleBuildPrompts}
+              disabled={generatingPrompts || promptsDone}
+              className="px-3 py-1.5 text-xs bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-lg font-medium"
+            >
+              {promptsDone ? "✓ Prompts in KB" : generatingPrompts ? "Building..." : "Build Dev Prompts → KB"}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Header with Overall Score */}

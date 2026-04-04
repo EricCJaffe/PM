@@ -35,6 +35,11 @@ export async function onEngagementStageChange(
   if (eng.engagement_type === "website_build" && toStage === "closed_won") {
     await autoCreateWebProject(supabase, eng);
   }
+
+  // 3. Auto-draft SOW when stage moves to proposal_sent
+  if (toStage === "proposal_sent") {
+    await autoCreateSOWDraft(supabase, eng);
+  }
 }
 
 /**
@@ -162,4 +167,66 @@ async function autoCreateWebProject(
   }));
 
   await supabase.from("pm_web_passes").insert(passInserts);
+}
+
+/**
+ * Auto-draft an SOW when a deal moves to proposal_sent.
+ * Skips if an SOW already exists for this engagement.
+ */
+async function autoCreateSOWDraft(
+  supabase: SupabaseClient,
+  eng: { id: string; org_id: string; title: string }
+) {
+  // Check if an SOW already exists for this engagement
+  const { count } = await supabase
+    .from("generated_documents")
+    .select("id", { count: "exact", head: true })
+    .eq("org_id", eng.org_id)
+    .ilike("title", `%${eng.title.slice(0, 30)}%`);
+
+  if ((count ?? 0) > 0) return; // already has a doc — skip
+
+  // Look up the SOW document type
+  const { data: sowType } = await supabase
+    .from("document_types")
+    .select("id")
+    .eq("slug", "sow")
+    .eq("is_active", true)
+    .single();
+
+  if (!sowType) return;
+
+  // Load org for pre-fill
+  const { data: org } = await supabase
+    .from("pm_organizations")
+    .select("name, billing_contact_name, billing_contact_email")
+    .eq("id", eng.org_id)
+    .single();
+
+  // Create draft SOW pre-filled with engagement data
+  const { data: doc } = await supabase
+    .from("generated_documents")
+    .insert({
+      document_type_id: sowType.id,
+      org_id: eng.org_id,
+      title: `${eng.title} — Statement of Work`,
+      status: "draft",
+      intake_data: {
+        client_name: org?.name ?? "",
+        client_contact_name: org?.billing_contact_name ?? "",
+        client_contact_email: org?.billing_contact_email ?? "",
+        project_title: eng.title,
+      },
+    })
+    .select("id")
+    .single();
+
+  if (!doc) return;
+
+  // Log creation
+  await supabase.from("document_activity").insert({
+    document_id: doc.id,
+    action: "created",
+    details: { auto_created: true, trigger: "proposal_sent", engagement_id: eng.id },
+  });
 }
