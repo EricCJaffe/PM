@@ -192,6 +192,13 @@ export default function SettingsPage() {
             <span>Import from Asana</span>
             <span className="text-pm-muted">→</span>
           </Link>
+          <Link
+            href="/settings/branding"
+            className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-pm-card transition-colors text-sm text-pm-text"
+          >
+            <span>Platform Branding</span>
+            <span className="text-pm-muted">→</span>
+          </Link>
         </div>
       </div>
 

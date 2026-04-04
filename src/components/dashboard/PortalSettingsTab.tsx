@@ -127,10 +127,8 @@ export function PortalSettingsTab({ org }: { org: Organization }) {
 
   const handleRevoke = async (id: string) => {
     try {
-      const res = await fetch("/api/pm/portal/invites", {
+      const res = await fetch(`/api/pm/portal/invites?id=${id}`, {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
@@ -182,6 +180,15 @@ export function PortalSettingsTab({ org }: { org: Organization }) {
     navigator.clipboard.writeText(portalUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null);
+  const copyInviteLink = (invite: PortalInvite) => {
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const link = `${base}/portal/auth?org=${org.slug}&token=${invite.token}`;
+    navigator.clipboard.writeText(link);
+    setCopiedInviteId(invite.id);
+    setTimeout(() => setCopiedInviteId(null), 2000);
   };
 
   if (loadingSettings) {
@@ -479,14 +486,25 @@ export function PortalSettingsTab({ org }: { org: Organization }) {
                     className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                       invite.accepted_at
                         ? "bg-green-500/20 text-green-400"
-                        : "bg-yellow-500/20 text-yellow-400"
+                        : invite.is_active
+                        ? "bg-yellow-500/20 text-yellow-400"
+                        : "bg-pm-border/50 text-pm-muted"
                     }`}
                   >
-                    {invite.accepted_at ? "Accepted" : "Pending"}
+                    {invite.accepted_at ? "Accepted" : invite.is_active ? "Pending" : "Revoked"}
                   </span>
                   <span className="status-badge status-in-progress capitalize text-xs">
                     {invite.role}
                   </span>
+                  {invite.is_active && !invite.accepted_at && (
+                    <button
+                      onClick={() => copyInviteLink(invite)}
+                      className="text-xs px-2 py-1 rounded border border-pm-border text-pm-muted hover:text-pm-text transition-colors"
+                      title="Copy invite link"
+                    >
+                      {copiedInviteId === invite.id ? "Copied!" : "Copy Link"}
+                    </button>
+                  )}
                   {revokingId === invite.id ? (
                     <div className="flex items-center gap-1">
                       <button

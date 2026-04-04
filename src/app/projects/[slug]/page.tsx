@@ -11,6 +11,7 @@ import { AIReportsPanel } from "@/components/AIReportsPanel";
 import { ClientUpdateTab } from "@/components/ClientUpdateTab";
 import { TimelineTab } from "@/components/TimelineTab";
 import { BudgetTab } from "@/components/BudgetTab";
+import { SeriesTab } from "@/components/SeriesTab";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -104,6 +105,11 @@ export default async function ProjectDetailPage({
               id: "client-updates",
               label: "Client Updates",
               content: <ClientUpdateTab projectId={project.id} orgId={project.org_id} />,
+            },
+            {
+              id: "recurring",
+              label: "Recurring",
+              content: <SeriesTab projectId={project.id} orgId={project.org_id} phases={phases.map((p) => ({ id: p.id, name: p.name }))} />,
             },
           ]}
         />
