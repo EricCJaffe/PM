@@ -14,8 +14,7 @@ async function requireAdmin() {
     return user;
   }
 
-  // Allow access when auth is disabled
-  return { id: "no-auth" } as { id: string };
+  return null;
 }
 
 function slugify(name: string): string {
@@ -146,7 +145,7 @@ export async function POST(request: NextRequest) {
     to: email,
     displayName: display_name,
     role: validRole === "admin" ? "Admin" : validRole === "external" ? "Client User" : "Staff",
-    invitedBy: admin.id !== "no-auth" ? "An administrator" : undefined,
+    invitedBy: "An administrator",
   }).catch((err) => console.error("[Email] Invite error:", err));
 
   return NextResponse.json({

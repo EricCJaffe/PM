@@ -13,8 +13,7 @@ async function requireAdmin() {
     return user;
   }
 
-  // Allow access when auth is disabled
-  return { id: "no-auth" } as { id: string };
+  return null;
 }
 
 function slugify(name: string): string {

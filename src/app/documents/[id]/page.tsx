@@ -35,8 +35,8 @@ export default function DocumentEditorPage() {
   useEffect(() => {
     if (!id) return;
     Promise.all([
-      fetch(`/api/pm/docgen/${id}`).then((r) => r.json()),
-      fetch(`/api/pm/docgen/${id}/sections`).then((r) => r.json()),
+      fetch(`/api/pm/docgen/${id}`).then((r) => r.ok ? r.json() : Promise.reject(new Error("Failed to load document"))),
+      fetch(`/api/pm/docgen/${id}/sections`).then((r) => r.ok ? r.json() : []),
     ]).then(([docData, sectionData]) => {
       setDoc(docData);
       setSections(Array.isArray(sectionData) ? sectionData : []);
@@ -46,7 +46,7 @@ export default function DocumentEditorPage() {
       // Load intake fields for this document type
       if (docData.document_type_slug) {
         fetch(`/api/pm/document-types/${docData.document_type_slug}/fields`)
-          .then((r) => r.json())
+          .then((r) => r.ok ? r.json() : [])
           .then((f) => { if (Array.isArray(f)) setFields(f); });
       }
 

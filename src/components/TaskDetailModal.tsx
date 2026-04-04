@@ -136,27 +136,33 @@ export function TaskDetailModal({
   const [previewAtt, setPreviewAtt] = useState<TaskAttachment | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Reset comments and attachments when switching between tasks
+  useEffect(() => {
+    setComments([]);
+    setAttachments([]);
+  }, [task?.id]);
+
   // Load comments when tab opens (edit mode only)
   useEffect(() => {
-    if (!task || activeTab !== "comments" || comments.length > 0) return;
+    if (!task || activeTab !== "comments") return;
     setLoadingComments(true);
     fetch(`/api/pm/tasks/${task.id}/comments`)
       .then((r) => r.json())
       .then((data) => { if (Array.isArray(data)) setComments(data); })
       .catch(() => {})
       .finally(() => setLoadingComments(false));
-  }, [activeTab, task, comments.length]);
+  }, [activeTab, task?.id]);
 
   // Load attachments when tab opens (edit mode only)
   useEffect(() => {
-    if (!task || activeTab !== "files" || attachments.length > 0) return;
+    if (!task || activeTab !== "files") return;
     setLoadingFiles(true);
     fetch(`/api/pm/tasks/${task.id}/attachments`)
       .then((r) => r.json())
       .then((data) => { if (Array.isArray(data)) setAttachments(data); })
       .catch(() => {})
       .finally(() => setLoadingFiles(false));
-  }, [activeTab, task, attachments.length]);
+  }, [activeTab, task?.id]);
 
   // ─── Save / Create ──────────────────────────────────────────────────
 

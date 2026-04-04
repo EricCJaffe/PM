@@ -14,9 +14,7 @@ async function requireAdmin() {
     return user;
   }
 
-  // If no auth session (auth disabled/middleware off), allow access
-  // This will be locked down once auth middleware is enabled
-  return { id: "no-auth" } as { id: string };
+  return null;
 }
 
 // GET: List all users with their org access
