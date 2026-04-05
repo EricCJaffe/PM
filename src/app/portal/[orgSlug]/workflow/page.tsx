@@ -3,6 +3,7 @@ import { getUserSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { PortalRemediationView } from "@/components/portal/PortalRemediationView";
 import { PortalRebuildWizard } from "@/components/portal/PortalRebuildWizard";
+import { PortalProcessDiscoveryView } from "@/components/portal/PortalProcessDiscoveryView";
 
 export default async function PortalWorkflowPage({
   params,
@@ -59,7 +60,9 @@ export default async function PortalWorkflowPage({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-pm-text">
-          {activeWorkflow.workflow_type === "rebuild" ? "Website Rebuild" : "Site Remediation"}
+          {activeWorkflow.workflow_type === "process_discovery" ? "Process Discovery" :
+           activeWorkflow.workflow_type === "rebuild" || activeWorkflow.workflow_type === "guided_rebuild" ? "Website Rebuild" :
+           "Site Remediation"}
         </h2>
         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
           activeWorkflow.status === "complete" ? "bg-emerald-500/20 text-emerald-400" :
@@ -70,7 +73,9 @@ export default async function PortalWorkflowPage({
         </span>
       </div>
 
-      {activeWorkflow.workflow_type === "remediation" ? (
+      {activeWorkflow.workflow_type === "process_discovery" ? (
+        <PortalProcessDiscoveryView workflowId={activeWorkflow.id} />
+      ) : activeWorkflow.workflow_type === "remediation" ? (
         <PortalRemediationView
           workflowId={activeWorkflow.id}
           orgSlug={orgSlug}

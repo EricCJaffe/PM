@@ -795,7 +795,7 @@ export interface SiteAudit {
   updated_at: string;
 }
 
-export type WorkflowType = "remediation" | "rebuild" | "guided_rebuild";
+export type WorkflowType = "remediation" | "rebuild" | "guided_rebuild" | "process_discovery";
 export type WorkflowStatus = "active" | "paused" | "complete";
 
 export interface AuditWorkflow {
@@ -869,6 +869,28 @@ export interface Department {
   member_count: number;
   sort_order: number;
   is_active: boolean;
+  process_count?: number;
+  processes_documented?: number;
+  playbook_document_id?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type DepartmentIntakeStatus = "not-started" | "in-progress" | "complete" | "reviewed" | "approved";
+
+export interface DepartmentIntake {
+  id: string;
+  workflow_id: string;
+  org_id: string;
+  department_id: string;
+  status: DepartmentIntakeStatus;
+  responses: Record<string, unknown>;
+  pillar_scores: Record<string, number>;
+  ai_summary: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
   created_at: string;
   updated_at: string;
 }

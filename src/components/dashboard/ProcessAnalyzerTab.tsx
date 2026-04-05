@@ -120,11 +120,14 @@ export function ProcessAnalyzerTab({
         <h3 className="text-lg font-semibold text-pm-text">Process Analyzer</h3>
       </div>
 
+      {/* Start Process Discovery Workflow */}
+      <ProcessDiscoveryLauncher org={org} />
+
       {/* Step: Select Documents */}
       {step === "select" && (
         <div className="space-y-6">
           <div className="card">
-            <h4 className="font-semibold text-pm-text mb-1">How it works</h4>
+            <h4 className="font-semibold text-pm-text mb-1">SOP Scanner</h4>
             <ol className="text-sm text-pm-muted space-y-1 list-decimal list-inside">
               <li>Select one or more client documents (SOPs, process docs, manuals)</li>
               <li>AI reads each document and scores it against your methodology</li>
@@ -338,5 +341,149 @@ function ComplexityBadge({ complexity }: { complexity: string }) {
     <span className={`px-2 py-0.5 rounded text-xs font-medium ${styles[complexity] ?? styles.medium}`}>
       {complexity}
     </span>
+  );
+}
+
+// ─── Process Discovery Workflow Launcher ────────────────────────────
+
+const VERTICALS = [
+  { value: "church", label: "Church / Ministry" },
+  { value: "nonprofit", label: "Nonprofit" },
+  { value: "business", label: "Business" },
+  { value: "agency", label: "Agency" },
+];
+
+function ProcessDiscoveryLauncher({ org }: { org: Organization }) {
+  const [templates, setTemplates] = useState<Array<{ id: string; slug: string; name: string; description: string }>>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState("");
+  const [selectedVertical, setSelectedVertical] = useState("business");
+  const [creating, setCreating] = useState(false);
+  const [result, setResult] = useState<{ project_name: string; departments_created: number; intake_forms_created: number } | null>(null);
+  const [error, setError] = useState("");
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/pm/templates")
+      .then((r: Response) => r.json())
+      .then((data: Array<{ id: string; slug: string; name: string; description: string }>) => {
+        if (Array.isArray(data)) {
+          setTemplates(data);
+          const defaultTpl = data.find((t: { slug: string }) => t.slug === "ministry-discovery") || data[0];
+          if (defaultTpl) setSelectedTemplate(defaultTpl.slug);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  async function handleCreate() {
+    if (!selectedTemplate) { setError("Select a project template."); return; }
+    setCreating(true);
+    setError("");
+    try {
+      const res = await fetch("/api/pm/process-discovery", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          org_id: org.id,
+          template_slug: selectedTemplate,
+          vertical: selectedVertical,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setResult({
+        project_name: data.project_name,
+        departments_created: data.departments_created,
+        intake_forms_created: data.intake_forms_created,
+      });
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to create workflow");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  if (result) {
+    return (
+      <div className="card border-emerald-500/30 bg-emerald-500/5 mb-6">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-emerald-400 text-lg">&#10003;</span>
+          <h4 className="font-semibold text-pm-text">Process Discovery Workflow Created</h4>
+        </div>
+        <p className="text-sm text-pm-muted">
+          Project: <strong>{result.project_name}</strong><br />
+          {result.departments_created} departments created, {result.intake_forms_created} intake forms ready.
+        </p>
+        <p className="text-sm text-pm-muted mt-2">
+          Department intake forms are now available in the client portal. Use the SOP scanner below to pre-fill from existing documents.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card mb-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h4 className="font-semibold text-pm-text">Start Process Discovery Workflow</h4>
+          <p className="text-xs text-pm-muted">Create a structured project with department intake forms, playbook generation, and automation analysis.</p>
+        </div>
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="text-sm text-pm-accent hover:text-pm-accent-hover font-medium"
+        >
+          {expanded ? "Collapse" : "Set Up"}
+        </button>
+      </div>
+
+      {expanded && (
+        <div className="mt-4 space-y-4 border-t border-pm-border pt-4">
+          {error && (
+            <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">{error}</div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-pm-muted mb-1">Vertical / Industry</label>
+              <select
+                value={selectedVertical}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedVertical(e.target.value)}
+                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text text-sm focus:outline-none focus:border-blue-500"
+              >
+                {VERTICALS.map((v) => (
+                  <option key={v.value} value={v.value}>{v.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-pm-muted mb-1">Project Template</label>
+              <select
+                value={selectedTemplate}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedTemplate(e.target.value)}
+                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text text-sm focus:outline-none focus:border-blue-500"
+              >
+                <option value="">Select template...</option>
+                {templates.map((t) => (
+                  <option key={t.slug} value={t.slug}>{t.name}</option>
+                ))}
+              </select>
+              {selectedTemplate && (
+                <p className="text-xs text-pm-muted mt-1">
+                  {templates.find((t) => t.slug === selectedTemplate)?.description}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <button
+            onClick={handleCreate}
+            disabled={creating || !selectedTemplate}
+            className="px-5 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-lg font-medium text-sm transition-colors"
+          >
+            {creating ? "Creating Workflow..." : "Create Process Discovery Workflow"}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
