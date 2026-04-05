@@ -9,6 +9,7 @@
    - `supabase/migrations/003_orgs_and_members.sql`
 4. Create the `vault` storage bucket in Supabase (public or private)
 5. Seed templates: `npm run seed` (this runs `supabase/seeds/seed.ts` as TypeScript via `tsx`, not as SQL)
+   - If you need SQL editor seeding for BusinessOS specifically, run `supabase/seeds/seed-business-os.sql`
 6. Start dev server: `npm run dev`
 
 ## Creating Your First Project
