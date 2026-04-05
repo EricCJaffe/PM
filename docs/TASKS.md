@@ -216,6 +216,47 @@ Example: `- [ ] Fix login redirect bug [@eric]`
   - Skip TypeScript/ESLint checking during Vercel builds (~40% faster)
   - Gzip compression, tree-shaking heavy libraries, DNS prefetch
 
+## Process Discovery Workflow (NEW)
+- [x] Migration 048: `pm_department_intake` table + `process_discovery` workflow type
+  - Per-department 7-layer questionnaire responses, pillar scores, AI summary
+  - Extended pm_audit_workflows: process_discovery type, audit_id nullable
+  - Extended pm_departments: process_count, processes_documented, playbook_document_id
+  - RLS: internal full access, external read + update for own org
+  - Applied to Supabase (FSA project)
+- [x] POST /api/pm/process-discovery — creates workflow + project from template
+  - Auto-creates departments by vertical (church/nonprofit/business/agency)
+  - Creates intake forms per department
+  - Template selection from existing project templates
+- [x] GET/PATCH /api/pm/department-intake — CRUD for intake forms
+  - Auto-calculated pillar scores from responses
+  - Auto-updated status based on completion
+- [x] POST /api/pm/department-intake/[id]/generate-playbook — AI generates 8-section playbook
+  - Sections: Overview, Org Chart, Metrics, Meetings, Processes, Issues, Automation, Action Plan
+  - Creates generated_document with editable sections in Tiptap
+  - Links playbook back to department
+- [x] POST /api/pm/department-intake/[id]/prefill-from-scan — SOP scan → intake pre-fill
+  - Takes document_ids, extracts text, AI maps to 6 pillars
+  - Merges into intake form without overwriting existing answers
+- [x] POST /api/pm/process-discovery/[id]/compile-playbook — master playbook compilation
+  - Aggregates all department playbook sections into single document
+  - Includes table of contents and org-wide automation opportunities table
+- [x] POST /api/pm/process-discovery/[id]/approve-opportunity — opportunity → project
+  - Approve/decline/defer automation opportunities
+  - "Approve & Create Project" creates implementation project with 4 phases
+- [x] ProcessDiscoveryDetail admin component — all 7 stages wired
+  - Overview stats (departments, intake progress, playbooks, opportunities)
+  - Per-department cards with Scan & Pre-fill, Generate Playbook, Approve buttons
+  - Master playbook compilation button (appears when 2+ playbooks exist)
+  - Automation opportunities list with approve/decline actions
+- [x] PortalProcessDiscoveryView — client portal department intake forms
+  - Per-department questionnaire with 6 pillar tabs (40+ questions)
+  - Progress tracking per department and overall
+- [x] WorkflowsTab — active process discovery workflows shown with "Open" button
+- [x] Discovery intake form docs: DISCOVERY_INTAKE_BUSINESS.md, DISCOVERY_INTAKE_CHURCH.md
+- [x] Process Analyzer Workflow plan: docs/PLANS/process-analyzer-workflow.md
+- [ ] Wire content generation + build prompt buttons into admin workflow view
+- [ ] Add business-discovery and nonprofit-discovery project templates
+
 ## Manual Testing — [@eric]
 - [ ] **Process Discovery Workflow**: Go to a client → Workflows → Process Analyzer → Set Up → select vertical + template → Create → verify departments created, intake forms visible, project phases populated
 - [ ] **Department Intake Forms**: Open a department intake form → fill out questions across all 6 pillars → save → verify responses persist and pillar scores auto-calculate

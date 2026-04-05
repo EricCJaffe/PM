@@ -52,6 +52,61 @@ Env vars changed: [yes — list / no]
 <!-- Entries below — newest first -->
 
 ---
+## 2026-04-05 — claude
+
+### PLAIN-LANGUAGE SUMMARY
+What we worked on: Built the complete Process Discovery Workflow — from SOP scanning to department playbooks to automation project creation. Also merged main, fixed guided rebuild issues, and consolidated dashboard tabs.
+What got done:
+- Complete 7-stage Process Discovery pipeline fully wired end-to-end
+- Migration 048 applied (pm_department_intake table, process_discovery workflow type)
+- 6 new API routes: process discovery creation, department intake CRUD, SOP pre-fill, playbook generation, master compilation, opportunity approval
+- ProcessDiscoveryDetail admin component with all stages and action buttons
+- Client portal department intake forms (40+ questions across 6 pillars)
+- Discovery intake form documents (business + church/nonprofit versions)
+- Merged main (27 commits from another session), resolved conflicts
+- Added Guided Rebuild as third workflow type with existing workflow detection
+- Dynamic page management, image upload, phase unlock for guided rebuild
+- Tab consolidation: 17 tabs → 8 tabs
+- Build performance: skip TS/ESLint on builds, gzip, tree-shaking
+What is still in progress:
+- Content generation + build prompt buttons not wired into admin workflow view
+- Business-discovery and nonprofit-discovery project templates not yet created
+- DocuSeal cancel/re-send flow still has 404 bug
+Decisions the team should know:
+- Process Analyzer is now a full workflow (not just SOP scanner)
+- Three verticals for department auto-creation: church, nonprofit, business, agency
+- Client selects project template as first step in workflow creation
+- Playbooks generated per department, then compiled into master company playbook
+Blockers needing non-dev input: None
+
+### TECHNICAL HANDOFF
+Session goal: Build complete Process Discovery Workflow + merge main + guided rebuild enhancements
+Completed:
+- Migration 048 (pm_department_intake, workflow type extension, dept tracking columns)
+- POST /api/pm/process-discovery (workflow + project + depts + intake forms)
+- GET/PATCH /api/pm/department-intake (CRUD with auto-scoring)
+- POST /api/pm/department-intake/[id]/generate-playbook (AI 8-section playbook)
+- POST /api/pm/department-intake/[id]/prefill-from-scan (SOP → intake pre-fill)
+- POST /api/pm/process-discovery/[id]/compile-playbook (master compilation)
+- POST /api/pm/process-discovery/[id]/approve-opportunity (opportunity → project)
+- ProcessDiscoveryDetail.tsx (admin view with all stages)
+- PortalProcessDiscoveryView.tsx (client portal intake forms)
+- ProcessDiscoveryLauncher in ProcessAnalyzerTab (vertical + template selection)
+- ActiveProcessWorkflows in WorkflowsTab (shows active workflows)
+- ContentForm.tsx rewritten (dynamic pages, sub-pages, image upload)
+- PassStepper.tsx updated (phase unlock with pencil icon)
+- WebPassTab.tsx updated (unlockPass, custom page input)
+- WorkflowsTab.tsx updated (process discovery routing + active workflow list)
+- docs/DISCOVERY_INTAKE_BUSINESS.md, docs/DISCOVERY_INTAKE_CHURCH.md
+- docs/PLANS/process-analyzer-workflow.md
+Files changed: 20+ files across API routes, components, types, migrations, docs
+Next session startup:
+1. Test process discovery: create workflow → scan SOPs → fill intake → generate playbooks → compile master → approve opportunities
+2. Create business-discovery and nonprofit-discovery project templates
+3. Wire content generation + build prompt buttons
+Branch: main | Migrations applied: 047, 048 | Env vars changed: no
+
+---
 ## 2026-04-03 — eric
 
 ### PLAIN-LANGUAGE SUMMARY

@@ -139,6 +139,8 @@ docs/                       # Project documentation
 | `pm_discovery_interviews` | Structured interview records during discovery |
 | `pm_onboarding_checklists` | Template-driven onboarding steps per project |
 | `pm_audit_snapshots` | Historical audit snapshots with denormalized scores for comparison |
+| `pm_audit_workflows` | Links site audits to remediation/rebuild/process_discovery projects |
+| `pm_department_intake` | Per-department 7-layer questionnaire responses and pillar scores |
 | `pm_platform_branding` | Singleton platform-level branding (name, logos, colors, fonts, email settings) |
 | `pm_org_branding` | Per-org branding overrides (client logo, co-brand mode, color overrides) |
 
@@ -238,6 +240,22 @@ vault/[org-slug]/[project-slug]/
 | `/api/pm/web-passes/[id]/comments` | GET, POST, PATCH | Section comments CRUD + resolve |
 | `/api/pm/web-passes/share/[token]` | GET, POST | Public client review: load pass + submit comments/option selection |
 | `/web-review/[token]` | — | Public client portal page (no login): mockup review, section feedback, option selection |
+| `/api/pm/site-audit/workflow` | GET, POST | List / create audit workflows (remediation, rebuild, guided_rebuild, process_discovery) |
+| `/api/pm/site-audit/workflow/[id]` | GET, PATCH, DELETE | View / update / delete workflow |
+| `/api/pm/site-audit/workflow/[id]/re-audit` | POST | Trigger re-audit for same URL, update workflow scores |
+| `/api/pm/site-audit/workflow/[id]/refresh-tasks` | POST | Diff new audit gaps against existing tasks, add net-new |
+| `/api/pm/site-audit/workflow/[id]/generate-content` | POST | AI-generate page content for rebuild workflows |
+| `/api/pm/site-audit/workflow/[id]/build-prompts` | POST | Generate Claude Code build prompts, save to KB |
+| `/api/pm/process-discovery` | POST | Create process discovery workflow (project + depts + intake forms) |
+| `/api/pm/process-discovery/[id]/compile-playbook` | POST | Compile all dept playbooks into master company playbook |
+| `/api/pm/process-discovery/[id]/approve-opportunity` | POST | Approve/decline automation opportunity, optionally create project |
+| `/api/pm/department-intake` | GET | List department intake forms by workflow_id or org_id |
+| `/api/pm/department-intake/[id]` | GET, PATCH | View / update intake form (auto-scores pillars) |
+| `/api/pm/department-intake/[id]/generate-playbook` | POST | AI-generate 8-section department playbook from intake |
+| `/api/pm/department-intake/[id]/prefill-from-scan` | POST | AI pre-fill intake form from scanned SOP documents |
+| `/api/pm/portal/invite-accept` | POST | Validate invite token, create org access for portal user |
+| `/portal/[orgSlug]` | — | Client portal: branded dashboard with workflow, docs, tasks |
+| `/portal/auth` | — | Portal magic link login (email OTP) |
 
 ## Security Rules
 - **Never** put OpenAI API keys, service role keys, or GitHub tokens in `NEXT_PUBLIC_*` vars
