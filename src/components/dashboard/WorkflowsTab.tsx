@@ -4,8 +4,17 @@ import type { Organization } from "@/types/pm";
 import { ToolsTab } from "./ToolsTab";
 import { OnboardingTab } from "./OnboardingTab";
 import { ProcessAnalyzerTab } from "./ProcessAnalyzerTab";
+import { ProcessDiscoveryDetail } from "./ProcessDiscoveryDetail";
 
-type ActiveView = "cards" | "site-audit" | "onboarding" | "process-analyzer";
+type ActiveView = "cards" | "site-audit" | "onboarding" | "process-analyzer" | "process-discovery-detail";
+
+interface ActiveWorkflow {
+  id: string;
+  workflow_type: string;
+  status: string;
+  config: Record<string, unknown>;
+  project_id: string | null;
+}
 
 const WORKFLOW_CARDS: {
   id: Exclude<ActiveView, "cards">;
@@ -69,6 +78,7 @@ const WORKFLOW_CARDS: {
 
 export function WorkflowsTab({ org }: { org: Organization }) {
   const [activeView, setActiveView] = useState<ActiveView>("cards");
+  const [activeWorkflow, setActiveWorkflow] = useState<ActiveWorkflow | null>(null);
 
   if (activeView === "site-audit") {
     return (
@@ -97,6 +107,16 @@ export function WorkflowsTab({ org }: { org: Organization }) {
     );
   }
 
+  if (activeView === "process-discovery-detail" && activeWorkflow) {
+    return (
+      <ProcessDiscoveryDetail
+        org={org}
+        workflow={activeWorkflow}
+        onBack={() => { setActiveView("cards"); setActiveWorkflow(null); }}
+      />
+    );
+  }
+
   // ── Card launcher view ──
   return (
     <div>
@@ -105,6 +125,12 @@ export function WorkflowsTab({ org }: { org: Organization }) {
         <h2 className="text-lg font-bold text-pm-text">Workflows</h2>
         <p className="text-sm text-pm-muted">Site audits, remediation plans, and website rebuild projects</p>
       </div>
+
+      {/* Active Process Discovery Workflows */}
+      <ActiveProcessWorkflows
+        orgId={org.id}
+        onOpen={(wf: ActiveWorkflow) => { setActiveWorkflow(wf); setActiveView("process-discovery-detail"); }}
+      />
 
       {/* Workflow Cards — 2-column grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -143,6 +169,57 @@ function BackButton({ onClick, label }: { onClick: () => void; label: string }) 
         </svg>
         {label}
       </button>
+    </div>
+  );
+}
+
+// ─── Active Process Discovery Workflows ─────────────────────────────
+
+function ActiveProcessWorkflows({
+  orgId,
+  onOpen,
+}: {
+  orgId: string;
+  onOpen: (wf: ActiveWorkflow) => void;
+}) {
+  const [workflows, setWorkflows] = useState<ActiveWorkflow[]>([]);
+
+  useState(() => {
+    fetch(`/api/pm/site-audit/workflow?org_id=${orgId}`)
+      .then((r: Response) => r.json())
+      .then((data: ActiveWorkflow[]) => {
+        if (Array.isArray(data)) {
+          const pdWorkflows = data.filter((w: ActiveWorkflow) => w.workflow_type === "process_discovery");
+          setWorkflows(pdWorkflows);
+        }
+      })
+      .catch(() => {});
+  });
+
+  if (workflows.length === 0) return null;
+
+  return (
+    <div className="mb-6 space-y-3">
+      <h3 className="text-sm font-semibold text-pm-muted uppercase tracking-wider">Active Process Discovery</h3>
+      {workflows.map((wf: ActiveWorkflow) => (
+        <button
+          key={wf.id}
+          onClick={() => onOpen(wf)}
+          className="card w-full text-left hover:border-pm-accent/50 transition-colors"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400 font-medium">
+                Process Discovery
+              </span>
+              <span className="text-sm text-pm-text">
+                {(wf.config as Record<string, string>)?.template_name || "Discovery Workflow"}
+              </span>
+            </div>
+            <span className="text-xs text-pm-accent">Open &rarr;</span>
+          </div>
+        </button>
+      ))}
     </div>
   );
 }
