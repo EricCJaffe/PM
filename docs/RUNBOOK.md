@@ -8,7 +8,7 @@
    - `supabase/migrations/002_add_missing_columns.sql`
    - `supabase/migrations/003_orgs_and_members.sql`
 4. Create the `vault` storage bucket in Supabase (public or private)
-5. Seed templates: `npm run seed`
+5. Seed templates: `npm run seed` (this runs `supabase/seeds/seed.ts` as TypeScript via `tsx`, not as SQL)
 6. Start dev server: `npm run dev`
 
 ## Creating Your First Project
@@ -22,6 +22,7 @@ Migrations are numbered sequentially. Apply them in order via the Supabase SQL e
 supabase db push  # if using Supabase CLI
 ```
 Or paste each `.sql` file into the Supabase Dashboard SQL editor.
+Do not paste `supabase/seeds/seed.ts` into SQL editor; it is a TypeScript script and must be run with `npm run seed`.
 
 Migration 002 is safe to re-run — it uses `ADD COLUMN IF NOT EXISTS`.
 
