@@ -18,7 +18,7 @@ See docs/BUSINESS_OS.md for full platform model.
 ## Current phase
 **Phase:** Foundation → First Revenue
 **Goal:** Get one paying customer per vertical before adding features.
-**Status:** [update this — e.g. "In active internal use, seeking first church OS customer"]
+**Status:** Agency OS in active internal use (dogfood complete). Security hardening pass in progress. Seeking first Church OS customer.
 
 ---
 
@@ -31,7 +31,17 @@ See docs/BUSINESS_OS.md for full platform model.
 ---
 
 ## Now — current sprint
-[Pull from docs/TASKS.md P0/P1 items]
+**Sprint goal (2026-04-04):** Security hardening + end-to-end workflow and portal testing
+
+- [ ] SEC-002: Add org membership check to `/api/pm/chat` before exposing project data [@eric]
+- [ ] SEC-004: Design decision on chat `history` prompt injection risk [@eric]
+- [ ] SEC-005: Rate limiting on AI endpoints (chat, reports, standup, site-audit/process) [@eric]
+- [ ] SEC-006: Monitor `next` package audit finding — update when patch available [@eric]
+- [ ] Test end-to-end: audit → start workflow → verify tasks generated
+- [ ] Test portal: invite client → magic link → portal dashboard → workflow view
+- [ ] Test AI SOP scanner with real documents
+- [ ] Wire up content generation button in admin workflow detail view
+- [ ] Wire up build prompts button in admin workflow detail view
 
 ---
 
@@ -78,4 +88,4 @@ See docs/BUSINESS_OS.md for full platform model.
 ## North star metric
 Time from signed contract to first value delivered — per vertical, per customer.
 
-**Last updated:** [YYYY-MM-DD]
+**Last updated:** 2026-04-04

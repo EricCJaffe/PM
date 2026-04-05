@@ -1,9 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createServiceClient, createServerSupabase } from "@/lib/supabase/server";
 import { generateApiKey } from "@/lib/api-auth";
+
+async function requireAdmin() {
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const service = createServiceClient();
+  const { data: profile } = await service
+    .from("pm_user_profiles").select("system_role").eq("id", user.id).single();
+  if (!profile || profile.system_role !== "admin") return null;
+  return user;
+}
 
 // GET /api/pm/api-keys — list all API keys (admin only)
 export async function GET() {
+  const admin = await requireAdmin();
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
   const supabase = createServiceClient();
   const { data, error } = await supabase
     .from("pm_api_keys")
@@ -14,8 +28,11 @@ export async function GET() {
   return NextResponse.json(data ?? []);
 }
 
-// POST /api/pm/api-keys — create a new API key
+// POST /api/pm/api-keys — create a new API key (admin only)
 export async function POST(request: NextRequest) {
+  const admin = await requireAdmin();
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
   const { name, permissions, org_scope, created_by, expires_at } = await request.json();
 
   if (!name) return NextResponse.json({ error: "name is required" }, { status: 400 });
@@ -46,8 +63,11 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ ...data, raw_key: rawKey }, { status: 201 });
 }
 
-// DELETE /api/pm/api-keys — revoke a key
+// DELETE /api/pm/api-keys — revoke a key (admin only)
 export async function DELETE(request: NextRequest) {
+  const admin = await requireAdmin();
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
   const { id } = await request.json();
   if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
 

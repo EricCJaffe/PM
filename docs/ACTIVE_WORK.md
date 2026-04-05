@@ -7,8 +7,8 @@
 ---
 
 ## Current sprint
-**Dates:** 2026-04-03
-**Goal:** DocuSeal complete, branches clean, docs current — ready for next sprint
+**Dates:** 2026-04-04 →
+**Goal:** Security hardening pass (SEC-001–006) — SEC-001/002/003 done, SEC-004/005/006 in backlog + end-to-end workflow/portal testing
 
 ---
 
@@ -16,9 +16,8 @@
 
 | Developer | Branch | Area / Module | Key files being touched | Status | Updated |
 |---|---|---|---|---|---|
-| eric | main | — | — | Available | 2026-04-03 |
-| [dev2] | — | — | — | Available | — |
-| [dev3] | — | — | — | Available | — |
+| eric | main | Security / API | api-keys, site-audit routes, SECURITY.md | In Progress | 2026-04-04 |
+| david | — | — | — | Available | — |
 
 Status options: Active / In Progress / Blocked / Review / Available / WIP-Incomplete
 
@@ -41,7 +40,9 @@ Status options: Active / In Progress / Blocked / Review / Available / WIP-Incomp
 ## Blocked items
 | Item | Blocked by | Owner | Opened |
 |---|---|---|---|
-| — | — | — | — |
+| SEC-004: full mitigation (server-side session storage) | Board decision — requires new DB schema + UI changes | @eric | 2026-04-04 |
+| SEC-005: full rate limiting on AI endpoints | Board decision on thresholds + Upstash Redis infra (FSA-32) | @eric | 2026-04-04 |
+| Test portal end-to-end | Needs live client invite + magic link test | @eric | 2026-04-04 |
 
 ---
 

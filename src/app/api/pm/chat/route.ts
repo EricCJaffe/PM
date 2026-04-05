@@ -3,6 +3,7 @@ import type OpenAI from "openai";
 import { getOpenAI } from "@/lib/openai";
 import { createServiceClient } from "@/lib/supabase/server";
 import { assembleKBContext } from "@/lib/kb";
+import { getUserSession } from "@/lib/auth";
 
 const SYSTEM_PROMPT = `You are an AI project management assistant for BusinessOS with full read/write access to the project database.
 
@@ -385,11 +386,36 @@ async function executeTool(
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getUserSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { project_id, project_slug, message, history = [] } = await request.json();
 
     if (!message) {
       return NextResponse.json({ error: "message is required" }, { status: 400 });
     }
+
+    if (!project_id) {
+      return NextResponse.json({ error: "project_id is required" }, { status: 400 });
+    }
+
+    // SEC-004: Sanitize client-supplied history to prevent prompt injection.
+    // - Role allowlist: only "user" and "assistant" are valid; system/tool/function roles
+    //   could be used to inject privileged instructions or forge tool results.
+    // - Depth cap (20): prevents context flooding and unbounded token spend.
+    // - Content cap (10,000 chars/msg): limits per-message injection payload size.
+    const ALLOWED_ROLES = new Set(["user", "assistant"]);
+    const MAX_HISTORY_DEPTH = 20;
+    const MAX_MSG_CONTENT_LEN = 10_000;
+    const sanitizedHistory = (Array.isArray(history) ? history : [])
+      .filter((m: { role?: unknown; content?: unknown }) => ALLOWED_ROLES.has(m.role as string))
+      .slice(-MAX_HISTORY_DEPTH)
+      .map((m: { role: string; content: unknown }) => ({
+        role: m.role as "user" | "assistant",
+        content: typeof m.content === "string" ? m.content.slice(0, MAX_MSG_CONTENT_LEN) : "",
+      }));
 
     const supabase = createServiceClient();
 
@@ -405,14 +431,22 @@ export async function POST(request: NextRequest) {
       supabase.from("pm_risks").select("*").eq("project_id", project_id),
     ]);
 
+    // Enforce org membership: project must exist and user must have access to its org
+    if (!project) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    }
+    if (session.system_role === "external" && !session.org_ids.includes(project.org_id)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     // Assemble KB context for AI
-    const kbContext = await assembleKBContext(project?.org_id, project_id);
+    const kbContext = await assembleKBContext(project.org_id, project_id);
 
     const context = `
-Project: ${project?.name ?? project_slug} (${project?.status ?? "unknown"})
-Owner: ${project?.owner ?? "unassigned"}
-Template: ${project?.template_slug ?? "unknown"}
-Start: ${project?.start_date ?? "—"} | Target: ${project?.target_date ?? "—"}
+Project: ${project.name ?? project_slug} (${project.status ?? "unknown"})
+Owner: ${project.owner ?? "unassigned"}
+Template: ${project.template_slug ?? "unknown"}
+Start: ${project.start_date ?? "—"} | Target: ${project.target_date ?? "—"}
 
 Phases (${phases?.length ?? 0}):
 ${phases?.map((p: { phase_order: number; slug: string; name: string; status: string; progress: number }) => `  P${String(p.phase_order).padStart(2, "0")} slug:${p.slug} "${p.name}" — ${p.status} (${p.progress}%)`).join("\n") ?? "None"}
@@ -426,10 +460,7 @@ ${risks?.map((r: { title: string; probability: string; impact: string; status: s
 
     const messages: OpenAI.ChatCompletionMessageParam[] = [
       { role: "system", content: SYSTEM_PROMPT },
-      ...history.map((m: { role: string; content: string }) => ({
-        role: m.role as "user" | "assistant",
-        content: m.content,
-      })),
+      ...sanitizedHistory,
       { role: "user", content: `[Project Context]\n${context}${kbContext}\n\n[User Message]\n${message}` },
     ];
 
@@ -444,8 +475,13 @@ ${risks?.map((r: { title: string; probability: string; impact: string; status: s
 
     const toolResults: string[] = [];
 
-    // Agentic loop — execute all tool calls, then get final response
-    while (response.choices[0]?.finish_reason === "tool_calls") {
+    // Agentic loop — execute all tool calls, then get final response.
+    // SEC-004: cap at 10 iterations to prevent unbounded token spend if the
+    // model gets stuck in a tool-calling loop.
+    const MAX_TOOL_ITERATIONS = 10;
+    let toolIterations = 0;
+    while (response.choices[0]?.finish_reason === "tool_calls" && toolIterations < MAX_TOOL_ITERATIONS) {
+      toolIterations++;
       const assistantMsg = response.choices[0].message;
       messages.push(assistantMsg);
 

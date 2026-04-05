@@ -250,6 +250,13 @@ Example: `- [ ] Fix login redirect bug [@eric]`
   - Engagement create form adds Projected MRR and One-Time Revenue inputs
   - Engagement detail summary cards show MRR alongside deal value
   - Pipeline API (`/api/pm/organizations/pipeline`) returns per-stage revenue aggregates
+- [x] BusinessOS Discovery template (`business-os`) added to `supabase/seeds/seed.ts`
+  - 11 phases: Executive Commitment, Vision Alignment, Leadership Assessment, Department Discovery, Sales, Operations, Finance/People/CS/Other, Quote-to-Cash, Gap Analysis, Roadmap, Enable/Empower/Launch
+  - P03 uses business department sublayers: strategy, vision, people, data, process, meetings, issues
+  - Dedicated phases for Sales and Operations departments
+  - Phase 7: Quote-to-Cash (lead gen → qualification → proposal → close → fulfillment → invoicing → collections)
+  - All ministry/volunteer/donor/nonprofit language replaced with business language
+  - Run `npm run seed` to apply
 - [ ] QuickBooks integration (placeholder — billing/invoicing)
 - [x] Build out full intake/discovery form wizard (multi-step discovery questionnaire)
 - [x] Discovery findings summary — AI-generated brief from notes + attachments
@@ -265,6 +272,15 @@ Example: `- [ ] Fix login redirect bug [@eric]`
 - [x] Vocabulary customization UI (org-level renaming of base terms)
 - [x] Gap analysis dashboard (visual rollup of gaps by department/severity)
 - [x] Onboarding project → process project handoff (create child project from onboarding)
+
+## Security Hardening
+- [x] Created `docs/SECURITY.md` — secrets handling, dependency scanning, auth hardening checklist, pre-launch risk review workflow, open issues register (SEC-001–SEC-006)
+- [x] SEC-001 fixed: Added `requireAdmin()` guard to `GET/POST/DELETE /api/pm/api-keys` — previously any authenticated user could manage API keys
+- [x] SEC-003 fixed: Added `x-internal-secret` (CRON_SECRET) validation to `/api/pm/site-audit/process` — route is bypassed by middleware so it was fully unauthenticated externally; updated caller in site-audit/route.ts to pass the header
+- [x] SEC-002: `/api/pm/chat` — add org membership check before returning/mutating project data (fixed 2026-04-04)
+- [ ] SEC-004: Chat `history` parameter from client injected into AI context without sanitization — prompt injection risk; design decision needed [@eric]
+- [ ] SEC-005: No rate limiting on AI endpoints (chat, reports, standup, site-audit/process) — backlog [@eric]
+- [ ] SEC-006: `next` package has a moderate npm audit finding — monitor and update when patch available [@eric]
 
 ## Recently Completed
 - [x] 5-Pass Website Build Workflow (ADR 0001)

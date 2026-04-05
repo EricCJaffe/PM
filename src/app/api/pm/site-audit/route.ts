@@ -86,6 +86,20 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServiceClient();
 
+    // SEC-005: Prevent concurrent audit flooding. Each org/prospect may only
+    // have one audit running at a time. The stale-timeout cleanup above (5 min)
+    // ensures orphaned records don't permanently block new audits.
+    const runningQuery = org_id
+      ? supabase.from("pm_site_audits").select("id").eq("org_id", org_id).eq("status", "running").limit(1)
+      : supabase.from("pm_site_audits").select("id").is("org_id", null).eq("prospect_name", prospect_name!).eq("status", "running").limit(1);
+    const { data: runningAudits } = await runningQuery;
+    if (runningAudits && runningAudits.length > 0) {
+      return NextResponse.json(
+        { error: "An audit is already in progress. Please wait for it to complete before starting another." },
+        { status: 429 }
+      );
+    }
+
     // Create audit record in running state
     const { data: audit, error: insertErr } = await supabase
       .from("pm_site_audits")
@@ -112,7 +126,10 @@ export async function POST(request: NextRequest) {
       try {
         await fetch(`${origin}/api/pm/site-audit/process`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "x-internal-secret": process.env.CRON_SECRET ?? "",
+          },
           body: JSON.stringify({
             audit_id: audit.id,
             url: audit.url,

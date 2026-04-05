@@ -9,8 +9,8 @@
 | Handle | Name | Role | Type | Primary areas |
 |---|---|---|---|---|
 | eric | Eric Jaffe | Lead / Architect | Dir | Strategy, product decisions, client relationships |
-| [handle] | [Name] | [Role] | Dev/Dir | [fill in] |
-| [handle] | [Name] | [Role] | Dev/Dir | [fill in] |
+| david | David | Collaborator | Dir | Discovery, requirements, client context, review |
+| — | (open) | — | — | — |
 
 **Role types:**
 - Dir — prompt director, process expert, QA — does not push code directly
@@ -24,15 +24,15 @@
 |---|---|---|
 | Auth and RLS | eric | Shared with FSA — coordinate before schema changes |
 | Database schema / migrations | eric | Review all migrations before running |
-| API routes /api/pm/ | | |
-| Vault storage (src/lib/vault.ts) | | |
-| AI features (chat, reports, docgen) | | |
-| Document generation | | |
-| DocuSeal integration | | |
-| Engagement engine | | |
-| External API (/api/pm/ext/) | | |
-| Frontend components | | |
-| Deployment / Vercel | eric | |
+| API routes /api/pm/ | eric | All routes reviewed by eric; implemented by Claude Code |
+| Vault storage (src/lib/vault.ts) | eric | Shared by all features — coordinate before changes |
+| AI features (chat, reports, docgen) | eric | GPT-4o via OpenAI SDK; prompts owned by eric |
+| Document generation | eric | SOW, NDA, MSA — templates owned by eric |
+| DocuSeal integration | eric | eSign flow; production-ready as of 2026-04-03 |
+| Engagement engine | eric | Stage-change automation; auto-creates web passes |
+| External API (/api/pm/ext/) | eric | API key auth; used by AI agent integrations |
+| Frontend components | eric | React/Tailwind; reviewed by eric before merge |
+| Deployment / Vercel | eric | Auto-deploys on push to main |
 
 ---
 

@@ -18,8 +18,14 @@ import {
 export const maxDuration = 120;
 
 // POST /api/pm/site-audit/process — Background audit processing
-// Called by the frontend after creating the audit record.
+// Called internally via after() — not reachable by authenticated users in normal flow.
+// Requires CRON_SECRET to prevent unauthenticated external invocation.
 export async function POST(request: NextRequest) {
+  const internalSecret = request.headers.get("x-internal-secret");
+  if (!process.env.CRON_SECRET || internalSecret !== process.env.CRON_SECRET) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   let auditId: string | null = null;
   let safetyTimer: ReturnType<typeof setTimeout> | null = null;
   let step = "init";
