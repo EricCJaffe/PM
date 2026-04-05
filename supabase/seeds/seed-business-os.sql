@@ -42,6 +42,21 @@ VALUES (
     },
     {
       "order": 3,
+      "slug": "bos-quote-to-cash",
+      "name": "Quote-to-Cash Process Discovery",
+      "tasks": [
+        {"slug": "bos-map-lead-generation", "name": "Map lead generation process & channels"},
+        {"slug": "bos-document-lead-qualification", "name": "Document lead qualification process (BANT, scoring)"},
+        {"slug": "bos-review-proposal-quoting", "name": "Review proposal & quoting workflow"},
+        {"slug": "bos-assess-negotiation-close", "name": "Assess negotiation, contract, and close process"},
+        {"slug": "bos-map-order-fulfillment", "name": "Map order fulfillment & service delivery workflow"},
+        {"slug": "bos-review-invoicing", "name": "Review invoicing process & billing accuracy"},
+        {"slug": "bos-assess-collections-ar", "name": "Assess collections and accounts receivable"},
+        {"slug": "bos-identify-revenue-cycle-gaps", "name": "Identify gaps and bottlenecks in the revenue cycle"}
+      ]
+    },
+    {
+      "order": 4,
       "slug": "bos-department-discovery",
       "name": "Department Discovery",
       "sublayers": ["strategy", "vision", "people", "data", "process", "meetings", "issues"],
@@ -54,7 +69,7 @@ VALUES (
       ]
     },
     {
-      "order": 4,
+      "order": 5,
       "slug": "bos-sales-dept",
       "name": "Dept: Sales",
       "tasks": [
@@ -65,7 +80,7 @@ VALUES (
       ]
     },
     {
-      "order": 5,
+      "order": 6,
       "slug": "bos-ops-dept",
       "name": "Dept: Operations",
       "tasks": [
@@ -76,7 +91,7 @@ VALUES (
       ]
     },
     {
-      "order": 6,
+      "order": 7,
       "slug": "bos-support-depts",
       "name": "Dept: Finance, People, Customer Service & Other",
       "tasks": [
@@ -85,21 +100,6 @@ VALUES (
         {"slug": "bos-cs-review-support", "name": "Customer Service: review support workflows & SLAs"},
         {"slug": "bos-procurement-assess", "name": "Procurement: assess vendor management & sourcing"},
         {"slug": "bos-other-depts-document", "name": "Document findings for remaining departments (IT, Marketing, Legal, Manufacturing)"}
-      ]
-    },
-    {
-      "order": 7,
-      "slug": "bos-quote-to-cash",
-      "name": "Quote-to-Cash Process Discovery",
-      "tasks": [
-        {"slug": "bos-map-lead-generation", "name": "Map lead generation process & channels"},
-        {"slug": "bos-document-lead-qualification", "name": "Document lead qualification process (BANT, scoring)"},
-        {"slug": "bos-review-proposal-quoting", "name": "Review proposal & quoting workflow"},
-        {"slug": "bos-assess-negotiation-close", "name": "Assess negotiation, contract, and close process"},
-        {"slug": "bos-map-order-fulfillment", "name": "Map order fulfillment & service delivery workflow"},
-        {"slug": "bos-review-invoicing", "name": "Review invoicing process & billing accuracy"},
-        {"slug": "bos-assess-collections-ar", "name": "Assess collections and accounts receivable"},
-        {"slug": "bos-identify-revenue-cycle-gaps", "name": "Identify gaps and bottlenecks in the revenue cycle"}
       ]
     },
     {
