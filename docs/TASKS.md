@@ -216,6 +216,16 @@ Example: `- [ ] Fix login redirect bug [@eric]`
   - Skip TypeScript/ESLint checking during Vercel builds (~40% faster)
   - Gzip compression, tree-shaking heavy libraries, DNS prefetch
 
+## Manual Testing — [@eric]
+- [ ] **Process Discovery Workflow**: Go to a client → Workflows → Process Analyzer → Set Up → select vertical + template → Create → verify departments created, intake forms visible, project phases populated
+- [ ] **Department Intake Forms**: Open a department intake form → fill out questions across all 6 pillars → save → verify responses persist and pillar scores auto-calculate
+- [ ] **Playbook Generation**: Complete an intake form → trigger playbook generation → verify 8-section document created with AI-drafted content
+- [ ] **Client Portal**: Send portal invite to test email → click magic link → verify portal loads with workflow/docs/tasks cards → navigate to workflow tab → verify department intake form appears
+- [ ] **Guided Rebuild**: Start a guided rebuild workflow → verify dynamic page add/remove works → upload an image to a page → approve a phase → unlock it → edit again
+- [ ] **Remediation Workflow**: Start a remediation workflow from audit → verify tasks generated per dimension → run re-audit → verify comparison shows
+- [ ] **DocuSeal eSign**: Create SOW → compile → send for eSign → verify email has signing link → test cancel button
+- [ ] **SOP Scanner**: Upload a client document → run SOP scanner → verify automation opportunities identified and saved
+
 ## Tab Consolidation (NEW)
 - [x] "Tools" renamed to "Workflows"
 - [x] Site Audit and Onboarding merged into Workflows tab
