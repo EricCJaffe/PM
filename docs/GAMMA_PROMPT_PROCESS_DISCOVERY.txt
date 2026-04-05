@@ -1,0 +1,46 @@
+Create a professional slide deck for "Foundation Stone Advisors — Process Discovery & Transformation" using a dark navy and blue accent color scheme.
+
+Slide 1: Title
+Foundation Stone Advisors — Process Discovery & Organizational Transformation. Tagline: Pouring the Foundation for Your Success.
+
+Slide 2: The Challenge
+Most organizations run on tribal knowledge and undocumented processes. When key people are absent, things break. We fix that with a structured 7-stage process that documents how work gets done, identifies improvements, and builds a playbook your team can own.
+
+Slide 3: The 6 Pillars
+Every department is assessed across 6 pillars: Vision (mission, goals, success definition), People (roles, job descriptions, accountability), Data (KPIs, scorecards, metrics), Processes (SOPs, workflows, handoffs), Meetings (rhythms, communication tools, cadences), Issues (pain points, recurring problems, bottlenecks).
+
+Slide 4: The 7 Stages
+Stage 1: Organizational Setup. Stage 2: Organizational Understanding. Stage 3: Current State Assessment. Stage 4: Department Deep Dive. Stage 5: Playbook Generation. Stage 6: Master Playbook and Sign-Off. Stage 7: Implementation and Automation.
+
+Slide 5: Stage 1 — Organizational Setup
+Select industry vertical. Choose project template. System creates departments automatically. Each department gets a structured intake form. Deliverable: Project with phases, departments identified, intake forms ready.
+
+Slide 6: Stage 2 — Organizational Understanding
+Leadership interviews. Map org chart and reporting. Document decision-making and communication flows. Assess culture and readiness. Deliverable: Organizational overview and leadership alignment.
+
+Slide 7: Stage 3 — Current State Assessment
+Upload existing SOPs and documents. AI scans and extracts processes and pain points. Scanned content pre-fills department questionnaires. Tool stack inventory mapped. Deliverable: Process maturity baseline and tool inventory.
+
+Slide 8: Stage 4 — Department Deep Dive
+Each department completes a 7-layer questionnaire: Mission Alignment, Success Metrics, People and Organization, Communication, Processes, Pain Points, Automation Opportunities. Department leaders can self-complete via client portal. Pillar scores auto-calculated 1-5 scale. Deliverable: Completed assessments with scored pillar analysis.
+
+Slide 9: Stage 5 — Playbook Generation
+AI generates an 8-section playbook per department: Department Overview, Org Chart and Roles, Key Metrics and Scorecard, Meeting Rhythms, Core Processes and SOPs, Known Issues and Resolution Plan, Automation Opportunities, Action Plan and Quick Wins. Admin reviews and edits. Client reviews before approval. Deliverable: Professional department playbook documents.
+
+Slide 10: Stage 6 — Master Playbook and Sign-Off
+All department playbooks compiled into one Master Company Playbook. Automation opportunities aggregated and ranked. Department heads sign off. Leadership approves. Deliverable: Master Company Playbook — single source of truth for how the organization operates.
+
+Slide 11: Stage 7 — Implementation and Automation
+Opportunities ranked by ROI. Client approves or declines each. Approved opportunities become implementation projects with phases: Requirements, Development, Testing, Deployment. ROI tracking: hours saved, cost reduction, error reduction. Deliverable: Prioritized roadmap with active projects and measurable results.
+
+Slide 12: What You Get
+Complete Master Company Playbook. Clear job descriptions and accountability charts. Defined KPIs and scorecards. Documented processes and SOPs. Ranked automation opportunities with ROI estimates. Implementation roadmap with active projects.
+
+Slide 13: Technology-Powered, Human-Led
+AI scans documents and extracts insights. Structured questionnaires ensure nothing is missed. Playbooks are AI-drafted and human-refined. Client portal for self-service access. Real-time progress tracking. All data in one system.
+
+Slide 14: Verticals We Serve
+Church: Operations, Communications, Finance, Volunteer Management, Donor Relations, Programs and Ministry. Nonprofit: Operations, Programs, Development, Marketing, Finance, Volunteer Management. Business: Operations, Sales, Marketing, Finance, HR, IT, Customer Service. Agency: Operations, Client Services, Creative, Marketing, Finance, Technology.
+
+Slide 15: Let's Get Started
+Foundation Stone Advisors. Contact: Eric Jaffe, Principal. Email: eric@foundationstoneadvisors.com. The first step is a conversation.
