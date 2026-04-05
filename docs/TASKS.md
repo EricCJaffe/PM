@@ -223,7 +223,6 @@ Example: `- [ ] Fix login redirect bug [@eric]`
 - [ ] **Client Portal**: Send portal invite to test email → click magic link → verify portal loads with workflow/docs/tasks cards → navigate to workflow tab → verify department intake form appears
 - [ ] **Guided Rebuild**: Start a guided rebuild workflow → verify dynamic page add/remove works → upload an image to a page → approve a phase → unlock it → edit again
 - [ ] **Remediation Workflow**: Start a remediation workflow from audit → verify tasks generated per dimension → run re-audit → verify comparison shows
-- [ ] **DocuSeal eSign**: Create SOW → compile → send for eSign → verify email has signing link → test cancel button
 - [ ] **SOP Scanner**: Upload a client document → run SOP scanner → verify automation opportunities identified and saved
 
 ## Tab Consolidation (NEW)
