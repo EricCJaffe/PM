@@ -338,9 +338,9 @@ Example: `- [ ] Fix login redirect bug [@eric]`
 - [x] SEC-001 fixed: Added `requireAdmin()` guard to `GET/POST/DELETE /api/pm/api-keys` — previously any authenticated user could manage API keys
 - [x] SEC-003 fixed: Added `x-internal-secret` (CRON_SECRET) validation to `/api/pm/site-audit/process` — route is bypassed by middleware so it was fully unauthenticated externally; updated caller in site-audit/route.ts to pass the header
 - [x] SEC-002: `/api/pm/chat` — add org membership check before returning/mutating project data (fixed 2026-04-04)
-- [ ] SEC-004: Chat `history` parameter from client injected into AI context without sanitization — prompt injection risk; design decision needed [@eric]
-- [ ] SEC-005: No rate limiting on AI endpoints (chat, reports, standup, site-audit/process) — backlog [@eric]
-- [ ] SEC-006: `next` package has a moderate npm audit finding — monitor and update when patch available [@eric]
+- [x] SEC-004: Chat `history` sanitized — role allowlist (user/assistant only), depth cap (20 msgs), content cap (10K chars/msg), tool-loop cap (10 iters). Residual risk documented in SECURITY.md; full mitigation requires server-side session storage (board decision needed)
+- [ ] SEC-005: No rate limiting on AI endpoints — blocked on Upstash Redis infra + board decision on thresholds (FSA-32) [@eric]
+- [x] SEC-006: `npm audit fix` applied 2026-04-07 — patched next, brace-expansion, flatted, picomatch; 0 vulnerabilities, build verified clean [@eric]
 
 ## Recently Completed
 - [x] 5-Pass Website Build Workflow (ADR 0001)

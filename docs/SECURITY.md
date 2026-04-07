@@ -46,10 +46,10 @@ npm audit --audit-level=high  # CI exit-code on high/critical only
 - **Monthly**: update minor versions (`npm update`), verify build passes.
 - **On new dependency**: audit before merging the PR.
 
-### Current Known Issues (last checked 2026-04-04)
+### Current Known Issues (last checked 2026-04-07)
 | Package | Severity | CVE | Status |
 |---|---|---|---|
-| `next` | moderate | (pending CVE detail) | Monitor — update to latest patch when available |
+| — | — | — | 0 vulnerabilities as of 2026-04-07 (`npm audit fix` applied) |
 
 ---
 
@@ -143,7 +143,7 @@ Use this checklist before deploying to a new client environment or going live wi
 | SEC-003 | Medium | `/api/pm/site-audit/process` bypasses middleware auth with no internal secret validation | **Fixed 2026-04-04** — `x-internal-secret: CRON_SECRET` validation added; caller updated |
 | SEC-004 | Medium | Chat `history` parameter from client is injected into AI context without sanitization — prompt injection risk | **Partially mitigated 2026-04-04** — role allowlist, depth cap (20 msgs), content cap (10K chars/msg), tool-loop cap (10 iters). Residual: no semantic content inspection; crafted `user`/`assistant` history can still influence model behavior. Full mitigation requires server-side session storage (see SEC-004-residual below). |
 | SEC-005 | Low | No rate limiting on AI endpoints (chat, reports, standup, audit) — OpenAI cost exposure | **Partially mitigated 2026-04-04** — concurrent site-audit gate (1 running audit per org/prospect). Residual: no per-user token-rate limit on chat, reports, or standup. Full mitigation requires board decision on thresholds + infrastructure (Upstash Redis). Follow-up: FSA-32. |
-| SEC-006 | Low | `next` package has a moderate npm audit finding | Monitor |
+| SEC-006 | Low | `next`, `brace-expansion`, `flatted`, `picomatch` had moderate/high npm audit findings | **Fixed 2026-04-07** — `npm audit fix` patched all 4 packages; 0 vulnerabilities. Build verified clean. |
 
 ---
 
