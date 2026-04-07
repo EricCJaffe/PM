@@ -117,6 +117,8 @@ docs/                       # Project documentation
 | `pm_files` | Index of all vault markdown files |
 | `pm_task_comments` | Comment threads on tasks |
 | `pm_task_attachments` | File attachments on tasks |
+| `pm_project_comments` | Comment threads at the project level (migration 052) |
+| `pm_project_documents` | Standalone file uploads at the project level (migration 052) |
 | `pm_task_series` | Recurring task templates (recurrence rules, schedule tracking) |
 | `pm_series_exceptions` | Skipped/rescheduled dates for recurring series |
 | `pm_proposals` | Client proposals/quotations (status, form_data, generated_content, share_token) |
@@ -294,6 +296,8 @@ This tells Claude to:
 4. Give a summary of what was done and what's next
 
 ## On Session Start (Claude instructions)
+> Mid-session sync check: type `! bash .claude/hooks/sync-check.sh` in the prompt (or shell alias: `prcheck`) to re-run fetch, ahead/behind, and task counts at any point.
+
 Read these docs automatically before doing any work:
 1. `docs/CONTEXT.md` — purpose, architecture, module scope
 2. `docs/ENVIRONMENT.md` — env vars and secrets map

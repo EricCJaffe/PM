@@ -257,6 +257,16 @@ Example: `- [ ] Fix login redirect bug [@eric]`
 - [ ] Wire content generation + build prompt buttons into admin workflow view
 - [ ] Add business-discovery and nonprofit-discovery project templates
 
+## Project-Level Notes, Documents & Comments (NEW)
+- [x] Migration 052: `pm_project_documents` (standalone file uploads) + `pm_project_comments` (discussion thread); extended `pm_client_notes.note_type` to include `decision`
+- [x] `GET/POST /api/pm/projects/[id]/notes` — project-scoped notes via `pm_client_notes` (project_id filter; excludes client-update type)
+- [x] `PATCH/DELETE /api/pm/projects/[id]/notes/[noteId]` — edit/delete project notes
+- [x] `GET/POST/DELETE /api/pm/projects/[id]/documents` — standalone document upload/list/delete (Supabase Storage `vault` bucket at `projects/{id}/documents/`; signed URLs in response)
+- [x] `GET/POST/DELETE /api/pm/projects/[id]/comments` — project-level comment thread
+- [x] `ProjectNotesDocsTab` component — unified "Notes & Docs" tab with 3 sub-sections: Notes (type filter, pin, rich text body, note attachments via existing `/api/pm/notes/[id]/attachments`), Documents (file upload/download/delete), Comments (threaded discussion)
+- [x] Added "Notes & Docs" tab to project detail page (`/projects/[slug]`)
+- [x] Apply migration 052 to Supabase
+
 ## Manual Testing — [@eric]
 - [ ] **Process Discovery Workflow**: Go to a client → Workflows → Process Analyzer → Set Up → select vertical + template → Create → verify departments created, intake forms visible, project phases populated
 - [ ] **Department Intake Forms**: Open a department intake form → fill out questions across all 6 pillars → save → verify responses persist and pillar scores auto-calculate

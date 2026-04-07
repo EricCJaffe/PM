@@ -371,7 +371,7 @@ export interface EngagementAttachment {
 
 export type ProposalStatus = "draft" | "sent" | "viewed" | "accepted" | "rejected" | "expired";
 
-export type NoteType = "meeting" | "general" | "phone-call" | "follow-up" | "client-update";
+export type NoteType = "meeting" | "general" | "phone-call" | "follow-up" | "client-update" | "decision";
 export type ClientNoteStatus = "draft" | "sent" | "archived";
 export type NoteVisibility = "internal" | "client";
 
@@ -454,6 +454,30 @@ export interface ClientNoteAttachment {
   storage_path: string;
   uploaded_by: string | null;
   created_at: string;
+}
+
+export interface ProjectDocument {
+  id: string;
+  project_id: string;
+  org_id: string;
+  file_name: string;
+  file_size: number | null;
+  content_type: string | null;
+  storage_path: string;
+  title: string | null;
+  description: string | null;
+  uploaded_by: string | null;
+  created_at: string;
+  download_url?: string; // signed URL, populated by API
+}
+
+export interface ProjectComment {
+  id: string;
+  project_id: string;
+  author: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
 }
 
 // ─── Client Dashboard Types ─────────────────────────────────────────

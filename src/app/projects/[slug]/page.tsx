@@ -12,6 +12,7 @@ import { ClientUpdateTab } from "@/components/ClientUpdateTab";
 import { TimelineTab } from "@/components/TimelineTab";
 import { BudgetTab } from "@/components/BudgetTab";
 import { SeriesTab } from "@/components/SeriesTab";
+import { ProjectNotesDocsTab } from "@/components/ProjectNotesDocsTab";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -110,6 +111,11 @@ export default async function ProjectDetailPage({
               id: "recurring",
               label: "Recurring",
               content: <SeriesTab projectId={project.id} orgId={project.org_id} phases={phases.map((p) => ({ id: p.id, name: p.name }))} />,
+            },
+            {
+              id: "notes-docs",
+              label: "Notes & Docs",
+              content: <ProjectNotesDocsTab projectId={project.id} orgId={project.org_id} />,
             },
           ]}
         />
