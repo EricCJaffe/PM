@@ -5,8 +5,9 @@ import { ToolsTab } from "./ToolsTab";
 import { OnboardingTab } from "./OnboardingTab";
 import { ProcessAnalyzerTab } from "./ProcessAnalyzerTab";
 import { ProcessDiscoveryDetail } from "./ProcessDiscoveryDetail";
+import { RebuildWorkflowDetail } from "./RebuildWorkflowDetail";
 
-type ActiveView = "cards" | "site-audit" | "onboarding" | "process-analyzer" | "process-discovery-detail";
+type ActiveView = "cards" | "site-audit" | "onboarding" | "process-analyzer" | "process-discovery-detail" | "rebuild-workflow-detail";
 
 interface ActiveWorkflow {
   id: string;
@@ -117,6 +118,16 @@ export function WorkflowsTab({ org }: { org: Organization }) {
     );
   }
 
+  if (activeView === "rebuild-workflow-detail" && activeWorkflow) {
+    return (
+      <RebuildWorkflowDetail
+        org={org}
+        workflow={activeWorkflow}
+        onBack={() => { setActiveView("cards"); setActiveWorkflow(null); }}
+      />
+    );
+  }
+
   // ── Card launcher view ──
   return (
     <div>
@@ -130,6 +141,12 @@ export function WorkflowsTab({ org }: { org: Organization }) {
       <ActiveProcessWorkflows
         orgId={org.id}
         onOpen={(wf: ActiveWorkflow) => { setActiveWorkflow(wf); setActiveView("process-discovery-detail"); }}
+      />
+
+      {/* Active Rebuild / Remediation Workflows */}
+      <ActiveRebuildWorkflows
+        orgId={org.id}
+        onOpen={(wf: ActiveWorkflow) => { setActiveWorkflow(wf); setActiveView("rebuild-workflow-detail"); }}
       />
 
       {/* Workflow Cards — 2-column grid */}
@@ -169,6 +186,74 @@ function BackButton({ onClick, label }: { onClick: () => void; label: string }) 
         </svg>
         {label}
       </button>
+    </div>
+  );
+}
+
+// ─── Active Rebuild / Remediation Workflows ─────────────────────────
+
+const REBUILD_TYPE_LABELS: Record<string, string> = {
+  rebuild: "Website Rebuild",
+  remediation: "Remediation",
+  guided_rebuild: "Guided Rebuild",
+};
+
+function ActiveRebuildWorkflows({
+  orgId,
+  onOpen,
+}: {
+  orgId: string;
+  onOpen: (wf: ActiveWorkflow) => void;
+}) {
+  const [workflows, setWorkflows] = useState<ActiveWorkflow[]>([]);
+
+  useState(() => {
+    fetch(`/api/pm/site-audit/workflow?org_id=${orgId}`)
+      .then((r: Response) => r.json())
+      .then((data: ActiveWorkflow[]) => {
+        if (Array.isArray(data)) {
+          const rebuildWorkflows = data.filter(
+            (w: ActiveWorkflow) =>
+              ["rebuild", "remediation", "guided_rebuild"].includes(w.workflow_type) &&
+              w.status !== "complete" &&
+              w.status !== "cancelled"
+          );
+          setWorkflows(rebuildWorkflows);
+        }
+      })
+      .catch(() => {});
+  });
+
+  if (workflows.length === 0) return null;
+
+  return (
+    <div className="mb-6 space-y-3">
+      <h3 className="text-sm font-semibold text-pm-muted uppercase tracking-wider">Active Site Workflows</h3>
+      {workflows.map((wf: ActiveWorkflow) => (
+        <button
+          key={wf.id}
+          onClick={() => onOpen(wf)}
+          className="card w-full text-left hover:border-pm-accent/50 transition-colors"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                wf.workflow_type === "remediation"
+                  ? "bg-amber-500/20 text-amber-400"
+                  : "bg-indigo-500/20 text-indigo-400"
+              }`}>
+                {REBUILD_TYPE_LABELS[wf.workflow_type] || wf.workflow_type}
+              </span>
+              <span className="text-sm text-pm-text">
+                {(wf.config as Record<string, string>)?.url ||
+                 (wf.config as Record<string, string>)?.org_name ||
+                 "Site Workflow"}
+              </span>
+            </div>
+            <span className="text-xs text-pm-accent">Open &rarr;</span>
+          </div>
+        </button>
+      ))}
     </div>
   );
 }

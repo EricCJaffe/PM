@@ -189,8 +189,8 @@ Example: `- [ ] Fix login redirect bug [@eric]`
   - [x] Constraint updated to allow `guided_rebuild` workflow type
 - [ ] Test end-to-end: audit → start workflow → verify tasks generated
 - [ ] Test portal: invite client → magic link → portal dashboard
-- [ ] Wire up content generation button in admin workflow view
-- [ ] Wire up build prompts button in admin workflow view
+- [x] Wire up content generation button in admin workflow view
+- [x] Wire up build prompts button in admin workflow view
 
 ## Guided Rebuild Enhancements (NEW)
 - [x] Three workflow types: Remediation, Website Rebuild, Guided Rebuild
@@ -254,8 +254,8 @@ Example: `- [ ] Fix login redirect bug [@eric]`
 - [x] WorkflowsTab — active process discovery workflows shown with "Open" button
 - [x] Discovery intake form docs: DISCOVERY_INTAKE_BUSINESS.md, DISCOVERY_INTAKE_CHURCH.md
 - [x] Process Analyzer Workflow plan: docs/PLANS/process-analyzer-workflow.md
-- [ ] Wire content generation + build prompt buttons into admin workflow view
-- [ ] Add business-discovery and nonprofit-discovery project templates
+- [x] Wire content generation + build prompt buttons into admin workflow view
+- [x] Add business-discovery and nonprofit-discovery project templates
 
 ## Project-Level Notes, Documents & Comments (NEW)
 - [x] Migration 052: `pm_project_documents` (standalone file uploads) + `pm_project_comments` (discussion thread); extended `pm_client_notes.note_type` to include `decision`

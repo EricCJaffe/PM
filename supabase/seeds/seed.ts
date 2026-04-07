@@ -405,6 +405,129 @@ const templates = [
     ],
   },
   {
+    slug: "business-discovery",
+    name: "Business Discovery",
+    description: "8-phase discovery and assessment process for small-to-mid-size businesses. Covers executive alignment, vision, leadership, department discovery, gap analysis, roadmap, and enablement.",
+    phases: [
+      { order: 0, slug: "bd-executive-commitment", name: "Executive Commitment & Alignment", tasks: [
+        { slug: "bd-identify-executive-sponsor", name: "Identify executive sponsor" },
+        { slug: "bd-define-engagement-objectives", name: "Define objectives for the discovery process" },
+        { slug: "bd-align-leadership-expectations", name: "Align leadership team on goals and expectations" },
+        { slug: "bd-secure-stakeholder-commitment", name: "Secure commitment from key stakeholders" },
+      ]},
+      { order: 1, slug: "bd-vision-alignment", name: "Vision & Strategy Alignment", tasks: [
+        { slug: "bd-review-mission-vision", name: "Review current mission & vision statements" },
+        { slug: "bd-assess-strategic-direction", name: "Assess current strategic direction & priorities" },
+        { slug: "bd-conduct-vision-workshop", name: "Conduct vision alignment workshop" },
+        { slug: "bd-document-strategic-goals", name: "Document agreed strategic goals" },
+      ]},
+      { order: 2, slug: "bd-leadership-assessment", name: "Leadership Assessment", tasks: [
+        { slug: "bd-inventory-leaders-roles", name: "Inventory current leaders & roles" },
+        { slug: "bd-assess-leadership-strengths", name: "Assess leadership strengths & competencies" },
+        { slug: "bd-identify-leadership-gaps", name: "Identify leadership gaps" },
+        { slug: "bd-create-leadership-dev-plan", name: "Create leadership development plan" },
+      ]},
+      { order: 3, slug: "bd-department-discovery", name: "Department Discovery", sublayers: [
+        "strategy", "vision", "people", "data", "process", "meetings", "issues"
+      ], tasks: [
+        { slug: "bd-list-all-departments", name: "List all departments & functions" },
+        { slug: "bd-assign-dept-leads", name: "Assign department discovery leads" },
+        { slug: "bd-schedule-discovery-sessions", name: "Schedule discovery sessions per department" },
+        { slug: "bd-run-dept-discovery-sessions", name: "Run discovery sessions per department" },
+        { slug: "bd-document-dept-findings", name: "Document department findings" },
+        { slug: "bd-identify-cross-dept-issues", name: "Identify cross-department issues" },
+      ]},
+      { order: 4, slug: "bd-revenue-cycle", name: "Revenue Cycle Assessment", tasks: [
+        { slug: "bd-map-lead-to-close", name: "Map lead generation to close process" },
+        { slug: "bd-review-proposal-quoting", name: "Review proposal & quoting workflow" },
+        { slug: "bd-review-invoicing-collections", name: "Review invoicing and collections process" },
+        { slug: "bd-identify-revenue-gaps", name: "Identify gaps in the revenue cycle" },
+      ]},
+      { order: 5, slug: "bd-operations-assessment", name: "Operations Assessment", tasks: [
+        { slug: "bd-map-core-workflows", name: "Map core operational workflows" },
+        { slug: "bd-assess-tools-systems", name: "Assess tools & systems in use" },
+        { slug: "bd-identify-bottlenecks", name: "Identify operational bottlenecks" },
+        { slug: "bd-assess-finance-hr", name: "Assess finance, HR, and admin functions" },
+      ]},
+      { order: 6, slug: "bd-gap-analysis", name: "Gap Analysis & Prioritization", tasks: [
+        { slug: "bd-compile-discovery-data", name: "Compile all discovery data" },
+        { slug: "bd-identify-critical-gaps", name: "Identify critical gaps" },
+        { slug: "bd-score-pillars", name: "Score each pillar (1–5 scale)" },
+        { slug: "bd-prioritize-by-impact", name: "Prioritize gaps by impact & urgency" },
+        { slug: "bd-present-findings", name: "Present findings to leadership" },
+      ]},
+      { order: 7, slug: "bd-roadmap-enablement", name: "Roadmap & Enablement", tasks: [
+        { slug: "bd-define-quick-wins", name: "Define quick wins (30-day actions)" },
+        { slug: "bd-plan-medium-term-goals", name: "Plan medium-term goals (90 days)" },
+        { slug: "bd-set-long-term-milestones", name: "Set long-term vision milestones" },
+        { slug: "bd-assign-roadmap-owners", name: "Assign owners for each roadmap item" },
+        { slug: "bd-conduct-enablement-sessions", name: "Conduct enablement sessions" },
+        { slug: "bd-schedule-followup-reviews", name: "Schedule follow-up reviews" },
+      ]},
+    ],
+  },
+  {
+    slug: "nonprofit-discovery",
+    name: "Nonprofit / Ministry Discovery",
+    description: "8-phase discovery process for nonprofits and mission-driven organizations. Covers mission alignment, board governance, program assessment, volunteer & donor mapping, operations, gap analysis, roadmap, and launch.",
+    phases: [
+      { order: 0, slug: "np-mission-commitment", name: "Mission Commitment & Alignment", tasks: [
+        { slug: "np-clarify-mission-statement", name: "Clarify and affirm mission statement" },
+        { slug: "np-identify-executive-sponsor", name: "Identify executive director / board sponsor" },
+        { slug: "np-align-leadership-on-goals", name: "Align leadership on discovery goals" },
+        { slug: "np-secure-staff-commitment", name: "Secure staff & board commitment to the process" },
+      ]},
+      { order: 1, slug: "np-vision-strategy", name: "Vision & Strategic Direction", tasks: [
+        { slug: "np-review-strategic-plan", name: "Review existing strategic plan (if any)" },
+        { slug: "np-conduct-vision-workshop", name: "Conduct vision alignment workshop" },
+        { slug: "np-define-theory-of-change", name: "Define or refine theory of change" },
+        { slug: "np-document-strategic-priorities", name: "Document strategic priorities" },
+      ]},
+      { order: 2, slug: "np-board-governance", name: "Board & Governance Assessment", tasks: [
+        { slug: "np-review-board-structure", name: "Review board structure & composition" },
+        { slug: "np-assess-governance-practices", name: "Assess governance practices & bylaws" },
+        { slug: "np-identify-board-gaps", name: "Identify board skill & engagement gaps" },
+        { slug: "np-review-compliance-reporting", name: "Review compliance & financial reporting practices" },
+      ]},
+      { order: 3, slug: "np-department-discovery", name: "Department & Function Discovery", sublayers: [
+        "mission", "vision", "people", "data", "process", "meetings", "issues"
+      ], tasks: [
+        { slug: "np-list-all-functions", name: "List all departments / program functions" },
+        { slug: "np-assign-function-leads", name: "Assign discovery leads per function" },
+        { slug: "np-run-discovery-sessions", name: "Run discovery sessions per function" },
+        { slug: "np-document-function-findings", name: "Document findings per function" },
+        { slug: "np-identify-cross-function-issues", name: "Identify cross-functional issues" },
+      ]},
+      { order: 4, slug: "np-programs-impact", name: "Programs & Impact Assessment", tasks: [
+        { slug: "np-inventory-programs", name: "Inventory all active programs & services" },
+        { slug: "np-assess-program-effectiveness", name: "Assess program effectiveness & outcomes" },
+        { slug: "np-review-impact-metrics", name: "Review impact metrics & reporting" },
+        { slug: "np-identify-program-gaps", name: "Identify gaps in program delivery" },
+      ]},
+      { order: 5, slug: "np-volunteers-donors", name: "Volunteers, Donors & Community", tasks: [
+        { slug: "np-review-volunteer-management", name: "Review volunteer recruitment & management process" },
+        { slug: "np-assess-donor-relations", name: "Assess donor relations & stewardship practices" },
+        { slug: "np-review-fundraising-process", name: "Review fundraising & development process" },
+        { slug: "np-assess-community-partnerships", name: "Assess community partnerships & outreach" },
+      ]},
+      { order: 6, slug: "np-gap-analysis", name: "Gap Analysis & Prioritization", tasks: [
+        { slug: "np-compile-discovery-data", name: "Compile all discovery data" },
+        { slug: "np-identify-critical-gaps", name: "Identify critical gaps" },
+        { slug: "np-score-pillars", name: "Score each pillar (1–5 scale)" },
+        { slug: "np-prioritize-by-mission-impact", name: "Prioritize gaps by mission impact & urgency" },
+        { slug: "np-present-findings", name: "Present findings to leadership & board" },
+      ]},
+      { order: 7, slug: "np-roadmap-launch", name: "Roadmap & Launch", tasks: [
+        { slug: "np-define-quick-wins", name: "Define quick wins (30-day actions)" },
+        { slug: "np-plan-medium-term-goals", name: "Plan medium-term goals (90 days)" },
+        { slug: "np-set-long-term-milestones", name: "Set long-term vision milestones" },
+        { slug: "np-assign-roadmap-owners", name: "Assign owners for each roadmap item" },
+        { slug: "np-conduct-enablement-sessions", name: "Conduct enablement sessions" },
+        { slug: "np-schedule-followup-reviews", name: "Schedule follow-up reviews" },
+      ]},
+    ],
+  },
+  {
     slug: "custom",
     name: "Custom",
     description: "Blank slate project. Define your own phases, tasks, and structure.",
