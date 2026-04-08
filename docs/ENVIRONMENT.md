@@ -58,6 +58,16 @@ Microsoft sign-in is configured as an OAuth provider through Supabase using the 
 - Used for: task assignment notifications, user invites
 - Gracefully degrades — if `RESEND_API_KEY` is not set, emails are skipped with a console log
 
+## Upstash Redis (Rate Limiting — SEC-005)
+| Variable | Where | Purpose |
+|---|---|---|
+| `KV_REST_API_URL` | `.env.local` / Vercel | Upstash Redis REST URL (Vercel KV, powered by Upstash) |
+| `KV_REST_API_TOKEN` | `.env.local` / Vercel | Upstash Redis REST token (**server only**) |
+| `KV_REST_API_READ_ONLY_TOKEN` | `.env.local` / Vercel | Read-only token (for diagnostic use) |
+
+Rate limiting is implemented via `src/lib/ratelimit.ts` using `@upstash/ratelimit` + `@upstash/redis`.
+Free tier: 10,000 commands/day. Each rate limit check ≈ 2 commands.
+
 ## Vercel Cron
 - `CRON_SECRET` — Bearer token for Vercel Cron routes (auto-set by Vercel, or `openssl rand -hex 32` for local)
 - `NEXT_PUBLIC_APP_URL` — App base URL (e.g. `https://your-domain.vercel.app`) used by cron to call internal API routes

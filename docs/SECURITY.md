@@ -142,7 +142,7 @@ Use this checklist before deploying to a new client environment or going live wi
 | SEC-002 | Medium | `/api/pm/chat` has no project ownership check — any authenticated user can read/mutate any project via AI | **Fixed 2026-04-04** — `getUserSession()` + org membership check added |
 | SEC-003 | Medium | `/api/pm/site-audit/process` bypasses middleware auth with no internal secret validation | **Fixed 2026-04-04** — `x-internal-secret: CRON_SECRET` validation added; caller updated |
 | SEC-004 | Medium | Chat `history` parameter from client is injected into AI context without sanitization — prompt injection risk | **Partially mitigated 2026-04-04** — role allowlist, depth cap (20 msgs), content cap (10K chars/msg), tool-loop cap (10 iters). Residual: no semantic content inspection; crafted `user`/`assistant` history can still influence model behavior. Full mitigation requires server-side session storage (see SEC-004-residual below). |
-| SEC-005 | Low | No rate limiting on AI endpoints (chat, reports, standup, audit) — OpenAI cost exposure | **Partially mitigated 2026-04-04** — concurrent site-audit gate (1 running audit per org/prospect). Residual: no per-user token-rate limit on chat, reports, or standup. Full mitigation requires board decision on thresholds + infrastructure (Upstash Redis). Follow-up: FSA-32. |
+| SEC-005 | Low | No rate limiting on AI endpoints (chat, reports, standup, audit) — OpenAI cost exposure | **Fixed 2026-04-07** — Upstash Redis (Vercel KV) deployed. Sliding-window rate limits: chat 30/user/hour, reports 10/project/hour, summarize 20/org/hour, web-pass generate+score 10/org/hour. Returns HTTP 429 on breach. |
 | SEC-006 | Low | `next`, `brace-expansion`, `flatted`, `picomatch` had moderate/high npm audit findings | **Fixed 2026-04-07** — `npm audit fix` patched all 4 packages; 0 vulnerabilities. Build verified clean. |
 
 ---
@@ -164,28 +164,24 @@ Use this checklist before deploying to a new client environment or going live wi
 ### Residual risk (SEC-004-residual)
 Crafted `user`/`assistant` pairs within the 20-message/10K-char budget can still manipulate model behavior. Example: a client sends fake assistant confirmations of prior "delete phase" calls to prime the model into accepting a subsequent request. **Full elimination requires server-side history storage** — the server holds conversation state; the client sends only a session/conversation ID. This is a product-level change requiring board decision (new DB schema, session lifecycle, UI changes). Severity: **Low** while auth + org scoping is enforced (attacker can only affect their own authorized projects).
 
-### Rate limiting plan (SEC-005)
+### Rate limiting implementation (SEC-005 — resolved 2026-04-07)
 
 #### Endpoints with OpenAI exposure (highest to lowest cost)
 | Endpoint | Model | Max tokens | Auth | Rate limit status |
 |---|---|---|---|---|
 | `/api/pm/site-audit/process` | gpt-4o | 16,384 | CRON_SECRET | Concurrent gate (1/org) — 2026-04-04 |
-| `/api/pm/web-passes/[id]/generate` | gpt-4o | varies | Auth required | None |
-| `/api/pm/chat` | gpt-4o | 2,048 × N tool loops | Auth + org check | Loop capped at 10 — 2026-04-04 |
-| `/api/pm/reports/*` (rollup, blockers, hub, decisions) | gpt-4o | varies | Auth required | None |
-| `/api/pm/reports/standup` | gpt-4o | varies | Auth required | None |
-| `/api/pm/notes/summarize` | gpt-4o | varies | Auth required | None |
-| `/api/pm/web-passes/[id]/score` | gpt-4o | varies | Auth required | None |
+| `/api/pm/web-passes/[id]/generate` | gpt-4o | varies | Auth required | 10/org/hour (Upstash) — 2026-04-07 |
+| `/api/pm/chat` | gpt-4o | 2,048 × N tool loops | Auth + org check | 30/user/hour (Upstash) — 2026-04-07 |
+| `/api/pm/reports/*` (rollup, blockers, hub, decisions) | gpt-4o | varies | Auth required | 10/project-or-org/hour (Upstash) — 2026-04-07 |
+| `/api/pm/reports/standup` | gpt-4o | varies | Auth required | 10/project/hour (Upstash) — 2026-04-07 |
+| `/api/pm/notes/summarize` | gpt-4o | varies | Auth required | 20/org/hour (Upstash) — 2026-04-07 |
+| `/api/pm/web-passes/[id]/score` | gpt-4o | varies | Auth required | 10/org/hour (Upstash) — 2026-04-07 |
 
-#### Full rate limit implementation (requires board decision — FSA-32)
-- **Infrastructure**: Upstash Redis (Vercel Marketplace) for distributed, serverless-safe rate limiting
-- **Proposed limits** (subject to board approval):
-  - Chat: 20 requests/user/minute, 200/user/day
-  - Reports (rollup, blockers, hub, decisions): 10/org/hour
-  - Site audit: 5/org/day (in addition to concurrent gate)
-  - Standup: 5/org/day
-  - Web pass generate/score: 10/project/day
-- **Alternative (no new infra)**: Supabase-based counter table — higher latency, but no new dependency
+#### Infrastructure
+- **@upstash/ratelimit** + **@upstash/redis** via Vercel KV (Upstash-powered)
+- Sliding window algorithm — limits configured in `src/lib/ratelimit.ts`
+- HTTP 429 returned with `{ error: "Rate limit exceeded. Please try again later." }`
+- Free tier: 10,000 Redis commands/day (~5,000 rate limit checks/day)
 
 ---
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getOpenAI } from "@/lib/openai";
+import { webPassLimiter, rateLimitExceeded } from "@/lib/ratelimit";
 
 const THRESHOLDS = {
   seo: 70,
@@ -50,6 +51,10 @@ export async function POST(
   if (passError || !pass) {
     return NextResponse.json({ error: "Pass not found" }, { status: 404 });
   }
+
+  // SEC-005: Rate limit by org ID (shared with generate, 10/hour)
+  const { success: rlOk } = await webPassLimiter.limit(`score:${pass.org_id}`);
+  if (!rlOk) return rateLimitExceeded();
 
   if (!pass.deliverable_html) {
     return NextResponse.json({ error: "No deliverable HTML to score" }, { status: 400 });

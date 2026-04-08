@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { readVaultFile, writeVaultFile } from "@/lib/vault";
+import { reportLimiter, rateLimitExceeded } from "@/lib/ratelimit";
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,6 +13,10 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // SEC-005: Rate limit by project ID (10 reports/hour)
+    const { success: rlOk } = await reportLimiter.limit(project_id);
+    if (!rlOk) return rateLimitExceeded();
 
     const supabase = createServiceClient();
 

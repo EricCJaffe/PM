@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getOpenAI } from "@/lib/openai";
 import { getBranding } from "@/lib/branding";
+import { webPassLimiter, rateLimitExceeded } from "@/lib/ratelimit";
 
 // POST /api/pm/web-passes/[id]/generate — generate mockup HTML for a pass
 export async function POST(
@@ -20,6 +21,10 @@ export async function POST(
   if (error || !pass) {
     return NextResponse.json({ error: "Pass not found" }, { status: 404 });
   }
+
+  // SEC-005: Rate limit by org ID (10 generate/score calls per hour)
+  const { success: rlOk } = await webPassLimiter.limit(`gen:${pass.org_id}`);
+  if (!rlOk) return rateLimitExceeded();
 
   const branding = await getBranding(pass.org_id);
   const form = pass.form_data as Record<string, unknown>;

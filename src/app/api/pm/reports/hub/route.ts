@@ -3,6 +3,7 @@ import { getOpenAI } from "@/lib/openai";
 import { createServiceClient } from "@/lib/supabase/server";
 import { writeVaultFile } from "@/lib/vault";
 import { assembleKBContext } from "@/lib/kb";
+import { reportLimiter, rateLimitExceeded } from "@/lib/ratelimit";
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,6 +12,10 @@ export async function POST(request: NextRequest) {
     if (!org_slug) {
       return NextResponse.json({ error: "org_slug is required" }, { status: 400 });
     }
+
+    // SEC-005: Rate limit by org slug (10 reports/hour)
+    const { success: rlOk } = await reportLimiter.limit(org_slug);
+    if (!rlOk) return rateLimitExceeded();
 
     const supabase = createServiceClient();
 

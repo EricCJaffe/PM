@@ -4,6 +4,7 @@ import { getOpenAI } from "@/lib/openai";
 import { createServiceClient } from "@/lib/supabase/server";
 import { assembleKBContext } from "@/lib/kb";
 import { getUserSession } from "@/lib/auth";
+import { chatLimiter, rateLimitExceeded } from "@/lib/ratelimit";
 
 const SYSTEM_PROMPT = `You are an AI project management assistant for BusinessOS with full read/write access to the project database.
 
@@ -390,6 +391,10 @@ export async function POST(request: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // SEC-005: Rate limit by user ID (30 requests/hour)
+    const { success: rlOk } = await chatLimiter.limit(session.id);
+    if (!rlOk) return rateLimitExceeded();
 
     const { project_id, project_slug, message, history = [] } = await request.json();
 

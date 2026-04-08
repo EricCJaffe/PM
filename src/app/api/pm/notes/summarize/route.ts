@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getOpenAI } from "@/lib/openai";
 import { createServiceClient } from "@/lib/supabase/server";
 import { assembleKBContext } from "@/lib/kb";
+import { summarizeLimiter, rateLimitExceeded } from "@/lib/ratelimit";
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,6 +11,10 @@ export async function POST(request: NextRequest) {
     if (!org_id) {
       return NextResponse.json({ error: "org_id is required" }, { status: 400 });
     }
+
+    // SEC-005: Rate limit by org ID (20 requests/hour)
+    const { success: rlOk } = await summarizeLimiter.limit(org_id);
+    if (!rlOk) return rateLimitExceeded();
 
     const supabase = createServiceClient();
 
