@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     const {
       org_id, project_id, engagement_id, department_id, note_id,
       title, interviewee_name, interviewee_role, interview_date,
-      duration_minutes, focus_areas, status,
+      duration_minutes, focus_areas, key_findings, action_items, summary, status,
     } = body;
 
     if (!org_id || !title) {
@@ -58,6 +58,9 @@ export async function POST(request: NextRequest) {
         interview_date: interview_date ?? new Date().toISOString().split("T")[0],
         duration_minutes: duration_minutes ?? null,
         focus_areas: focus_areas ?? [],
+        key_findings: key_findings ?? [],
+        action_items: action_items ?? [],
+        summary: summary ?? null,
         status: status ?? "scheduled",
       })
       .select()

@@ -285,6 +285,14 @@ Example: `- [ ] Fix login redirect bug [@eric]`
 - [x] Implementation Plan merged into Projects tab
 - [x] Tab count reduced from 17 to 8: Details, Projects, Workflows, Proposals, Notes, Docs & SOPs, Branding, Client Portal
 
+## Recently Completed (April 2026)
+- [x] Department Head Interview intake form at `/discovery/interview`
+  - `src/components/interview/DepartmentInterviewForm.tsx`: 9-section interview form (Quote to Cash, People, Data, Processes, Communication Rhythms, Issues, Dreams, Must Haves, Tools & Technology)
+  - `src/app/discovery/interview/page.tsx`: server page that loads client orgs for org selector
+  - Saves to `pm_discovery_interviews` — issues → `key_findings`, must-haves → `action_items`, full responses → `summary` as JSON
+  - Updated `POST /api/pm/discovery-interviews` to accept `key_findings`, `action_items`, `summary` fields
+  - Jump-nav for quick section access, print/PDF button, org selector loads departments dynamically
+
 ## New Features — Planned
 - [x] Centralized branding system (ADR 0002)
   - `pm_platform_branding` table (singleton) — company name, logos, colors, fonts, email settings
@@ -341,6 +349,16 @@ Example: `- [ ] Fix login redirect bug [@eric]`
 - [x] SEC-004: Chat `history` sanitized — role allowlist (user/assistant only), depth cap (20 msgs), content cap (10K chars/msg), tool-loop cap (10 iters). Residual risk documented in SECURITY.md; full mitigation requires server-side session storage (board decision needed)
 - [x] SEC-005: Rate limiting on AI endpoints — Upstash Redis deployed via Vercel KV; sliding-window limits: chat 30/user/hr, reports 10/project/hr, summarize 20/org/hr, web-pass gen+score 10/org/hr. HTTP 429 on breach. (fixed 2026-04-07) [@eric]
 - [x] SEC-006: `npm audit fix` applied 2026-04-07 — patched next, brace-expansion, flatted, picomatch; 0 vulnerabilities, build verified clean [@eric]
+
+## Documentation / Training Workload Instrumentation
+- [x] Add PII-safe documentation workload telemetry schema and capture triggers
+  - Migration `052_documentation_workload_events.sql` adds `pm_documentation_workload_events`
+  - Trigger capture points: web pass approval, go-live approval, onboarding required-checklist completion, and support follow-up note creation
+  - Event payloads include org/project context plus minimal metadata (no note body, no client emails, no free-text content)
+- [x] Add documentation workload reporting endpoint
+  - `GET|POST /api/pm/reports/documentation-workload?org_id=&project_id=&weeks=`
+  - Returns aggregate totals, weekly trend buckets, and simple exception flags (volume spikes, support concentration, go-live without onboarding completion signal)
+- [ ] Apply migration `052_documentation_workload_events.sql` to Supabase
 
 ## Recently Completed
 - [x] 5-Pass Website Build Workflow (ADR 0001)

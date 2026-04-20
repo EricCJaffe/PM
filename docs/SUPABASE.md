@@ -217,6 +217,7 @@ Migrations: 001 (base), 029 (org_id, log_type, nullable project_id), 045 (rename
 | `049_engagements_website_build.sql` | website_url, owner, notes on pm_engagements; drop old CHECK constraint |
 | `050_engagement_task_template_service_line.sql` | service_line on pm_engagement_task_templates; 12 website_build templates seeded |
 | `051_client_referrals_and_contacts.sql` | referred_by, billing/technical/other contact fields on pm_organizations |
+| `052_documentation_workload_events.sql` | PII-safe documentation workload telemetry table + triggers for pass approvals, go-live, onboarding completion, and support escalations |
 
 ## Row Level Security (RLS)
 
@@ -535,6 +536,22 @@ Migration: 035
 | created_at, updated_at | TIMESTAMPTZ | Auto |
 
 Migration: 035
+
+### pm_documentation_workload_events
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | PK |
+| org_id | UUID | FK → pm_organizations (CASCADE) |
+| project_id | UUID | FK → pm_projects (SET NULL) |
+| engagement_id | UUID | FK → pm_engagements (SET NULL) |
+| trigger_type | TEXT | pass_approval, go_live, onboarding_completion, support_escalation |
+| source_table | TEXT | Origin table that emitted the event |
+| source_id | UUID | Origin record id |
+| metadata | JSONB | PII-safe context only (pass number/type, source marker, note status) |
+| occurred_at | TIMESTAMPTZ | Event timestamp |
+| created_at | TIMESTAMPTZ | Auto |
+
+Migration: 052 (includes capture triggers on `pm_web_passes`, `pm_onboarding_checklists`, and `pm_client_notes`)
 
 ### Additional columns added by migrations 033-035
 - `pm_tasks.department_id` — FK → pm_departments (SET NULL)

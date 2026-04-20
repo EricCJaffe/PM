@@ -90,6 +90,12 @@ Compile decision register from all DECISIONS.md files. Persisted to vault.
 
 **Body:** `{ project_id, org_slug, project_slug }`
 
+### `GET|POST /api/pm/reports/documentation-workload`
+Return weekly documentation/training workload telemetry trend and exception flags.
+
+**Query:** `org_id?`, `project_id?`, `weeks?` (default `8`, min `1`, max `26`)
+**Response:** `{ totals, weekly_trend, exceptions, filters, generated_at }`
+
 ---
 
 ## Phases
