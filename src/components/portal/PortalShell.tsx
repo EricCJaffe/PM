@@ -41,15 +41,17 @@ export function PortalShell({
   const router = useRouter();
   const base = `/portal/${orgSlug}`;
 
-  const showWorkflow = settings?.show_workflow !== false;
-  const showDocuments = settings?.show_documents !== false;
+  const showProjects = settings?.show_projects !== false;
   const showTasks = settings?.show_tasks !== false;
+  const showDocuments = settings?.show_documents !== false;
+  const showNotes = settings?.show_notes !== false;
 
   const navItems = [
     { href: base, label: "Home", show: true },
-    { href: `${base}/workflow`, label: "Workflow", show: showWorkflow },
-    { href: `${base}/documents`, label: "Documents", show: showDocuments },
+    { href: `${base}/projects`, label: "Projects", show: showProjects },
     { href: `${base}/tasks`, label: "Tasks", show: showTasks },
+    { href: `${base}/documents`, label: "Docs & SOPs", show: showDocuments },
+    { href: `${base}/notes`, label: "Notes", show: showNotes },
   ].filter((n) => n.show);
 
   async function handleSignOut() {

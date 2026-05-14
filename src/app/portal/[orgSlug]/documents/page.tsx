@@ -21,7 +21,7 @@ export default async function PortalDocumentsPage({
 
   if (!org) redirect("/portal/auth");
 
-  // Fetch documents shared with this org (sent, signed, approved)
+  // Fetch signed/sent formal documents (SOWs, NDAs, MSAs)
   const { data: documents } = await supabase
     .from("generated_documents")
     .select("id, title, status, esign_status, esign_sent_at, esign_completed_at, sent_at, signed_at, created_at, document_types(name)")
@@ -29,9 +29,30 @@ export default async function PortalDocumentsPage({
     .in("status", ["sent", "signed", "approved"])
     .order("created_at", { ascending: false });
 
+  // Fetch project file uploads for this org's projects
+  const { data: orgProjects } = await supabase
+    .from("pm_projects")
+    .select("id, name")
+    .eq("org_id", org.id)
+    .eq("is_personal", false);
+
+  const projectIds = (orgProjects || []).map((p: { id: string }) => p.id);
+  let projectFiles: Array<Record<string, unknown>> = [];
+  if (projectIds.length > 0) {
+    const { data: files } = await supabase
+      .from("pm_project_documents")
+      .select("id, file_name, file_size, content_type, created_at, project_id")
+      .in("project_id", projectIds)
+      .order("created_at", { ascending: false })
+      .limit(30);
+    const projNameMap: Record<string, string> = {};
+    for (const p of orgProjects || [] as Array<{ id: string; name: string }>) projNameMap[p.id] = p.name;
+    projectFiles = (files || []).map((f: Record<string, unknown>) => ({ ...f, project_name: projNameMap[f.project_id as string] ?? "Project" }));
+  }
+
   return (
     <div className="space-y-6">
-      <h2 className="text-lg font-semibold text-pm-text">Documents</h2>
+      <h2 className="text-lg font-semibold text-pm-text">Docs &amp; SOPs</h2>
 
       {(!documents || documents.length === 0) ? (
         <div className="bg-pm-card border border-pm-border rounded-lg p-8 text-center">
@@ -83,6 +104,44 @@ export default async function PortalDocumentsPage({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Project file uploads */}
+      {projectFiles.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-pm-text mb-3">Project Files</h3>
+          <div className="space-y-2">
+            {(projectFiles as Array<{
+              id: string; file_name: string; file_size: number | null;
+              content_type: string | null; created_at: string; project_name: string; project_id: string;
+            }>).map((file) => {
+              const sizeKB = file.file_size ? Math.round(file.file_size / 1024) : null;
+              return (
+                <div key={file.id} className="bg-pm-card border border-pm-border rounded-lg p-4 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <svg className="w-5 h-5 text-pm-muted shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-pm-text truncate">{file.file_name}</p>
+                      <div className="flex items-center gap-2 mt-0.5 text-xs text-pm-muted">
+                        <span>{file.project_name}</span>
+                        {sizeKB && <span>&middot; {sizeKB} KB</span>}
+                        <span>&middot; {new Date(file.created_at).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <a
+                    href={`/api/pm/projects/${file.project_id}/documents?file_id=${file.id}&download=1`}
+                    className="text-xs px-3 py-1 rounded-lg border border-pm-border text-pm-muted hover:text-pm-text transition-colors shrink-0"
+                  >
+                    Download
+                  </a>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

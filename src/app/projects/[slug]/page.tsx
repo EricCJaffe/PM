@@ -7,6 +7,7 @@ import { PhaseBoard } from "@/components/PhaseBoard";
 import { EditableTaskTable } from "@/components/EditableTaskTable";
 import { EditableRiskTable } from "@/components/EditableRiskTable";
 import { SaveAsTemplateButton } from "@/components/SaveAsTemplateButton";
+import { ExportMenu } from "@/components/ExportMenu";
 import { AIReportsPanel } from "@/components/AIReportsPanel";
 import { ClientUpdateTab } from "@/components/ClientUpdateTab";
 import { TimelineTab } from "@/components/TimelineTab";
@@ -55,7 +56,8 @@ export default async function ProjectDetailPage({
         </div>
 
         <EditProjectHeader project={project} orgId={project.org_id} memberMap={memberMap} />
-        <div className="flex justify-end -mt-4 mb-4">
+        <div className="flex justify-end items-center gap-2 -mt-4 mb-4">
+          <ExportMenu project={project} phases={phases} tasks={tasks} risks={risks} memberMap={memberMap} />
           <SaveAsTemplateButton project={project} />
         </div>
 

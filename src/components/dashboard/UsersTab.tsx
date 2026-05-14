@@ -126,9 +126,9 @@ export function UsersTab({ org }: { org: Organization }) {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-2">
         <h3 className="text-lg font-semibold text-pm-text">
-          Users ({users.length})
+          Team Members ({users.length})
         </h3>
         <button
           onClick={() => {
@@ -137,9 +137,13 @@ export function UsersTab({ org }: { org: Organization }) {
           }}
           className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors"
         >
-          {showForm ? "Cancel" : "+ Add User"}
+          {showForm ? "Cancel" : "+ Add Member"}
         </button>
       </div>
+      <p className="text-xs text-pm-muted mb-4">
+        Internal team members for this client org (task assignment, reporting).
+        To grant a client login to the portal, use the <strong className="text-pm-text">Client Portal</strong> tab → Portal Access.
+      </p>
 
       {/* Add / Edit form */}
       {showForm && (
