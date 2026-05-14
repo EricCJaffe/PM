@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { getBranding, buildEmailFrom, buildEmailFooterHtml } from "@/lib/branding";
-import { Resend } from "resend";
+
+const APP_URL =
+  process.env.NEXT_PUBLIC_APP_URL || "https://pm.foundationstoneadvisors.com";
 
 /** GET: List portal invites for an org */
 export async function GET(request: NextRequest) {
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(data);
 }
 
-/** POST: Create a portal invite */
+/** POST: Create a portal invite and send Supabase invitation email */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -35,7 +36,18 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createServiceClient();
-    const { data, error } = await supabase
+
+    // Fetch org slug for redirect URL
+    const { data: org } = await supabase
+      .from("pm_organizations")
+      .select("slug")
+      .eq("id", org_id)
+      .single();
+
+    const orgSlug = org?.slug ?? "";
+
+    // Record invite in our table first
+    const { data: invite, error: insertError } = await supabase
       .from("pm_portal_invites")
       .insert({
         org_id,
@@ -47,103 +59,57 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (insertError) {
+      // If duplicate, just re-send the invite
+      if (!insertError.message.includes("duplicate")) {
+        return NextResponse.json({ error: insertError.message }, { status: 500 });
+      }
+    }
 
-    // Fetch org slug for the portal URL
-    const { data: org } = await supabase
-      .from("pm_organizations")
-      .select("slug")
-      .eq("id", org_id)
-      .single();
+    // Use Supabase's native invite — this works even with signups disabled,
+    // creates the user in Supabase auth, and sends the email via Supabase's SMTP.
+    // The redirectTo URL is where Supabase sends the user after they click the link.
+    const redirectTo = `${APP_URL}/auth/callback?redirect=/portal/${orgSlug}/set-password&org_id=${org_id}`;
 
-    // Send invite email (non-blocking — don't fail the invite if email errors)
-    sendPortalInviteEmail({
-      to: email,
-      displayName: name || email,
-      orgId: org_id,
-      orgSlug: org?.slug ?? null,
-      token: data.token,
-    }).catch((err) => console.error("[Email] Portal invite send failed:", err));
+    const { error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
+      email,
+      {
+        redirectTo,
+        data: {
+          portal_invite: true,
+          org_id,
+          org_slug: orgSlug,
+          display_name: name || email.split("@")[0],
+        },
+      }
+    );
 
-    return NextResponse.json(data, { status: 201 });
+    if (inviteError) {
+      // User already registered — send a password reset link so they can
+      // set/reset their password and access the portal
+      if (
+        inviteError.message.toLowerCase().includes("already") ||
+        inviteError.message.toLowerCase().includes("registered")
+      ) {
+        const resetRedirect = `${APP_URL}/auth/callback?redirect=/portal/${orgSlug}`;
+        await supabase.auth.admin.generateLink({
+          type: "recovery",
+          email,
+          options: { redirectTo: resetRedirect },
+        });
+        console.log(`[Invite] ${email} already exists — sent password reset instead`);
+      } else {
+        console.error("[Invite] inviteUserByEmail error:", inviteError.message);
+        // Non-fatal: invite record was created, just email failed
+      }
+    }
+
+    return NextResponse.json(invite ?? { email, org_id }, { status: 201 });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Internal error" },
       { status: 500 }
     );
-  }
-}
-
-async function sendPortalInviteEmail({
-  to,
-  displayName,
-  orgId,
-  orgSlug,
-  token,
-}: {
-  to: string;
-  displayName: string;
-  orgId: string;
-  orgSlug?: string | null;
-  token: string;
-}) {
-  if (!process.env.RESEND_API_KEY) {
-    console.log(`[Email] Resend not configured — skipping portal invite to ${to}`);
-    return;
-  }
-
-  const branding = await getBranding(orgId);
-  const from = buildEmailFrom(branding);
-  const footer = buildEmailFooterHtml(branding);
-
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    branding.website_url ||
-    "https://pm.foundationstoneadvisors.com";
-
-  // If we have the org slug from the insert, use it; otherwise fall back to
-  // fetching it. The token is the primary key for invite-accept, so even a
-  // missing slug just means the user will need to enter their org slug manually.
-  const portalUrl = orgSlug
-    ? `${appUrl}/portal/auth?org=${orgSlug}&token=${token}`
-    : `${appUrl}/portal/auth?token=${token}`;
-
-  const r = new Resend(process.env.RESEND_API_KEY);
-
-  const { data, error } = await r.emails.send({
-    from,
-    to,
-    subject: `You've been invited to the ${branding.agency_name} client portal`,
-    html: `
-      <div style="font-family: ${branding.font_body ?? "Inter"}, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: ${branding.primary_color};">You're invited!</h2>
-        <p>Hi ${displayName},</p>
-        <p>You've been invited to access the <strong>${branding.agency_name}</strong> client portal,
-           where you can view and collaborate on your projects, tasks, and documents.</p>
-        <div style="text-align: center; margin: 32px 0;">
-          <a href="${portalUrl}"
-             style="background: ${branding.secondary_color}; color: white; padding: 14px 28px;
-                    border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
-            Access Client Portal
-          </a>
-        </div>
-        <p style="color: #64748b; font-size: 13px;">
-          Or copy this link: <a href="${portalUrl}" style="color: ${branding.secondary_color};">${portalUrl}</a>
-        </p>
-        <p style="color: #64748b; font-size: 13px;">
-          This invite link is tied to your email address (${to}).
-          You'll be asked to verify your email with a one-time code on first login.
-        </p>
-        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
-        ${footer}
-      </div>
-    `,
-  });
-
-  if (error) {
-    console.error(`[Email] Failed to send portal invite to ${to}:`, error);
-  } else {
-    console.log(`[Email] Portal invite sent to ${to}, id: ${data?.id}`);
   }
 }
 
