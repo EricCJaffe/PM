@@ -43,9 +43,11 @@ function FileIcon({ contentType }: { contentType: string | null }) {
 export function ProjectNotesDocsTab({
   projectId,
   orgId,
+  portalMode = false,
 }: {
   projectId: string;
   orgId: string;
+  portalMode?: boolean;
 }) {
   const [activeSection, setActiveSection] = useState<Section>("notes");
 
@@ -68,7 +70,7 @@ export function ProjectNotesDocsTab({
         ))}
       </div>
 
-      {activeSection === "notes" && <NotesSection projectId={projectId} orgId={orgId} />}
+      {activeSection === "notes" && <NotesSection projectId={projectId} orgId={orgId} portalMode={portalMode} />}
       {activeSection === "documents" && <DocumentsSection projectId={projectId} orgId={orgId} />}
       {activeSection === "comments" && <CommentsSection projectId={projectId} />}
     </div>
@@ -77,18 +79,19 @@ export function ProjectNotesDocsTab({
 
 // ─── Notes Section ────────────────────────────────────────────────────────────
 
-function NotesSection({ projectId, orgId }: { projectId: string; orgId: string }) {
+function NotesSection({ projectId, orgId, portalMode }: { projectId: string; orgId: string; portalMode?: boolean }) {
   const [notes, setNotes] = useState<ClientNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<NoteType | "all">("all");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const defaultVisibility: NoteVisibility = portalMode ? "client" : "internal";
   const [form, setForm] = useState({
     title: "",
     body: "",
     note_type: "general" as NoteType,
-    visibility: "internal" as NoteVisibility,
+    visibility: defaultVisibility,
     pinned: false,
   });
   const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
@@ -100,15 +103,20 @@ function NotesSection({ projectId, orgId }: { projectId: string; orgId: string }
   const reload = useCallback(() => {
     return fetch(`/api/pm/projects/${projectId}/notes`)
       .then((r) => r.json())
-      .then((data) => { if (Array.isArray(data)) setNotes(data); });
-  }, [projectId]);
+      .then((data) => {
+        if (Array.isArray(data)) {
+          // In portal mode only show client-visible notes
+          setNotes(portalMode ? data.filter((n: ClientNote) => n.visibility === "client") : data);
+        }
+      });
+  }, [projectId, portalMode]);
 
   useEffect(() => {
     reload().finally(() => setLoading(false));
   }, [reload]);
 
   const resetForm = () => {
-    setForm({ title: "", body: "", note_type: "general", visibility: "internal", pinned: false });
+    setForm({ title: "", body: "", note_type: "general", visibility: defaultVisibility, pinned: false });
     setEditingId(null);
     setShowForm(false);
   };
@@ -283,17 +291,19 @@ function NotesSection({ projectId, orgId }: { projectId: string; orgId: string }
                 ))}
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-pm-muted mb-1">Visibility</label>
-              <select
-                value={form.visibility}
-                onChange={(e) => setForm((f) => ({ ...f, visibility: e.target.value as NoteVisibility }))}
-                className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
-              >
-                <option value="internal">Internal Only</option>
-                <option value="client">Client Visible</option>
-              </select>
-            </div>
+            {!portalMode && (
+              <div>
+                <label className="block text-sm font-medium text-pm-muted mb-1">Visibility</label>
+                <select
+                  value={form.visibility}
+                  onChange={(e) => setForm((f) => ({ ...f, visibility: e.target.value as NoteVisibility }))}
+                  className="w-full bg-pm-bg border border-pm-border rounded-lg px-3 py-2 text-pm-text focus:outline-none focus:border-blue-500"
+                >
+                  <option value="internal">Internal Only</option>
+                  <option value="client">Client Visible</option>
+                </select>
+              </div>
+            )}
             <div className="md:col-span-3">
               <label className="block text-sm font-medium text-pm-muted mb-1">Content</label>
               <Suspense fallback={<div className="h-[200px] bg-pm-bg border border-pm-border rounded-lg flex items-center justify-center text-pm-muted text-sm">Loading editor...</div>}>

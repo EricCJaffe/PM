@@ -10,7 +10,7 @@ const STATUS_OPTIONS = ["active", "on-hold", "paused", "complete", "archived"];
 
 interface DepCounts { phases: number; tasks: number; risks: number }
 
-export function EditProjectHeader({ project, orgId, memberMap }: { project: Project; orgId: string; memberMap: Record<string, string> }) {
+export function EditProjectHeader({ project, orgId, memberMap, hideDelete = false }: { project: Project; orgId: string; memberMap: Record<string, string>; hideDelete?: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -125,13 +125,15 @@ export function EditProjectHeader({ project, orgId, memberMap }: { project: Proj
               </Field>
             </div>
             <div className="flex items-center justify-between pt-2">
-              <button
-                type="button"
-                onClick={initiateDelete}
-                className="text-sm text-red-400 hover:text-red-300"
-              >
-                Delete project
-              </button>
+              {!hideDelete && (
+                <button
+                  type="button"
+                  onClick={initiateDelete}
+                  className="text-sm text-red-400 hover:text-red-300"
+                >
+                  Delete project
+                </button>
+              )}
               <ModalActions onClose={() => setOpen(false)} saving={saving} />
             </div>
           </form>

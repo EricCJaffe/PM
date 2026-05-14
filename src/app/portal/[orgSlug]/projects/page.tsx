@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { getUserSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 
 export default async function PortalProjectsPage({
   params,
@@ -71,7 +72,11 @@ export default async function PortalProjectsPage({
             const pct = counts.total > 0 ? Math.round((counts.complete / counts.total) * 100) : 0;
 
             return (
-              <div key={project.id} className="bg-pm-card border border-pm-border rounded-lg p-5">
+              <Link
+                key={project.id}
+                href={`/portal/${orgSlug}/projects/${project.slug}`}
+                className="block bg-pm-card border border-pm-border rounded-lg p-5 hover:border-blue-500/40 transition-colors"
+              >
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div>
                     <h3 className="text-sm font-semibold text-pm-text">{project.name}</h3>
@@ -99,11 +104,14 @@ export default async function PortalProjectsPage({
                   </div>
                 )}
 
-                <div className="flex items-center gap-4 text-xs text-pm-muted">
-                  {project.start_date && <span>Started {new Date(project.start_date).toLocaleDateString()}</span>}
-                  {project.target_date && <span>Target {new Date(project.target_date).toLocaleDateString()}</span>}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4 text-xs text-pm-muted">
+                    {project.start_date && <span>Started {new Date(project.start_date).toLocaleDateString()}</span>}
+                    {project.target_date && <span>Target {new Date(project.target_date).toLocaleDateString()}</span>}
+                  </div>
+                  <span className="text-xs text-blue-400">View &rarr;</span>
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>
