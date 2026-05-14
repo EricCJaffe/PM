@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import * as XLSX from "xlsx";
 import type { Project, PhaseWithTasks, Task, Risk } from "@/types/pm";
 
@@ -13,58 +13,70 @@ interface ExportMenuProps {
 }
 
 export function ExportMenu({ project, phases, tasks, risks, memberMap }: ExportMenuProps) {
-  const [open, setOpen] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
 
   function exportXLSX() {
     const wb = XLSX.utils.book_new();
 
-    // ── Sheet 1: Tasks ─────────────────────────────────────────────
-    const phaseNameById: Record<string, string> = {};
-    for (const ph of phases) phaseNameById[ph.id] = ph.name;
+    // ── Sheet 1: Project Plan (phases with tasks nested underneath) ──
+    const planHeaders = ["Phase", "Task", "Status", "Owner", "Due Date", "Notes"];
+    const planRows: (string | number)[][] = [planHeaders];
 
-    const taskRows = tasks.map((t) => ({
-      Phase: t.phase_id ? (phaseNameById[t.phase_id] ?? "—") : "—",
-      Task: t.name,
-      Status: t.status,
-      Owner: t.owner ? (memberMap[t.owner] ?? t.owner) : "—",
-      "Due Date": t.due_date ?? "—",
-      Description: t.description ?? "",
-    }));
-    const wsT = XLSX.utils.json_to_sheet(taskRows);
-    wsT["!cols"] = [{ wch: 28 }, { wch: 36 }, { wch: 14 }, { wch: 20 }, { wch: 14 }, { wch: 40 }];
-    XLSX.utils.book_append_sheet(wb, wsT, "Tasks");
+    const sortedPhases = [...phases].sort((a, b) => a.phase_order - b.phase_order);
 
-    // ── Sheet 2: Phases ────────────────────────────────────────────
-    const phaseRows = phases.map((ph) => {
+    for (const ph of sortedPhases) {
       const phaseTasks = ph.tasks ?? [];
-      const done = phaseTasks.filter((t) => t.status === "complete").length;
+      const done = phaseTasks.filter((t: Task) => t.status === "complete").length;
       const pct = phaseTasks.length > 0 ? Math.round((done / phaseTasks.length) * 100) : (ph.progress ?? 0);
-      return {
-        "#": ph.phase_order,
-        Phase: ph.name,
-        Group: ph.group ?? "—",
-        Status: ph.status,
-        "Progress %": pct,
-        "Start Date": ph.start_date ?? "—",
-        "Due Date": ph.due_date ?? "—",
-        Owner: ph.owner ? (memberMap[ph.owner] ?? ph.owner) : "—",
-      };
-    });
-    const wsPh = XLSX.utils.json_to_sheet(phaseRows);
-    wsPh["!cols"] = [{ wch: 4 }, { wch: 32 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 20 }];
-    XLSX.utils.book_append_sheet(wb, wsPh, "Phases");
+      const phaseLabel = `P${String(ph.phase_order).padStart(2, "0")} — ${ph.name}${ph.group ? ` [${ph.group}]` : ""}`;
+      const phaseOwner = ph.owner ? (memberMap[ph.owner] ?? ph.owner) : "";
 
-    // ── Sheet 3: Risks ─────────────────────────────────────────────
+      // Phase header row
+      planRows.push([
+        phaseLabel,
+        "",
+        ph.status,
+        phaseOwner,
+        ph.due_date ?? "",
+        `${pct}% complete · ${done}/${phaseTasks.length} tasks`,
+      ]);
+
+      // Task rows indented under the phase
+      for (const t of phaseTasks) {
+        planRows.push([
+          "",
+          `    ${t.name}`,
+          t.status,
+          t.owner ? (memberMap[t.owner] ?? t.owner) : "",
+          t.due_date ?? "",
+          t.description ?? "",
+        ]);
+      }
+
+      // Tasks with no phase grouped here — skip; handled below
+    }
+
+    // Tasks not assigned to any phase
+    const unassigned = tasks.filter((t) => !t.phase_id);
+    if (unassigned.length > 0) {
+      planRows.push(["— Unassigned Tasks —", "", "", "", "", ""]);
+      for (const t of unassigned) {
+        planRows.push([
+          "",
+          `    ${t.name}`,
+          t.status,
+          t.owner ? (memberMap[t.owner] ?? t.owner) : "",
+          t.due_date ?? "",
+          t.description ?? "",
+        ]);
+      }
+    }
+
+    const wsPlan = XLSX.utils.aoa_to_sheet(planRows);
+    wsPlan["!cols"] = [{ wch: 40 }, { wch: 36 }, { wch: 14 }, { wch: 20 }, { wch: 14 }, { wch: 50 }];
+    XLSX.utils.book_append_sheet(wb, wsPlan, "Project Plan");
+
+    // ── Sheet 2: Risks ─────────────────────────────────────────────
     const riskRows = risks.map((r) => ({
       Title: r.title,
       Probability: r.probability,
@@ -79,12 +91,10 @@ export function ExportMenu({ project, phases, tasks, risks, memberMap }: ExportM
 
     const date = new Date().toISOString().split("T")[0];
     XLSX.writeFile(wb, `${project.slug}-export-${date}.xlsx`);
-    setOpen(false);
   }
 
-  async function exportPDF() {
+  async function generateAIReport() {
     setPdfLoading(true);
-    setOpen(false);
     try {
       const res = await fetch("/api/pm/reports/project-update", {
         method: "POST",
@@ -97,7 +107,6 @@ export function ExportMenu({ project, phases, tasks, risks, memberMap }: ExportM
         return;
       }
       const { html } = await res.json();
-      // Use Blob URL to avoid document.write XSS risk
       const blob = new Blob([html], { type: "text/html" });
       const url = URL.createObjectURL(blob);
       const win = window.open(url, "_blank");
@@ -119,43 +128,31 @@ export function ExportMenu({ project, phases, tasks, risks, memberMap }: ExportM
   }
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="flex items-center gap-2">
+      {/* Excel export — direct click, no dropdown */}
       <button
-        onClick={() => setOpen((o) => !o)}
+        onClick={exportXLSX}
         className="px-3 py-1.5 text-sm rounded border border-pm-border text-pm-muted hover:text-pm-text hover:border-pm-text transition-colors flex items-center gap-1.5"
+        title="Export to Excel (.xlsx)"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
         </svg>
         Export
-        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
       </button>
 
-      {open && (
-        <div className="absolute right-0 mt-1 w-52 rounded-lg border border-pm-border bg-pm-card shadow-xl z-50 py-1">
-          <button
-            onClick={exportXLSX}
-            className="w-full text-left px-4 py-2.5 text-sm text-pm-text hover:bg-white/5 flex items-center gap-2.5"
-          >
-            <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Export to Excel
-          </button>
-          <button
-            onClick={exportPDF}
-            disabled={pdfLoading}
-            className="w-full text-left px-4 py-2.5 text-sm text-pm-text hover:bg-white/5 flex items-center gap-2.5 disabled:opacity-50 disabled:cursor-wait"
-          >
-            <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            {pdfLoading ? "Generating…" : "AI Project Report (PDF)"}
-          </button>
-        </div>
-      )}
+      {/* AI Project Report — prominent standalone button */}
+      <button
+        onClick={generateAIReport}
+        disabled={pdfLoading}
+        className="px-3 py-1.5 text-sm rounded border border-purple-500/40 text-purple-400 hover:border-purple-400 hover:text-purple-300 disabled:opacity-50 disabled:cursor-wait transition-colors flex items-center gap-1.5"
+        title="Generate AI project status report (PDF)"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+        </svg>
+        {pdfLoading ? "Generating…" : "AI Insights"}
+      </button>
     </div>
   );
 }
